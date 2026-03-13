@@ -196,6 +196,80 @@ const (
 		  AND tenant_id = $2
 		ORDER BY created_at ASC`
 
+	// ── Affiliate ──────────────────────────────────────────────────────────────
+
+	// Who referred this tenant? Returns referrer_id or no rows.
+	QueryGetReferrer = `
+		SELECT referrer_id FROM referrals WHERE referee_id = $1 LIMIT 1`
+
+	// Insert a referral relationship.
+	QueryInsertReferral = `
+		INSERT INTO referrals (referrer_id, referee_id)
+		VALUES ($1, $2)
+		ON CONFLICT (referee_id) DO NOTHING`
+
+	// Total credits issued this calendar month for an affiliate (issued only).
+	QueryMonthlyAffiliateCredits = `
+		SELECT COALESCE(SUM(credit_amount), 0)
+		FROM affiliate_credits
+		WHERE affiliate_id = $1
+		  AND status = 'issued'
+		  AND issued_at >= date_trunc('month', NOW())`
+
+	// Insert one affiliate credit ledger row.
+	QueryInsertAffiliateCredit = `
+		INSERT INTO affiliate_credits
+		    (affiliate_id, source_tenant_id, wallet_tx_id, level, topup_credits, rate, credit_amount)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id`
+
+	// Load a credit row for admin remove.
+	QueryGetAffiliateCredit = `
+		SELECT affiliate_id, credit_amount, status
+		FROM affiliate_credits
+		WHERE id = $1`
+
+	// Admin remove: mark as removed, append audit event, deduct from wallet.
+	// $1=credit_id $2=admin_id $3=reason $4=audit_event_json $5=affiliate_id $6=credit_amount
+	QueryRemoveAffiliateCredit = `
+		WITH removed AS (
+		    UPDATE affiliate_credits
+		    SET status        = 'removed',
+		        removed_at    = NOW(),
+		        removed_by    = $2,
+		        remove_reason = $3,
+		        audit_log     = audit_log || $4::jsonb
+		    WHERE id = $1
+		      AND status = 'issued'
+		    RETURNING affiliate_id, credit_amount
+		)
+		UPDATE tenants
+		SET wallet_balance = GREATEST(0, wallet_balance - $6)
+		WHERE id = $5
+		  AND EXISTS (SELECT 1 FROM removed)`
+
+	// How many direct referrals does this affiliate have?
+	QueryAffiliateReferralCount = `
+		SELECT COUNT(*) FROM referrals WHERE referrer_id = $1`
+
+	// Credits this month + lifetime totals.
+	QueryAffiliateCreditsTotal = `
+		SELECT
+		    COALESCE(SUM(credit_amount) FILTER (WHERE issued_at >= date_trunc('month', NOW())), 0),
+		    COALESCE(SUM(credit_amount), 0)
+		FROM affiliate_credits
+		WHERE affiliate_id = $1
+		  AND status = 'issued'`
+
+	// Full credit history for a tenant.
+	QueryAffiliateCredits = `
+		SELECT id, source_tenant_id, level, topup_credits, rate, credit_amount,
+		       status, issued_at, removed_at, remove_reason
+		FROM affiliate_credits
+		WHERE affiliate_id = $1
+		ORDER BY issued_at DESC
+		LIMIT 100`
+
 	// ── Dashboard summary ──────────────────────────────────────────────────────
 
 	QueryDashboardSummary = `

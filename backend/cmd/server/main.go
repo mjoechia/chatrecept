@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
+	"github.com/jc/pabot/internal/affiliate"
 	"github.com/jc/pabot/internal/ai"
 	"github.com/jc/pabot/internal/config"
 	"github.com/jc/pabot/internal/conversations"
@@ -61,10 +62,11 @@ func main() {
 	waSvc := whatsapp.NewClient()
 	msgSvc := messages.NewService(database)
 	leadSvc := leads.NewService(database, claudeSvc)
+	affiliateSvc := affiliate.NewService(database)
 	paymentSvc := payments.NewService(
 		cfg.StripeSecretKey, cfg.StripeWebhookSecret,
 		cfg.StripeSuccessURL, cfg.StripeCancelURL,
-		walletSvc,
+		walletSvc, affiliateSvc,
 	)
 
 	// ── Webhook handler ───────────────────────────────────────────────────────
@@ -121,6 +123,12 @@ func main() {
 		// Wallet top-up: manual + Stripe checkout
 		r.Post("/api/tenants/{id}/wallet/topup", makeTopUpHandler(walletSvc))
 		r.Post("/api/tenants/{id}/stripe/checkout", makeStripeCheckoutHandler(paymentSvc))
+
+		// Affiliate
+		r.Get("/api/tenants/{id}/affiliate", makeAffiliateStatsHandler(affiliateSvc))
+		r.Get("/api/tenants/{id}/affiliate/credits", makeAffiliateCreditsHandler(database))
+		r.Post("/api/tenants/{id}/affiliate/referral", makeSetReferralHandler(affiliateSvc))
+		r.Delete("/api/admin/affiliate/credits/{creditId}", makeRemoveAffiliateCreditHandler(affiliateSvc))
 	})
 
 	// Public: Stripe webhook (Stripe signs its own payload — no JWT)
@@ -619,5 +627,128 @@ func makeStripeCheckoutHandler(paymentSvc *payments.Service) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"url": url})
+	}
+}
+
+// ── Affiliate handlers ────────────────────────────────────────────────────────
+
+func makeAffiliateStatsHandler(affiliateSvc *affiliate.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenantID, err := uuid.Parse(chi.URLParam(r, "id"))
+		if err != nil {
+			http.Error(w, "invalid tenant id", http.StatusBadRequest)
+			return
+		}
+		stats, err := affiliateSvc.GetStats(r.Context(), tenantID)
+		if err != nil {
+			http.Error(w, "stats failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(stats)
+	}
+}
+
+func makeAffiliateCreditsHandler(database *db.DB) http.HandlerFunc {
+	type creditRow struct {
+		ID             string   `json:"id"`
+		SourceTenantID string   `json:"source_tenant_id"`
+		Level          int      `json:"level"`
+		TopupCredits   int      `json:"topup_credits"`
+		Rate           float64  `json:"rate"`
+		CreditAmount   int      `json:"credit_amount"`
+		Status         string   `json:"status"`
+		IssuedAt       string   `json:"issued_at"`
+		RemovedAt      *string  `json:"removed_at"`
+		RemoveReason   *string  `json:"remove_reason"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenantID, err := uuid.Parse(chi.URLParam(r, "id"))
+		if err != nil {
+			http.Error(w, "invalid tenant id", http.StatusBadRequest)
+			return
+		}
+		rows, err := database.Pool.Query(r.Context(), db.QueryAffiliateCredits, tenantID)
+		if err != nil {
+			http.Error(w, "query failed", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		results := make([]creditRow, 0)
+		for rows.Next() {
+			var row creditRow
+			var issuedAt time.Time
+			var removedAt *time.Time
+			if err := rows.Scan(
+				&row.ID, &row.SourceTenantID, &row.Level, &row.TopupCredits,
+				&row.Rate, &row.CreditAmount, &row.Status, &issuedAt,
+				&removedAt, &row.RemoveReason,
+			); err != nil {
+				http.Error(w, "scan failed", http.StatusInternalServerError)
+				return
+			}
+			row.IssuedAt = issuedAt.UTC().Format(time.RFC3339)
+			if removedAt != nil {
+				s := removedAt.UTC().Format(time.RFC3339)
+				row.RemovedAt = &s
+			}
+			results = append(results, row)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(results)
+	}
+}
+
+func makeSetReferralHandler(affiliateSvc *affiliate.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		refereeID, err := uuid.Parse(chi.URLParam(r, "id"))
+		if err != nil {
+			http.Error(w, "invalid tenant id", http.StatusBadRequest)
+			return
+		}
+		var body struct {
+			ReferrerID string `json:"referrer_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid body", http.StatusBadRequest)
+			return
+		}
+		referrerID, err := uuid.Parse(body.ReferrerID)
+		if err != nil {
+			http.Error(w, "invalid referrer_id", http.StatusBadRequest)
+			return
+		}
+		if err := affiliateSvc.SetReferral(r.Context(), referrerID, refereeID); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	}
+}
+
+func makeRemoveAffiliateCreditHandler(affiliateSvc *affiliate.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		creditID, err := uuid.Parse(chi.URLParam(r, "creditId"))
+		if err != nil {
+			http.Error(w, "invalid credit id", http.StatusBadRequest)
+			return
+		}
+		// Admin ID from JWT claims
+		adminID, _ := uuid.Parse(middleware.TenantIDFromClaims(r))
+		var body struct {
+			Reason string `json:"reason"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Reason == "" {
+			http.Error(w, "reason required", http.StatusBadRequest)
+			return
+		}
+		if err := affiliateSvc.RemoveCredit(r.Context(), creditID, adminID, body.Reason); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	}
 }

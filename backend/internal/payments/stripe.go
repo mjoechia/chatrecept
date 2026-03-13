@@ -16,8 +16,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jc/pabot/internal/wallet"
 )
+
+// affiliateIssuer is the minimal interface the payment service needs from the affiliate package.
+type affiliateIssuer interface {
+	IssueCreditsForTopUp(ctx context.Context, sourceTenantID uuid.UUID, topupCredits int)
+}
 
 // CreditPackage represents a purchasable credit bundle.
 type CreditPackage struct {
@@ -40,16 +46,18 @@ type Service struct {
 	successURL    string
 	cancelURL     string
 	walletSvc     *wallet.Service
+	affiliateSvc  affiliateIssuer
 	httpClient    *http.Client
 }
 
-func NewService(secretKey, webhookSecret, successURL, cancelURL string, walletSvc *wallet.Service) *Service {
+func NewService(secretKey, webhookSecret, successURL, cancelURL string, walletSvc *wallet.Service, affiliateSvc affiliateIssuer) *Service {
 	return &Service{
 		secretKey:     secretKey,
 		webhookSecret: webhookSecret,
 		successURL:    successURL,
 		cancelURL:     cancelURL,
 		walletSvc:     walletSvc,
+		affiliateSvc:  affiliateSvc,
 		httpClient:    &http.Client{Timeout: 15 * time.Second},
 	}
 }
@@ -147,6 +155,13 @@ func (s *Service) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 	if err := s.walletSvc.TopUpByIDString(r.Context(), obj.Metadata.TenantID, credits, "stripe_purchase"); err != nil {
 		http.Error(w, "wallet top-up failed", http.StatusInternalServerError)
 		return
+	}
+
+	// Issue affiliate credits asynchronously — never block the Stripe webhook response
+	if s.affiliateSvc != nil {
+		if tenantUUID, err := uuid.Parse(obj.Metadata.TenantID); err == nil {
+			go s.affiliateSvc.IssueCreditsForTopUp(r.Context(), tenantUUID, credits)
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
