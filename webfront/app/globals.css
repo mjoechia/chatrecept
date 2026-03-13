@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #1F2937;
+  color: #F5F7FA;
+  font-family: 'Inter', system-ui, sans-serif;
+  margin: 0;
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.05); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+.animate-pulse-slow { animation: pulse-slow 4s ease-in-out infinite; }
+.animate-float      { animation: float 6s ease-in-out infinite; }
+
+.gradient-text {
+  background: linear-gradient(135deg, #25D366 0%, #229ED9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.glow-green {
+  box-shadow: 0 0 30px rgba(37, 211, 102, 0.25);
+}
+
+.glow-blue {
+  box-shadow: 0 0 30px rgba(34, 158, 217, 0.2);
+}
+
+/* Terms page typography */
+.prose-terms h3 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #F9FAFB;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.01em;
+}
+
+.prose-terms ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  space-y: 0.5rem;
+}
+
+.prose-terms ul li {
+  margin-bottom: 0.375rem;
+}
+
+.prose-terms strong {
+  color: #F9FAFB;
+  font-weight: 600;
+}
