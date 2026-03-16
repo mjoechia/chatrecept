@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -18,8 +19,13 @@ func New(ctx context.Context, databaseURL string) (*DB, error) {
 		return nil, fmt.Errorf("parse db config: %w", err)
 	}
 
-	// Route all queries to the app_chatrecept schema (tables live there, not public)
-	cfg.ConnConfig.RuntimeParams["search_path"] = "app_chatrecept"
+	// Route all queries to the app_chatrecept schema.
+	// Using AfterConnect instead of RuntimeParams because PgBouncer (transaction mode)
+	// rejects search_path as a startup parameter.
+	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		_, err := conn.Exec(ctx, "SET search_path TO app_chatrecept")
+		return err
+	}
 
 	cfg.MaxConns = 10
 	cfg.MinConns = 2
