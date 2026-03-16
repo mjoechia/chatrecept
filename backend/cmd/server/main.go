@@ -16,6 +16,7 @@ import (
 	"github.com/jc/pabot/internal/affiliate"
 	"github.com/jc/pabot/internal/ai"
 	"github.com/jc/pabot/internal/config"
+	"github.com/jc/pabot/internal/webbot"
 	"github.com/jc/pabot/internal/conversations"
 	"github.com/jc/pabot/internal/db"
 	"github.com/jc/pabot/internal/leads"
@@ -63,6 +64,13 @@ func main() {
 	msgSvc := messages.NewService(database)
 	leadSvc := leads.NewService(database, claudeSvc)
 	affiliateSvc := affiliate.NewService(database)
+
+	var webbotHandler http.Handler
+	if cfg.TelegramWebbotToken != "" {
+		webbotSvc := webbot.NewService(database, claudeSvc, cfg.TogetherAPIKey, cfg.CFAccountID, cfg.CFAPIToken)
+		webbotHandler = webbot.NewTelegramHandler(webbotSvc, cfg.TelegramWebbotToken, cfg.TelegramWebbotSecret)
+	}
+
 	paymentSvc := payments.NewService(
 		cfg.StripeSecretKey, cfg.StripeWebhookSecret,
 		cfg.StripeSuccessURL, cfg.StripeCancelURL,
@@ -133,6 +141,11 @@ func main() {
 
 	// Public: Stripe webhook (Stripe signs its own payload — no JWT)
 	r.Post("/stripe/webhook", paymentSvc.HandleStripeWebhook)
+
+	// Public: WebsiteBot Telegram webhook
+	if webbotHandler != nil {
+		r.Post("/webbot/telegram", webbotHandler.ServeHTTP)
+	}
 
 	// ── Server ────────────────────────────────────────────────────────────────
 	srv := &http.Server{

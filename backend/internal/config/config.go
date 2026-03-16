@@ -39,6 +39,13 @@ type Config struct {
 	StripeWebhookSecret string
 	StripeSuccessURL    string
 	StripeCancelURL     string
+
+	// WebsiteBot
+	TelegramWebbotToken string
+	TelegramWebbotSecret string // X-Telegram-Bot-Api-Secret-Token
+	CFAccountID         string
+	CFAPIToken          string
+	TogetherAPIKey      string
 }
 
 func Load() (*Config, error) {
@@ -62,6 +69,11 @@ func Load() (*Config, error) {
 		StripeWebhookSecret:    os.Getenv("STRIPE_WEBHOOK_SECRET"),
 		StripeSuccessURL:       getEnv("STRIPE_SUCCESS_URL", "http://localhost:3000/dashboard/wallet?success=1"),
 		StripeCancelURL:        getEnv("STRIPE_CANCEL_URL", "http://localhost:3000/dashboard/wallet"),
+		TelegramWebbotToken:   os.Getenv("TELEGRAM_WEBBOT_TOKEN"),
+		TelegramWebbotSecret:  os.Getenv("TELEGRAM_WEBBOT_SECRET"),
+		CFAccountID:           os.Getenv("CF_ACCOUNT_ID"),
+		CFAPIToken:            os.Getenv("CF_API_TOKEN"),
+		TogetherAPIKey:        os.Getenv("TOGETHER_API_KEY"),
 	}
 
 	return cfg, cfg.validate()

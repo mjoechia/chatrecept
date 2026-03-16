@@ -103,3 +103,22 @@ func (p *ClaudeProvider) GenerateResponse(ctx context.Context, systemPrompt stri
 		Cost:         cost,
 	}, nil
 }
+
+// Complete runs a single-turn prompt with a large output limit (4096 tokens).
+// Used by the webbot for parsing and HTML generation.
+func (p *ClaudeProvider) Complete(ctx context.Context, prompt string) (string, error) {
+	resp, err := p.client.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:     anthropic.F(anthropic.Model(p.model)),
+		MaxTokens: anthropic.F(int64(4096)),
+		Messages: anthropic.F([]anthropic.MessageParam{
+			anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
+		}),
+	})
+	if err != nil {
+		return "", fmt.Errorf("claude complete: %w", err)
+	}
+	if len(resp.Content) == 0 {
+		return "", nil
+	}
+	return resp.Content[0].Text, nil
+}
