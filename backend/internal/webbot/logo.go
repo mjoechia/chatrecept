@@ -8,27 +8,54 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 )
 
-type togetherImageReq struct {
-	Model          string `json:"model"`
-	Prompt         string `json:"prompt"`
-	Width          int    `json:"width"`
-	Height         int    `json:"height"`
-	Steps          int    `json:"steps"`
-	N              int    `json:"n"`
-	ResponseFormat string `json:"response_format"`
-}
-
-type togetherImageResp struct {
-	Data []struct {
-		B64JSON string `json:"b64_json"`
-	} `json:"data"`
-}
-
-// generateLogo calls Together AI (Flux Schnell) and returns a base64-encoded PNG.
+// generateLogo returns PNG bytes for the logo.
+// Uses Pollinations.ai (free, no key) when togetherAPIKey is empty,
+// otherwise uses Together AI (Flux Schnell, ~$0.002/image).
 func (s *Service) generateLogo(ctx context.Context, prompt string) ([]byte, error) {
-	reqBody := togetherImageReq{
+	if s.togetherAPIKey == "" {
+		return generateLogoFree(ctx, prompt)
+	}
+	return generateLogoTogether(ctx, s.togetherAPIKey, prompt)
+}
+
+// generateLogoFree uses Pollinations.ai — completely free, no API key required.
+func generateLogoFree(ctx context.Context, prompt string) ([]byte, error) {
+	endpoint := "https://image.pollinations.ai/prompt/" +
+		url.PathEscape(prompt) +
+		"?width=512&height=512&model=flux&nologo=true&seed=42"
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("pollinations: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("pollinations %d", resp.StatusCode)
+	}
+
+	return io.ReadAll(resp.Body)
+}
+
+// generateLogoTogether uses Together AI (paid, ~$0.002/image).
+func generateLogoTogether(ctx context.Context, apiKey, prompt string) ([]byte, error) {
+	reqBody := struct {
+		Model          string `json:"model"`
+		Prompt         string `json:"prompt"`
+		Width          int    `json:"width"`
+		Height         int    `json:"height"`
+		Steps          int    `json:"steps"`
+		N              int    `json:"n"`
+		ResponseFormat string `json:"response_format"`
+	}{
 		Model:          "black-forest-labs/FLUX.1-schnell",
 		Prompt:         prompt,
 		Width:          512,
@@ -44,7 +71,7 @@ func (s *Service) generateLogo(ctx context.Context, prompt string) ([]byte, erro
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+s.togetherAPIKey)
+	req.Header.Set("Authorization", "Bearer "+apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
@@ -58,7 +85,11 @@ func (s *Service) generateLogo(ctx context.Context, prompt string) ([]byte, erro
 		return nil, fmt.Errorf("together api %d: %s", resp.StatusCode, raw)
 	}
 
-	var imgResp togetherImageResp
+	var imgResp struct {
+		Data []struct {
+			B64JSON string `json:"b64_json"`
+		} `json:"data"`
+	}
 	if err := json.Unmarshal(raw, &imgResp); err != nil {
 		return nil, fmt.Errorf("decode together resp: %w", err)
 	}
@@ -66,9 +97,5 @@ func (s *Service) generateLogo(ctx context.Context, prompt string) ([]byte, erro
 		return nil, fmt.Errorf("no image returned")
 	}
 
-	imgBytes, err := base64.StdEncoding.DecodeString(imgResp.Data[0].B64JSON)
-	if err != nil {
-		return nil, fmt.Errorf("decode b64: %w", err)
-	}
-	return imgBytes, nil
+	return base64.StdEncoding.DecodeString(imgResp.Data[0].B64JSON)
 }

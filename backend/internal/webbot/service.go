@@ -66,7 +66,12 @@ func (s *Service) GenerateSite(ctx context.Context, siteID, description string) 
 		return "", fmt.Errorf("html: %w", err)
 	}
 
-	// 4. Deploy to Cloudflare Pages
+	// 4. Deploy to Cloudflare Pages (skip if CF creds not configured)
+	if s.cfAccountID == "" || s.cfAPIToken == "" {
+		slog.Warn("webbot: CF creds not set, skipping deploy")
+		return "https://chatrecept.chat (CF not configured)", nil
+	}
+
 	projectName := slugify(spec.SiteName)
 	if projectName == "" {
 		projectName = "site-" + siteID[:8]
@@ -105,6 +110,12 @@ func (s *Service) GenerateSiteFromSpec(ctx context.Context, siteID string, spec 
 	html, err := s.generateHTML(ctx, spec, logoDataURI)
 	if err != nil {
 		return "", err
+	}
+
+	if s.cfAccountID == "" || s.cfAPIToken == "" {
+		slog.Warn("webbot: CF creds not set, skipping deploy")
+		_ = s.saveSiteResult(ctx, siteID, spec, logoDataURI, html, "", "https://chatrecept.chat (CF not configured)")
+		return "https://chatrecept.chat (CF not configured)", nil
 	}
 
 	projectName := slugify(spec.SiteName) + "-" + siteID[:6]
