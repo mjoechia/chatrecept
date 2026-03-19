@@ -24,14 +24,19 @@ func NewTelegramHandler(svc *Service, botToken, secretToken string) *TelegramHan
 	return h
 }
 
-// registerCommands sets the bot's command list so /start appears as a tappable
-// menu item in Telegram without the user needing to type anything.
+// registerCommands sets the bot's command list and enables the persistent menu
+// button so /start is always one tap away without typing.
 func (h *TelegramHandler) registerCommands() {
 	h.telegramPost("setMyCommands", map[string]interface{}{
 		"commands": []map[string]string{
 			{"command": "start", "description": "Build a new website"},
 			{"command": "new", "description": "Start over with a new site"},
 		},
+	})
+	// setChatMenuButton (no chat_id = global default) makes the menu icon
+	// visible next to the text input; type "commands" opens the command list.
+	h.telegramPost("setChatMenuButton", map[string]interface{}{
+		"menu_button": map[string]string{"type": "commands"},
 	})
 }
 
