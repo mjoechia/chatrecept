@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 // generateLogo returns PNG bytes for the logo.
@@ -26,6 +27,10 @@ func generateLogoFree(ctx context.Context, prompt string) ([]byte, error) {
 	endpoint := "https://image.pollinations.ai/prompt/" +
 		url.PathEscape(prompt) +
 		"?width=512&height=512&model=flux&nologo=true&seed=42"
+
+	// Pollinations can be slow — cap at 15s so it doesn't block the pipeline
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {

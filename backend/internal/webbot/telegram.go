@@ -199,7 +199,12 @@ func (h *TelegramHandler) handleCallback(ctx context.Context, cb *CallbackQuery)
 		h.sendText(chatID, editPrompts[data])
 
 	case data == "publish":
-		h.sendText(chatID, "Your site is already live! Share the URL with your customers.")
+		site, _ := h.svc.getSite(ctx, session.CurrentSiteID)
+		if site != nil && site.SiteURL != "" {
+			h.sendText(chatID, fmt.Sprintf("Your site is live! Share this link:\n\n%s", site.SiteURL))
+		} else {
+			h.sendText(chatID, "Your site is already live! Share the URL with your customers.")
+		}
 
 	case data == "new_site":
 		h.svc.resetSession(ctx, userID)

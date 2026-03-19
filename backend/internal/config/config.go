@@ -41,11 +41,12 @@ type Config struct {
 	StripeCancelURL     string
 
 	// WebsiteBot
-	TelegramWebbotToken string
+	TelegramWebbotToken  string
 	TelegramWebbotSecret string // X-Telegram-Bot-Api-Secret-Token
-	CFAccountID         string
-	CFAPIToken          string
-	TogetherAPIKey      string
+	CFAccountID          string
+	CFAPIToken           string
+	TogetherAPIKey       string
+	PublicBaseURL        string // e.g. https://backend-production-0aa15.up.railway.app
 }
 
 func Load() (*Config, error) {
@@ -74,6 +75,7 @@ func Load() (*Config, error) {
 		CFAccountID:           os.Getenv("CF_ACCOUNT_ID"),
 		CFAPIToken:            os.Getenv("CF_API_TOKEN"),
 		TogetherAPIKey:        os.Getenv("TOGETHER_API_KEY"),
+		PublicBaseURL:         getEnv("PUBLIC_BASE_URL", "https://backend-production-0aa15.up.railway.app"),
 	}
 
 	return cfg, cfg.validate()

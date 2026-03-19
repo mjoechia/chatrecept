@@ -22,15 +22,17 @@ type Service struct {
 	togetherAPIKey string
 	cfAccountID    string
 	cfAPIToken     string
+	publicBaseURL  string
 }
 
-func NewService(database *db.DB, claude claudeClient, togetherAPIKey, cfAccountID, cfAPIToken string) *Service {
+func NewService(database *db.DB, claude claudeClient, togetherAPIKey, cfAccountID, cfAPIToken, publicBaseURL string) *Service {
 	return &Service{
 		db:             database,
 		claude:         claude,
 		togetherAPIKey: togetherAPIKey,
 		cfAccountID:    cfAccountID,
 		cfAPIToken:     cfAPIToken,
+		publicBaseURL:  publicBaseURL,
 	}
 }
 
@@ -66,29 +68,17 @@ func (s *Service) GenerateSite(ctx context.Context, siteID, description string) 
 		return "", fmt.Errorf("html: %w", err)
 	}
 
-	// 4. Deploy to Cloudflare Pages (skip if CF creds not configured)
-	if s.cfAccountID == "" || s.cfAPIToken == "" {
-		slog.Warn("webbot: CF creds not set, skipping deploy")
-		return "https://chatrecept.chat (CF not configured)", nil
-	}
-
+	// 4. Build project slug and self-hosted URL (Railway serves HTML from DB)
 	projectName := slugify(spec.SiteName)
 	if projectName == "" {
 		projectName = "site-" + siteID[:8]
 	}
-	// Ensure uniqueness by appending short site ID suffix
-	projectName = projectName + "-" + siteID[:6]
-	projectName = strings.ToLower(projectName)
+	projectName = strings.ToLower(projectName+"-"+siteID[:6])
+	siteURL = s.publicBaseURL + "/w/" + projectName
 
-	siteURL, err = s.deploy(ctx, projectName, html)
-	if err != nil {
-		return "", fmt.Errorf("deploy: %w", err)
-	}
-
-	// 5. Persist results to DB
+	// 5. Persist results to DB (status=live so the /w/ route can serve it)
 	if dbErr := s.saveSiteResult(ctx, siteID, spec, logoDataURI, html, projectName, siteURL); dbErr != nil {
 		slog.Error("webbot: save site result failed", "err", dbErr)
-		// Don't fail — site is live, just log
 	}
 
 	slog.Info("webbot: site live", "url", siteURL)
@@ -112,18 +102,8 @@ func (s *Service) GenerateSiteFromSpec(ctx context.Context, siteID string, spec 
 		return "", err
 	}
 
-	if s.cfAccountID == "" || s.cfAPIToken == "" {
-		slog.Warn("webbot: CF creds not set, skipping deploy")
-		_ = s.saveSiteResult(ctx, siteID, spec, logoDataURI, html, "", "https://chatrecept.chat (CF not configured)")
-		return "https://chatrecept.chat (CF not configured)", nil
-	}
-
-	projectName := slugify(spec.SiteName) + "-" + siteID[:6]
-	siteURL, err := s.deploy(ctx, projectName, html)
-	if err != nil {
-		return "", err
-	}
-
+	projectName := strings.ToLower(slugify(spec.SiteName) + "-" + siteID[:6])
+	siteURL := s.publicBaseURL + "/w/" + projectName
 	_ = s.saveSiteResult(ctx, siteID, spec, logoDataURI, html, projectName, siteURL)
 	return siteURL, nil
 }

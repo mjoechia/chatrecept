@@ -67,7 +67,7 @@ func main() {
 
 	var webbotHandler http.Handler
 	if cfg.TelegramWebbotToken != "" {
-		webbotSvc := webbot.NewService(database, claudeSvc, cfg.TogetherAPIKey, cfg.CFAccountID, cfg.CFAPIToken)
+		webbotSvc := webbot.NewService(database, claudeSvc, cfg.TogetherAPIKey, cfg.CFAccountID, cfg.CFAPIToken, cfg.PublicBaseURL)
 		webbotHandler = webbot.NewTelegramHandler(webbotSvc, cfg.TelegramWebbotToken, cfg.TelegramWebbotSecret)
 	}
 
@@ -146,6 +146,22 @@ func main() {
 	if webbotHandler != nil {
 		r.Post("/webbot/telegram", webbotHandler.ServeHTTP)
 	}
+
+	// Public: serve generated websites by project slug
+	r.Get("/w/{slug}", func(w http.ResponseWriter, r *http.Request) {
+		slug := chi.URLParam(r, "slug")
+		var html string
+		err := database.Pool.QueryRow(r.Context(),
+			`SELECT COALESCE(html,'') FROM app_webbot.sites WHERE cf_project_name = $1 AND status = 'live' LIMIT 1`,
+			slug).Scan(&html)
+		if err != nil || html == "" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(html))
+	})
 
 	// ── Server ────────────────────────────────────────────────────────────────
 	srv := &http.Server{

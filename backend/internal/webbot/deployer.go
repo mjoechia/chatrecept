@@ -3,6 +3,8 @@ package webbot
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -58,11 +60,16 @@ func (s *Service) uploadToCFPages(ctx context.Context, projectName, html string)
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
 
-	// Cloudflare Pages Direct Upload expects a manifest + files
-	manifest := map[string]string{"/index.html": hashString(html)}
+	// Cloudflare Pages Direct Upload: field must be "manifest" (not "_manifest"),
+	// and hashes must be SHA-256 of file contents.
+	htmlBytes := []byte(html)
+	h := sha256.Sum256(htmlBytes)
+	fileHash := hex.EncodeToString(h[:])
+	// CF Pages requires no leading slash in manifest keys or file field names
+	manifest := map[string]string{"index.html": fileHash}
 	manifestJSON, _ := json.Marshal(manifest)
-	_ = writeFormField(w, "_manifest", string(manifestJSON))
-	_ = writeFormFile(w, "/index.html", "index.html", []byte(html))
+	_ = writeFormField(w, "manifest", string(manifestJSON))
+	_ = writeFormFile(w, "index.html", "index.html", htmlBytes)
 	w.Close()
 
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost,
@@ -131,12 +138,3 @@ func slugify(name string) string {
 	return slug
 }
 
-// hashString returns a short hash for the CF manifest.
-func hashString(s string) string {
-	h := uint32(2166136261)
-	for i := 0; i < len(s); i++ {
-		h ^= uint32(s[i])
-		h *= 16777619
-	}
-	return fmt.Sprintf("%x", h)
-}
