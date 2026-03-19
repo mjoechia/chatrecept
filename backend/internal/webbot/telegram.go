@@ -19,7 +19,20 @@ type TelegramHandler struct {
 }
 
 func NewTelegramHandler(svc *Service, botToken, secretToken string) *TelegramHandler {
-	return &TelegramHandler{svc: svc, botToken: botToken, secretToken: secretToken}
+	h := &TelegramHandler{svc: svc, botToken: botToken, secretToken: secretToken}
+	go h.registerCommands()
+	return h
+}
+
+// registerCommands sets the bot's command list so /start appears as a tappable
+// menu item in Telegram without the user needing to type anything.
+func (h *TelegramHandler) registerCommands() {
+	h.telegramPost("setMyCommands", map[string]interface{}{
+		"commands": []map[string]string{
+			{"command": "start", "description": "Build a new website"},
+			{"command": "new", "description": "Start over with a new site"},
+		},
+	})
 }
 
 // Update is the minimal Telegram Update structure we care about.
@@ -99,9 +112,9 @@ func (h *TelegramHandler) handleMessage(ctx context.Context, msg *TGMessage) {
 		h.svc.resetSession(ctx, userID)
 		h.sendModeSelect(chatID)
 
-	case text == "/new":
+	case text == "/new", text == "🚀 New Site":
 		h.svc.resetSession(ctx, userID)
-		h.sendText(chatID, "Describe your website.")
+		h.sendModeSelect(chatID)
 
 	case session.State == StateIdle && text != "":
 		// Mode 1: treat first message as full description
@@ -262,6 +275,17 @@ func (h *TelegramHandler) sendModeSelect(chatID int64) {
 					{"text": "Step Mode", "callback_data": "mode2"},
 				},
 			},
+		},
+	})
+	// Also send a persistent reply keyboard so the user always has a
+	// one-tap "🚀 New Site" button visible below the text input.
+	h.telegramPost("sendMessage", map[string]interface{}{
+		"chat_id": chatID,
+		"text":    "Tap the button below any time to build a new site.",
+		"reply_markup": map[string]interface{}{
+			"keyboard":        [][]map[string]string{{{"text": "🚀 New Site"}}},
+			"resize_keyboard": true,
+			"persistent":      true,
 		},
 	})
 }
