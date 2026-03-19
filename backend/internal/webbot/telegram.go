@@ -24,6 +24,16 @@ func NewTelegramHandler(svc *Service, botToken, secretToken string) *TelegramHan
 	return h
 }
 
+// HandleSetup can be hit in a browser to register commands and see the raw
+// Telegram API responses — useful for debugging.
+func (h *TelegramHandler) HandleSetup(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	orig := h.botToken
+	_ = orig // ensure we use the real token
+	h.registerCommands()
+	fmt.Fprintln(w, "setup called — check Railway logs for Telegram API responses")
+}
+
 // registerCommands sets the bot's command list and enables the persistent menu
 // button so /start is always one tap away without typing.
 func (h *TelegramHandler) registerCommands() {

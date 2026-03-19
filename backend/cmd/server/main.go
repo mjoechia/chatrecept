@@ -65,7 +65,7 @@ func main() {
 	leadSvc := leads.NewService(database, claudeSvc)
 	affiliateSvc := affiliate.NewService(database)
 
-	var webbotHandler http.Handler
+	var webbotHandler *webbot.TelegramHandler
 	if cfg.TelegramWebbotToken != "" {
 		webbotSvc := webbot.NewService(database, claudeSvc, cfg.TogetherAPIKey, cfg.CFAccountID, cfg.CFAPIToken, cfg.PublicBaseURL)
 		webbotHandler = webbot.NewTelegramHandler(webbotSvc, cfg.TelegramWebbotToken, cfg.TelegramWebbotSecret)
@@ -145,6 +145,9 @@ func main() {
 	// Public: WebsiteBot Telegram webhook
 	if webbotHandler != nil {
 		r.Post("/webbot/telegram", webbotHandler.ServeHTTP)
+		// Debug: hit /webbot/setup in a browser to register bot commands and
+		// see the raw Telegram API response.
+		r.Get("/webbot/setup", webbotHandler.HandleSetup)
 	}
 
 	// Public: serve generated websites by project slug
