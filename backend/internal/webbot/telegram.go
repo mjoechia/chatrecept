@@ -115,6 +115,11 @@ func (h *TelegramHandler) handleMessage(ctx context.Context, msg *TGMessage) {
 	switch {
 	case text == "/start":
 		h.svc.resetSession(ctx, userID)
+		// Set menu button for this specific chat so it appears even in existing chats.
+		go h.telegramPost("setChatMenuButton", map[string]interface{}{
+			"chat_id":     chatID,
+			"menu_button": map[string]string{"type": "commands"},
+		})
 		h.sendModeSelect(chatID)
 
 	case text == "/new", text == "🚀 New Site":
@@ -364,8 +369,10 @@ func (h *TelegramHandler) telegramPost(method string, payload map[string]interfa
 		return
 	}
 	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		raw, _ := io.ReadAll(resp.Body)
 		slog.Error("telegram api error", "method", method, "status", resp.StatusCode, "body", string(raw))
+	} else {
+		slog.Info("telegram api ok", "method", method, "body", string(raw))
 	}
 }
