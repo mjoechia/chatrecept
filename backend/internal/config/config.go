@@ -47,6 +47,7 @@ type Config struct {
 	CFAPIToken           string
 	TogetherAPIKey       string
 	PublicBaseURL        string // e.g. https://backend-production-0aa15.up.railway.app
+	WebbotFreeCredits    int    // credits granted to new users (default 1)
 }
 
 func Load() (*Config, error) {
@@ -76,6 +77,7 @@ func Load() (*Config, error) {
 		CFAPIToken:            os.Getenv("CF_API_TOKEN"),
 		TogetherAPIKey:        os.Getenv("TOGETHER_API_KEY"),
 		PublicBaseURL:         getEnv("PUBLIC_BASE_URL", "https://backend-production-0aa15.up.railway.app"),
+		WebbotFreeCredits:     getEnvInt("WEBBOT_FREE_CREDITS", 1),
 	}
 
 	return cfg, cfg.validate()

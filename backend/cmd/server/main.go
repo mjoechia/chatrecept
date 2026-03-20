@@ -67,7 +67,7 @@ func main() {
 
 	var webbotHandler *webbot.TelegramHandler
 	if cfg.TelegramWebbotToken != "" {
-		webbotSvc := webbot.NewService(database, claudeSvc, cfg.TogetherAPIKey, cfg.CFAccountID, cfg.CFAPIToken, cfg.PublicBaseURL)
+		webbotSvc := webbot.NewService(database, claudeSvc, cfg.TogetherAPIKey, cfg.CFAccountID, cfg.CFAPIToken, cfg.PublicBaseURL, cfg.WebbotFreeCredits)
 		webbotHandler = webbot.NewTelegramHandler(webbotSvc, cfg.TelegramWebbotToken, cfg.TelegramWebbotSecret)
 	}
 

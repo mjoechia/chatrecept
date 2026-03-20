@@ -23,9 +23,10 @@ type Service struct {
 	cfAccountID    string
 	cfAPIToken     string
 	publicBaseURL  string
+	freeCredits    int
 }
 
-func NewService(database *db.DB, claude claudeClient, togetherAPIKey, cfAccountID, cfAPIToken, publicBaseURL string) *Service {
+func NewService(database *db.DB, claude claudeClient, togetherAPIKey, cfAccountID, cfAPIToken, publicBaseURL string, freeCredits int) *Service {
 	return &Service{
 		db:             database,
 		claude:         claude,
@@ -33,6 +34,7 @@ func NewService(database *db.DB, claude claudeClient, togetherAPIKey, cfAccountI
 		cfAccountID:    cfAccountID,
 		cfAPIToken:     cfAPIToken,
 		publicBaseURL:  publicBaseURL,
+		freeCredits:    freeCredits,
 	}
 }
 

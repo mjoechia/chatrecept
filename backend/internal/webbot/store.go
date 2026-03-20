@@ -18,11 +18,13 @@ func (s *Service) getOrCreateSession(ctx context.Context, userID, chatID int64) 
 	var currentSiteID string
 	err := row.Scan(&sess.State, &sess.Mode, &draftJSON, &currentSiteID)
 	if err != nil {
-		// Insert new session
+		// Insert new session with free credits; DO NOTHING on conflict so we
+		// never overwrite an existing user's credit balance.
 		_, err = s.db.Pool.Exec(ctx, `
-			INSERT INTO app_webbot.sessions (telegram_user_id, telegram_chat_id, state, mode, draft)
-			VALUES ($1, $2, 'idle', 1, '{}')
-			ON CONFLICT (telegram_user_id) DO NOTHING`, userID, chatID)
+			INSERT INTO app_webbot.sessions
+				(telegram_user_id, telegram_chat_id, state, mode, draft, credits_remaining, credits_total)
+			VALUES ($1, $2, 'idle', 1, '{}', $3, $3)
+			ON CONFLICT (telegram_user_id) DO NOTHING`, userID, chatID, s.freeCredits)
 		return sess, err
 	}
 
@@ -103,6 +105,45 @@ func (s *Service) getSite(ctx context.Context, siteID string) (*Site, error) {
 	}
 	site.Services = services
 	return &site, nil
+}
+
+// getCredits returns how many site-generation credits the user has left.
+func (s *Service) getCredits(ctx context.Context, userID int64) (int, error) {
+	var credits int
+	err := s.db.Pool.QueryRow(ctx,
+		`SELECT credits_remaining FROM app_webbot.sessions WHERE telegram_user_id = $1`,
+		userID).Scan(&credits)
+	return credits, err
+}
+
+// tryDeductCredit atomically decrements credits_remaining by 1 if > 0.
+// Returns true if the credit was successfully reserved, false if the user has none.
+func (s *Service) tryDeductCredit(ctx context.Context, userID int64) (bool, error) {
+	var remaining int
+	err := s.db.Pool.QueryRow(ctx, `
+		UPDATE app_webbot.sessions
+		SET credits_remaining = credits_remaining - 1
+		WHERE telegram_user_id = $1 AND credits_remaining > 0
+		RETURNING credits_remaining`, userID).Scan(&remaining)
+	if err != nil {
+		// No row returned means credits_remaining was already 0
+		return false, nil
+	}
+	_, _ = s.db.Pool.Exec(ctx,
+		`INSERT INTO app_webbot.credit_logs (user_id, action, amount, note) VALUES ($1, 'deduct', 1, 'site generation')`,
+		userID)
+	return true, nil
+}
+
+// refundCredit adds 1 credit back — called when generation fails after a deduction.
+func (s *Service) refundCredit(ctx context.Context, userID int64) {
+	_, _ = s.db.Pool.Exec(ctx, `
+		UPDATE app_webbot.sessions
+		SET credits_remaining = credits_remaining + 1
+		WHERE telegram_user_id = $1`, userID)
+	_, _ = s.db.Pool.Exec(ctx,
+		`INSERT INTO app_webbot.credit_logs (user_id, action, amount, note) VALUES ($1, 'refund', 1, 'generation failed')`,
+		userID)
 }
 
 func (s *Service) incrementEditCount(ctx context.Context, siteID string) (int, error) {

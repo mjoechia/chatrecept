@@ -130,11 +130,11 @@ func (h *TelegramHandler) handleMessage(ctx context.Context, msg *TGMessage) {
 			"chat_id":     chatID,
 			"menu_button": map[string]string{"type": "commands"},
 		})
-		h.sendModeSelect(chatID)
+		h.sendModeSelect(chatID, userID)
 
 	case text == "/new", text == "🚀 New Site":
 		h.svc.resetSession(ctx, userID)
-		h.sendModeSelect(chatID)
+		h.sendModeSelect(chatID, userID)
 
 	case session.State == StateIdle && text != "":
 		// Mode 1: treat first message as full description
@@ -196,6 +196,13 @@ func (h *TelegramHandler) handleCallback(ctx context.Context, cb *CallbackQuery)
 			spec.Services[i] = strings.TrimSpace(svc)
 		}
 
+		ok, _ := h.svc.tryDeductCredit(ctx, userID)
+		if !ok {
+			h.svc.setState(ctx, userID, StateIdle)
+			h.sendNoCredits(chatID)
+			return
+		}
+
 		siteID, _ := h.svc.createSiteRecord(ctx, userID, spec)
 		h.sendText(chatID, "Building your site...")
 
@@ -203,6 +210,7 @@ func (h *TelegramHandler) handleCallback(ctx context.Context, cb *CallbackQuery)
 			siteURL, err := h.svc.GenerateSiteFromSpec(ctx, siteID, spec)
 			if err != nil {
 				slog.Error("webbot: generate from spec", "err", err)
+				h.svc.refundCredit(ctx, userID)
 				h.sendText(chatID, "Something went wrong generating your site. Please try again with /new")
 				h.svc.setState(ctx, userID, StateIdle)
 				return
@@ -241,13 +249,20 @@ func (h *TelegramHandler) handleCallback(ctx context.Context, cb *CallbackQuery)
 
 	case data == "new_site":
 		h.svc.resetSession(ctx, userID)
-		h.sendModeSelect(chatID)
+		h.sendModeSelect(chatID, userID)
 	}
 }
 
 func (h *TelegramHandler) startGeneration(ctx context.Context, session *Session, description string) {
 	chatID := session.TelegramChatID
 	userID := session.TelegramUserID
+
+	// Atomically reserve a credit before doing any work.
+	ok, _ := h.svc.tryDeductCredit(ctx, userID)
+	if !ok {
+		h.sendNoCredits(chatID)
+		return
+	}
 
 	h.svc.setState(ctx, userID, StateGenerating)
 	h.sendText(chatID, "Building your site... ⚡")
@@ -256,6 +271,7 @@ func (h *TelegramHandler) startGeneration(ctx context.Context, session *Session,
 		siteID, err := h.svc.createSiteRecordFromDescription(ctx, userID, description)
 		if err != nil {
 			slog.Error("webbot: create site record", "err", err)
+			h.svc.refundCredit(ctx, userID)
 			h.sendText(chatID, "Something went wrong. Please try again with /new")
 			h.svc.setState(ctx, userID, StateIdle)
 			return
@@ -264,6 +280,7 @@ func (h *TelegramHandler) startGeneration(ctx context.Context, session *Session,
 		siteURL, err := h.svc.GenerateSite(ctx, siteID, description)
 		if err != nil {
 			slog.Error("webbot: generate site", "err", err)
+			h.svc.refundCredit(ctx, userID)
 			h.sendText(chatID, "Something went wrong generating your site. Please try again with /new")
 			h.svc.setState(ctx, userID, StateIdle)
 			return
@@ -284,10 +301,19 @@ func (h *TelegramHandler) sendText(chatID int64, text string) {
 	})
 }
 
-func (h *TelegramHandler) sendModeSelect(chatID int64) {
+func (h *TelegramHandler) sendNoCredits(chatID int64) {
 	h.telegramPost("sendMessage", map[string]interface{}{
 		"chat_id": chatID,
-		"text":    "Welcome! How do you want to describe your site?",
+		"text":    "You've used all your site credits.\n\nContact @ChatReceptBot to get more credits.",
+	})
+}
+
+func (h *TelegramHandler) sendModeSelect(chatID, userID int64) {
+	credits, _ := h.svc.getCredits(context.Background(), userID)
+	creditLine := fmt.Sprintf("You have %d site credit(s) remaining.\nEach credit = 1 website. Edits are free (up to 3/site).\n\n", credits)
+	h.telegramPost("sendMessage", map[string]interface{}{
+		"chat_id": chatID,
+		"text":    creditLine + "How do you want to describe your site?",
 		"reply_markup": map[string]interface{}{
 			"inline_keyboard": [][]map[string]string{
 				{
