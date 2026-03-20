@@ -303,8 +303,10 @@ func (h *TelegramHandler) sendText(chatID int64, text string) {
 
 func (h *TelegramHandler) sendNoCredits(chatID int64) {
 	h.telegramPost("sendMessage", map[string]interface{}{
-		"chat_id": chatID,
-		"text":    "You've used all your site credits.\n\nContact @ChatReceptBot to get more credits.",
+		"chat_id":    chatID,
+		"parse_mode": "HTML",
+		"text": "You've used all your free site credits.\n\n" +
+			"Register at <a href=\"https://chatrecept.chat/\">chatrecept.chat</a> to get more free credits!",
 	})
 }
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const FEATURES = [
+const FEATURES: { icon: React.ReactNode; title: string; desc: string; highlight?: boolean }[] = [
   {
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -42,9 +42,21 @@ const FEATURES = [
     title: "Full Dashboard",
     desc: "Conversations, leads, analytics, and billing — all in one place.",
   },
+  {
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <path d="M3 9h18M9 21V9" />
+      </svg>
+    ),
+    title: "WebsiteBot",
+    desc: "Generate a live business website in seconds — straight from Telegram. No design skills needed.",
+    highlight: true,
+  },
 ];
 
 const BENEFITS = [
+  "Free website via WebsiteBot on Telegram — instant",
   "3 months free on any paid plan",
   "Founder pricing — locked in forever",
   "Priority onboarding via Telegram",
@@ -156,9 +168,31 @@ export default function ComingSoonPage() {
         </div>
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#25D366" }} />
-          <span className="text-xs font-medium" style={{ color: "#6B7280" }}>Launching soon</span>
+          <span className="text-xs font-medium" style={{ color: "#6B7280" }}>Now Live</span>
         </div>
       </nav>
+
+      {/* ── WebsiteBot announcement banner ───────────────────── */}
+      <div className="relative z-10 max-w-5xl mx-auto w-full px-6 pb-2">
+        <a
+          href="https://t.me/ChatReceptWebBot"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between gap-3 rounded-xl px-5 py-3 transition-opacity hover:opacity-90"
+          style={{ background: "rgba(34,158,217,0.1)", border: "1px solid rgba(34,158,217,0.3)" }}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex items-center gap-1.5 shrink-0">
+              <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#229ED9" }} />
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#229ED9" }}>New</span>
+            </span>
+            <span className="text-sm font-medium text-white truncate">
+              WebsiteBot is live — generate your business website free on Telegram
+            </span>
+          </div>
+          <span className="text-xs font-semibold shrink-0" style={{ color: "#229ED9" }}>Try it →</span>
+        </a>
+      </div>
 
       {/* ── Hero ─────────────────────────────────────────────── */}
       <section className="relative z-10 flex flex-col items-center text-center px-6 pt-10 pb-6">
@@ -218,9 +252,9 @@ export default function ComingSoonPage() {
               </div>
             ) : (
               <>
-                <h2 className="text-xl font-bold text-white mb-1">Get early access</h2>
+                <h2 className="text-xl font-bold text-white mb-1">Register for free credits</h2>
                 <p className="text-sm mb-6" style={{ color: "#6B7280" }}>
-                  Founding members get exclusive benefits — free months, locked pricing, and direct access to the team.
+                  Get free WebsiteBot credits + founding member benefits — free months, locked pricing, and direct access to the team.
                 </p>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -304,9 +338,17 @@ export default function ComingSoonPage() {
             <div className="grid grid-cols-2 gap-3">
               {FEATURES.map((f) => (
                 <div key={f.title} className="rounded-xl p-4"
-                  style={{ background: "rgba(55,65,81,0.4)", border: "1px solid rgba(75,85,99,0.3)" }}>
+                  style={f.highlight
+                    ? { background: "rgba(34,158,217,0.08)", border: "1px solid rgba(34,158,217,0.35)" }
+                    : { background: "rgba(55,65,81,0.4)", border: "1px solid rgba(75,85,99,0.3)" }}>
                   <div className="mb-2" style={{ color: "#229ED9" }}>{f.icon}</div>
-                  <p className="text-sm font-semibold text-white mb-1">{f.title}</p>
+                  <p className="text-sm font-semibold text-white mb-1">
+                    {f.title}
+                    {f.highlight && (
+                      <span className="ml-1.5 text-xs font-medium px-1.5 py-0.5 rounded-full align-middle"
+                        style={{ background: "rgba(34,158,217,0.2)", color: "#229ED9" }}>Live</span>
+                    )}
+                  </p>
                   <p className="text-xs leading-relaxed" style={{ color: "#6B7280" }}>{f.desc}</p>
                 </div>
               ))}
