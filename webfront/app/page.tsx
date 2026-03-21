@@ -252,9 +252,9 @@ export default function ComingSoonPage() {
               </div>
             ) : (
               <>
-                <h2 className="text-xl font-bold text-white mb-1">Register for free credits</h2>
+                <h2 className="text-xl font-bold text-white mb-1">Try ChatRecept WebsiteBot free</h2>
                 <p className="text-sm mb-6" style={{ color: "#6B7280" }}>
-                  Get free WebsiteBot credits + founding member benefits — free months, locked pricing, and direct access to the team.
+                  Register to get free credits and generate your business website instantly on Telegram — no design skills needed.
                 </p>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
