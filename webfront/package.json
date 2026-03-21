@@ -12,7 +12,8 @@
     "@supabase/supabase-js": "^2.46.2",
     "next": "^15.5.12",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "resend": "^6.9.4"
   },
   "devDependencies": {
     "@types/node": "^20",
