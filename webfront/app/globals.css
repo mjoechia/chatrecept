@@ -2,17 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Be+Vietnam+Pro:wght@300;400;500;700&display=swap');
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
-  background-color: #1F2937;
-  color: #F5F7FA;
-  font-family: 'Inter', system-ui, sans-serif;
+  background-color: #f3f6ff;
+  color: #12304f;
+  font-family: 'Be Vietnam Pro', system-ui, sans-serif;
   margin: 0;
+}
+
+h1, h2, h3 {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  user-select: none;
+  display: inline-block;
+  line-height: 1;
+  vertical-align: middle;
 }
 
 @keyframes pulse-slow {
@@ -29,41 +39,20 @@ body {
 .animate-float      { animation: float 6s ease-in-out infinite; }
 
 .gradient-text {
-  background: linear-gradient(135deg, #25D366 0%, #229ED9 100%);
+  background: linear-gradient(135deg, #006092 0%, #4db0f7 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-}
-
-.glow-green {
-  box-shadow: 0 0 30px rgba(37, 211, 102, 0.25);
-}
-
-.glow-blue {
-  box-shadow: 0 0 30px rgba(34, 158, 217, 0.2);
 }
 
 /* Terms page typography */
 .prose-terms h3 {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #F9FAFB;
+  color: #12304f;
   margin-top: 1.25rem;
   margin-bottom: 0.5rem;
-  letter-spacing: 0.01em;
 }
-
-.prose-terms ul {
-  list-style: disc;
-  padding-left: 1.25rem;
-  space-y: 0.5rem;
-}
-
-.prose-terms ul li {
-  margin-bottom: 0.375rem;
-}
-
-.prose-terms strong {
-  color: #F9FAFB;
-  font-weight: 600;
-}
+.prose-terms ul { list-style: disc; padding-left: 1.25rem; }
+.prose-terms ul li { margin-bottom: 0.375rem; }
+.prose-terms strong { color: #12304f; font-weight: 600; }
