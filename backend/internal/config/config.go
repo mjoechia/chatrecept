@@ -83,8 +83,8 @@ func Load() (*Config, error) {
 		TogetherAPIKey:         os.Getenv("TOGETHER_API_KEY"),
 		PublicBaseURL:          getEnv("PUBLIC_BASE_URL", "https://backend-production-0aa15.up.railway.app"),
 		WebbotFreeCredits:      getEnvInt("WEBBOT_FREE_CREDITS", 1),
-		TelegramAdminBotToken:  os.Getenv("TELEGRAM_ADMINBOT_TOKEN"),
-		TelegramAdminBotSecret: os.Getenv("TELEGRAM_ADMINBOT_SECRET"),
+		TelegramAdminBotToken:  os.Getenv("ChatReceptAdminBot_TOKEN"),
+		TelegramAdminBotSecret: os.Getenv("ChatReceptAdminBot_SECRET"),
 		AdminTelegramUsername:  getEnv("ADMIN_TELEGRAM_USERNAME", "JC141319"),
 	}
 
