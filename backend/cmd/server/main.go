@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
+	"github.com/jc/pabot/internal/adminbot"
 	"github.com/jc/pabot/internal/affiliate"
 	"github.com/jc/pabot/internal/ai"
 	"github.com/jc/pabot/internal/config"
@@ -145,9 +146,18 @@ func main() {
 	// Public: WebsiteBot Telegram webhook
 	if webbotHandler != nil {
 		r.Post("/webbot/telegram", webbotHandler.ServeHTTP)
-		// Debug: hit /webbot/setup in a browser to register bot commands and
-		// see the raw Telegram API response.
 		r.Get("/webbot/setup", webbotHandler.HandleSetup)
+	}
+
+	// Public: AdminBot Telegram webhook
+	if cfg.TelegramAdminBotToken != "" {
+		adminHandler := adminbot.NewAdminHandler(
+			database,
+			cfg.TelegramAdminBotToken,
+			cfg.TelegramAdminBotSecret,
+			cfg.AdminTelegramUsername,
+		)
+		r.Post("/adminbot/telegram", adminHandler.ServeHTTP)
 	}
 
 	// Public: serve generated websites by project slug

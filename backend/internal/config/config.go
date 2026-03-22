@@ -48,6 +48,11 @@ type Config struct {
 	TogetherAPIKey       string
 	PublicBaseURL        string // e.g. https://backend-production-0aa15.up.railway.app
 	WebbotFreeCredits    int    // credits granted to new users (default 1)
+
+	// AdminBot
+	TelegramAdminBotToken  string
+	TelegramAdminBotSecret string
+	AdminTelegramUsername  string // Telegram handle of the admin (default: JC141319)
 }
 
 func Load() (*Config, error) {
@@ -71,13 +76,16 @@ func Load() (*Config, error) {
 		StripeWebhookSecret:    os.Getenv("STRIPE_WEBHOOK_SECRET"),
 		StripeSuccessURL:       getEnv("STRIPE_SUCCESS_URL", "http://localhost:3000/dashboard/wallet?success=1"),
 		StripeCancelURL:        getEnv("STRIPE_CANCEL_URL", "http://localhost:3000/dashboard/wallet"),
-		TelegramWebbotToken:   os.Getenv("TELEGRAM_WEBBOT_TOKEN"),
-		TelegramWebbotSecret:  os.Getenv("TELEGRAM_WEBBOT_SECRET"),
-		CFAccountID:           os.Getenv("CF_ACCOUNT_ID"),
-		CFAPIToken:            os.Getenv("CF_API_TOKEN"),
-		TogetherAPIKey:        os.Getenv("TOGETHER_API_KEY"),
-		PublicBaseURL:         getEnv("PUBLIC_BASE_URL", "https://backend-production-0aa15.up.railway.app"),
-		WebbotFreeCredits:     getEnvInt("WEBBOT_FREE_CREDITS", 1),
+		TelegramWebbotToken:    os.Getenv("TELEGRAM_WEBBOT_TOKEN"),
+		TelegramWebbotSecret:   os.Getenv("TELEGRAM_WEBBOT_SECRET"),
+		CFAccountID:            os.Getenv("CF_ACCOUNT_ID"),
+		CFAPIToken:             os.Getenv("CF_API_TOKEN"),
+		TogetherAPIKey:         os.Getenv("TOGETHER_API_KEY"),
+		PublicBaseURL:          getEnv("PUBLIC_BASE_URL", "https://backend-production-0aa15.up.railway.app"),
+		WebbotFreeCredits:      getEnvInt("WEBBOT_FREE_CREDITS", 1),
+		TelegramAdminBotToken:  os.Getenv("TELEGRAM_ADMINBOT_TOKEN"),
+		TelegramAdminBotSecret: os.Getenv("TELEGRAM_ADMINBOT_SECRET"),
+		AdminTelegramUsername:  getEnv("ADMIN_TELEGRAM_USERNAME", "JC141319"),
 	}
 
 	return cfg, cfg.validate()
