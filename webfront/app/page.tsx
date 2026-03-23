@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 /* ── Material Symbol helper ─────────────────────────────────────────────── */
 function Icon({
@@ -222,12 +223,25 @@ export default function ComingSoonPage() {
             </div>
           </div>
 
-          {/* Right: chat illustration */}
+          {/* Right: chat illustration with photo background */}
           <div className="relative">
             <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full blur-[100px]" style={{ background: "rgba(0,96,146,0.09)" }} />
             <div className="absolute -bottom-20 -left-20 w-96 h-96 rounded-full blur-[100px]" style={{ background: "rgba(37,211,102,0.07)" }} />
-            <div className="relative bg-white p-8 rounded-[3rem] shadow-[0_48px_100px_rgba(18,48,79,0.1)] border border-white">
-              <div className="flex flex-col gap-5">
+            <div className="relative rounded-[3rem] shadow-[0_48px_100px_rgba(18,48,79,0.1)] border border-white/40 overflow-hidden">
+              {/* Photo background layer */}
+              <div className="absolute inset-0">
+                <Image
+                  src="https://images.unsplash.com/photo-1556745757-8d76bdb6984b?w=900&h=700&auto=format&fit=crop&q=80"
+                  alt="Business owner using messaging apps on phone"
+                  fill
+                  sizes="(max-width:1024px) 100vw, 50vw"
+                  className="object-cover"
+                />
+                {/* Dark overlay for chat readability */}
+                <div className="absolute inset-0 bg-[rgba(18,48,79,0.6)]" />
+              </div>
+              {/* Chat UI floats above photo */}
+              <div className="relative z-10 p-8 flex flex-col gap-5">
                 {/* User message */}
                 <div className="flex justify-end">
                   <div className="p-4 rounded-2xl rounded-br-sm max-w-[80%] shadow-sm" style={{ background: "linear-gradient(135deg, #006092, #005480)" }}>
@@ -238,41 +252,116 @@ export default function ComingSoonPage() {
                 {/* Bot: generating */}
                 <div className="flex items-end gap-3">
                   <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 border-white shadow-md"
+                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 border-white/30 shadow-md"
                     style={{ background: "linear-gradient(135deg, #25D366, #229ED9)" }}
                   >
                     <Icon name="smart_toy" className="text-white" size={18} fill={1} />
                   </div>
-                  <div className="bg-[#eaf1ff] p-4 rounded-2xl rounded-bl-sm max-w-[80%] shadow-sm">
-                    <p className="font-medium text-sm text-primary">Generating your site... 🚀</p>
-                    <span className="text-[10px] uppercase tracking-widest text-[#425d7f] mt-1.5 block">now</span>
+                  <div className="bg-white/15 backdrop-blur-sm p-4 rounded-2xl rounded-bl-sm max-w-[80%] shadow-sm border border-white/20">
+                    <p className="font-medium text-sm text-white">Generating your site... 🚀</p>
+                    <span className="text-[10px] uppercase tracking-widest text-white/60 mt-1.5 block">now</span>
                   </div>
                 </div>
                 {/* Bot: site ready */}
                 <div className="flex items-end gap-3">
                   <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 border-white shadow-md"
+                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 border-white/30 shadow-md"
                     style={{ background: "linear-gradient(135deg, #25D366, #229ED9)" }}
                   >
                     <Icon name="smart_toy" className="text-white" size={18} fill={1} />
                   </div>
-                  <div className="bg-[#eaf1ff] p-4 rounded-2xl rounded-bl-sm max-w-[80%] shadow-sm">
-                    <p className="font-medium text-sm text-primary">Your site is live! Share the link with your customers.</p>
-                    <div className="mt-2 px-3 py-1.5 rounded-lg text-xs font-mono text-[#425d7f]" style={{ background: "rgba(0,96,146,0.06)" }}>
+                  <div className="bg-white/15 backdrop-blur-sm p-4 rounded-2xl rounded-bl-sm max-w-[80%] shadow-sm border border-white/20">
+                    <p className="font-medium text-sm text-white">Your site is live! Share the link with your customers.</p>
+                    <div className="mt-2 px-3 py-1.5 rounded-lg text-xs font-mono text-white/70 bg-white/10">
                       chatrecept.chat/w/my-café
                     </div>
-                    <span className="text-[10px] uppercase tracking-widest text-[#425d7f] mt-1.5 block">just now</span>
+                    <span className="text-[10px] uppercase tracking-widest text-white/60 mt-1.5 block">just now</span>
                   </div>
                 </div>
               </div>
               {/* Floating badge */}
-              <div className="absolute -right-6 top-1/3 bg-white px-3 py-2 rounded-2xl shadow-xl flex items-center gap-2">
+              <div className="absolute -right-6 top-1/3 z-20 bg-white px-3 py-2 rounded-2xl shadow-xl flex items-center gap-2">
                 <Icon name="bolt" className="text-whatsapp" size={20} fill={1} />
                 <span className="text-xs font-bold text-primary">Instant</span>
               </div>
             </div>
           </div>
 
+        </div>
+      </section>
+
+      {/* ── Social Proof ─────────────────────────────────────────────────── */}
+      <section className="py-20 px-6 bg-[#f8f7f3]">
+        <div className="max-w-7xl mx-auto">
+          <p className="text-center text-xs font-bold uppercase tracking-[0.2em] text-[#5e799c] mb-12">
+            Built for businesses like yours
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+            {/* Café */}
+            <div className="group relative rounded-3xl overflow-hidden aspect-[4/3] shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
+              <Image
+                src="https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600&h=400&auto=format&fit=crop&q=80"
+                alt="Cafe counter with staff serving customers"
+                fill
+                sizes="(max-width:768px) 100vw, 33vw"
+                className="object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#003655]/80 via-transparent to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-5">
+                <span className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm px-2.5 py-1 rounded-full text-[10px] font-semibold text-white uppercase tracking-wider mb-2">
+                  <Icon name="storefront" size={12} className="text-white" />
+                  Café &amp; Restaurant
+                </span>
+                <p className="text-white font-semibold text-sm leading-snug">
+                  Used by cafés handling 200+ chats daily
+                </p>
+              </div>
+            </div>
+
+            {/* Retail */}
+            <div className="group relative rounded-3xl overflow-hidden aspect-[4/3] shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
+              <Image
+                src="https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=600&h=400&auto=format&fit=crop&q=80"
+                alt="Retail shop owner assisting customer at counter"
+                fill
+                sizes="(max-width:768px) 100vw, 33vw"
+                className="object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#003655]/80 via-transparent to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-5">
+                <span className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm px-2.5 py-1 rounded-full text-[10px] font-semibold text-white uppercase tracking-wider mb-2">
+                  <Icon name="shopping_bag" size={12} className="text-white" />
+                  Retail &amp; Services
+                </span>
+                <p className="text-white font-semibold text-sm leading-snug">
+                  Retail stores automating walk-in + WhatsApp
+                </p>
+              </div>
+            </div>
+
+            {/* Office */}
+            <div className="group relative rounded-3xl overflow-hidden aspect-[4/3] shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
+              <Image
+                src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&h=400&auto=format&fit=crop&q=80"
+                alt="Modern office team collaborating at workstations"
+                fill
+                sizes="(max-width:768px) 100vw, 33vw"
+                className="object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#003655]/80 via-transparent to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-5">
+                <span className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm px-2.5 py-1 rounded-full text-[10px] font-semibold text-white uppercase tracking-wider mb-2">
+                  <Icon name="business" size={12} className="text-white" />
+                  Agencies &amp; Teams
+                </span>
+                <p className="text-white font-semibold text-sm leading-snug">
+                  Agencies managing multi-client conversations
+                </p>
+              </div>
+            </div>
+
+          </div>
         </div>
       </section>
 
@@ -292,9 +381,21 @@ export default function ComingSoonPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
             {/* Always On — wide */}
-            <div className="md:col-span-2 group bg-[#f3f6ff] p-10 rounded-[2.5rem] relative overflow-hidden hover:bg-[#eaf1ff] transition-colors duration-500">
+            <div className="md:col-span-2 group bg-[#f8f7f3] p-10 rounded-[2.5rem] relative overflow-hidden hover:bg-[#f1efe8] transition-colors duration-500">
+              {/* Right-half photo accent */}
+              <div className="absolute right-0 top-0 bottom-0 w-2/5 overflow-hidden rounded-r-[2.5rem]">
+                <Image
+                  src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=600&h=500&auto=format&fit=crop&q=80"
+                  alt="Person using phone for business messaging"
+                  fill
+                  sizes="(max-width:768px) 0vw, 20vw"
+                  className="object-cover opacity-30 group-hover:opacity-40 transition-opacity duration-500"
+                />
+                {/* Warm fade mask — blends photo into card background */}
+                <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(248,247,243,1) 0%, rgba(248,247,243,0) 50%)" }} />
+              </div>
               <div className="relative z-10">
-                <div className="w-14 h-14 bg-[#dce9ff] rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform">
+                <div className="w-14 h-14 bg-[#e8e6de] rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform">
                   <Icon name="verified_user" className="text-primary" size={28} />
                 </div>
                 <h3 className="text-3xl font-bold mb-4 text-[#12304f]">Always On</h3>
@@ -307,17 +408,27 @@ export default function ComingSoonPage() {
 
             {/* WhatsApp + Telegram */}
             <div
-              className="p-10 rounded-[2.5rem] flex flex-col justify-between"
+              className="p-10 rounded-[2.5rem] flex flex-col justify-between relative overflow-hidden"
               style={{ background: "linear-gradient(135deg, #006092, #005480)" }}
             >
-              <div>
+              {/* Photo texture */}
+              <div className="absolute inset-0">
+                <Image
+                  src="https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=500&h=500&auto=format&fit=crop&q=80"
+                  alt="Phone showing chat messaging apps"
+                  fill
+                  sizes="(max-width:768px) 100vw, 33vw"
+                  className="object-cover opacity-20"
+                />
+              </div>
+              <div className="relative z-10">
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-8" style={{ background: "rgba(255,255,255,0.15)" }}>
                   <Icon name="forum" className="text-white" size={28} />
                 </div>
                 <h3 className="text-3xl font-bold mb-4 text-white">WhatsApp + Telegram</h3>
                 <p className="text-white/80 text-lg">One AI, two platforms. Meet customers where they already are.</p>
               </div>
-              <div className="mt-8 flex justify-end">
+              <div className="relative z-10 mt-8 flex justify-end">
                 <Icon name="connect_without_contact" className="text-white opacity-30" size={64} />
               </div>
             </div>
@@ -401,6 +512,16 @@ export default function ComingSoonPage() {
           className="max-w-7xl mx-auto rounded-[4rem] p-12 md:p-16 relative overflow-hidden"
           style={{ background: "linear-gradient(135deg, #006092 0%, #003655 100%)" }}
         >
+          {/* Photo texture — blurred, purely decorative */}
+          <div className="absolute inset-0">
+            <Image
+              src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1400&h=700&auto=format&fit=crop&q=80"
+              alt=""
+              fill
+              sizes="100vw"
+              className="object-cover opacity-15 blur-sm scale-105 will-change-transform"
+            />
+          </div>
           {/* Glow orbs */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <div className="absolute top-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full blur-[120px]" style={{ background: "rgba(77,176,247,0.25)" }} />
