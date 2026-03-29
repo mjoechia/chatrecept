@@ -18,6 +18,7 @@ Respond with this exact JSON structure (no markdown, no explanation):
 {
   "site_name": "Business name",
   "industry": "one word industry (e.g. healthcare, food, retail, education)",
+  "city": "city or location mentioned, or empty string if none",
   "services": ["service 1", "service 2", "service 3"],
   "style": "modern or minimal or bold or elegant",
   "contact_type": "whatsapp or telegram or email or phone",
@@ -27,6 +28,8 @@ Respond with this exact JSON structure (no markdown, no explanation):
 
 Rules:
 - site_name: extract the actual business name
+- industry: one word only
+- city: extract city/location if mentioned, otherwise empty string
 - services: maximum 4 items, each under 5 words
 - style: infer from the description tone (default: modern)
 - contact_type: detect from description (WhatsApp = whatsapp, etc). Default: whatsapp

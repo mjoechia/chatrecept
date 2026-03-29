@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import WebChatBubble from "@/components/WebChatBubble";
 
 /* ── Material Symbol helper ─────────────────────────────────────────────── */
 function Icon({
@@ -657,6 +658,7 @@ export default function ComingSoonPage() {
         </div>
       </footer>
 
+      <WebChatBubble />
     </main>
   );
 }

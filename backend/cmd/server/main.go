@@ -17,6 +17,7 @@ import (
 	"github.com/jc/pabot/internal/affiliate"
 	"github.com/jc/pabot/internal/ai"
 	"github.com/jc/pabot/internal/config"
+	"github.com/jc/pabot/internal/webchat"
 	"github.com/jc/pabot/internal/webbot"
 	"github.com/jc/pabot/internal/conversations"
 	"github.com/jc/pabot/internal/db"
@@ -66,9 +67,10 @@ func main() {
 	leadSvc := leads.NewService(database, claudeSvc)
 	affiliateSvc := affiliate.NewService(database)
 
+	webbotSvc := webbot.NewService(database, claudeSvc, cfg.TogetherAPIKey, cfg.CFAccountID, cfg.CFAPIToken, cfg.PublicBaseURL, cfg.WebbotFreeCredits)
+
 	var webbotHandler *webbot.TelegramHandler
 	if cfg.TelegramWebbotToken != "" {
-		webbotSvc := webbot.NewService(database, claudeSvc, cfg.TogetherAPIKey, cfg.CFAccountID, cfg.CFAPIToken, cfg.PublicBaseURL, cfg.WebbotFreeCredits)
 		webbotHandler = webbot.NewTelegramHandler(webbotSvc, cfg.TelegramWebbotToken, cfg.TelegramWebbotSecret)
 	}
 
@@ -147,6 +149,17 @@ func main() {
 	if webbotHandler != nil {
 		r.Post("/webbot/telegram", webbotHandler.ServeHTTP)
 		r.Get("/webbot/setup", webbotHandler.HandleSetup)
+	}
+
+	// Web chat bubble (requires Supabase JWT)
+	{
+		webchatHandler := webchat.NewHandler(database, webbotSvc)
+		r.Route("/webchat", func(r chi.Router) {
+			r.Use(webchatHandler.CORSMiddleware)
+			r.Options("/*", func(w http.ResponseWriter, r *http.Request) {})
+			r.With(middleware.RequireAuth(cfg.JWTSecret)).Post("/message", webchatHandler.Message)
+			r.With(middleware.RequireAuth(cfg.JWTSecret)).Get("/session", webchatHandler.Session)
+		})
 	}
 
 	// Public: AdminBot Telegram webhook

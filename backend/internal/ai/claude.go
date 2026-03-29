@@ -109,7 +109,7 @@ func (p *ClaudeProvider) GenerateResponse(ctx context.Context, systemPrompt stri
 func (p *ClaudeProvider) Complete(ctx context.Context, prompt string) (string, error) {
 	resp, err := p.client.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:     anthropic.F(anthropic.Model(p.model)),
-		MaxTokens: anthropic.F(int64(4096)),
+		MaxTokens: anthropic.F(int64(8192)),
 		Messages: anthropic.F([]anthropic.MessageParam{
 			anthropic.NewUserMessage(anthropic.NewTextBlock(prompt)),
 		}),

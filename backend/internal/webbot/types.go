@@ -4,6 +4,7 @@ package webbot
 type SiteSpec struct {
 	SiteName     string   `json:"site_name"`
 	Industry     string   `json:"industry"`
+	City         string   `json:"city"`         // empty string if not mentioned
 	Services     []string `json:"services"`
 	Style        string   `json:"style"` // modern | minimal | bold | elegant
 	ContactType  string   `json:"contact_type"` // whatsapp | telegram | email | phone

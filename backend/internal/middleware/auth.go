@@ -49,6 +49,16 @@ func extractBearerToken(r *http.Request) string {
 	return ""
 }
 
+// UserIDFromClaims extracts the Supabase user UUID (sub claim) from the JWT.
+func UserIDFromClaims(r *http.Request) string {
+	claims, ok := r.Context().Value(ClaimsKey).(jwt.MapClaims)
+	if !ok {
+		return ""
+	}
+	sub, _ := claims["sub"].(string)
+	return sub
+}
+
 // TenantIDFromClaims extracts tenant_id from JWT app_metadata.
 func TenantIDFromClaims(r *http.Request) string {
 	claims, ok := r.Context().Value(ClaimsKey).(jwt.MapClaims)

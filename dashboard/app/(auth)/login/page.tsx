@@ -21,7 +21,10 @@ export default function LoginPage() {
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${location.origin}/dashboard` },
+      options: {
+        emailRedirectTo: `${location.origin}/dashboard`,
+        data: { app: 'app_chatrecept' },
+      },
     })
 
     if (error) {
