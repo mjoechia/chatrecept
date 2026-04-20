@@ -3,7 +3,9 @@ package webbot
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
+	"time"
 )
 
 // industryColors maps keyword → primary hex colour for the generated site.
@@ -165,7 +167,95 @@ Output MUST look like a premium modern website (Stripe / Linear / Framer quality
 - Do NOT use multiple color palettes
 - Do NOT use placeholder image URLs — use ONLY the provided URLs`
 
-// generateHTML calls Claude Haiku to produce a complete single-file website.
+const promptVersion = "v2_tailwind_gemini_strict"
+
+const basePromptTailwind = `You are an expert frontend developer.
+
+Generate a COMPLETE, production-ready HTML landing page.
+
+STRICT RULES (MUST FOLLOW):
+- Output ONLY valid HTML (no markdown, no explanations, no code fences)
+- MUST start with <!DOCTYPE html>
+- MUST end with </html>
+- Include <head> and <body>
+- All tags must be properly closed
+
+TECH STACK:
+- Tailwind CSS via CDN in <head>: <script src="https://cdn.tailwindcss.com"></script>
+- Google Fonts <link> tag allowed
+- Use ONLY Tailwind utility classes (no <style> blocks, no inline style= except for background images)
+- Mobile-first responsive (sm:, md:, lg: prefixes)
+
+LAYOUT STRUCTURE (REQUIRED ORDER):
+1. Hero Section — headline, subtext, CTA button, full-width background image
+2. Social Proof — 3–5 trust indicators (stats, testimonials, or logos)
+3. Services / Features — 3-card grid
+4. About / Why Choose Us — short paragraph + 2–3 bullets
+5. CTA Banner — strong call-to-action + button
+6. Footer — business name + contact
+
+DESIGN RULES:
+- Max width: max-w-7xl mx-auto px-4
+- Cards: rounded-xl shadow-lg
+- Buttons: rounded-full
+- Consistent spacing: py-12 or py-16 between sections, gap-6 in grids
+- Typography: text-4xl font-bold for H1, text-3xl for H2, text-base leading-relaxed for body
+- Headlines MUST be benefit-driven ("Get More Customers" not "Welcome to Our Company")
+- Follow the THEME instructions below strictly for colors, spacing, and typography
+
+INTERACTIONS:
+- Buttons: hover:brightness-90 hover:scale-[1.03] transition-all duration-200
+- Cards: hover:shadow-xl hover:-translate-y-1 transition duration-200
+
+IMAGES:
+- Use the EXACT image URLs provided — do NOT substitute or omit them
+- Hero: style="background-image: linear-gradient(to bottom, rgba(0,0,0,0.5), rgba(0,0,0,0.6)), url('HERO_URL'); background-size: cover; background-position: center;"
+- Add bg-gray-200 as fallback class on every image section
+
+CONTENT:
+- Use provided business details to generate realistic, specific content
+- NO placeholder text or Lorem Ipsum
+- Focus on outcomes: more customers, save time, grow faster
+- Avoid filler phrases: "high quality", "best service", "we are passionate"
+
+FAILSAFE:
+- Even if unsure, output a complete working HTML page
+- Never truncate — ensure output ends with </html>`
+
+// getThemePrompt returns a theme-specific instruction block injected into the prompt.
+func (s *Service) getThemePrompt() string {
+	switch s.theme {
+	case ThemeLuxury:
+		return "\nTHEME: LUXURY\n- Elegant, premium design\n- Color palette: black, gold (#b8973a), neutral tones\n- Refined typography (tracking-wide, uppercase headings)\n- Large hero sections, strong imagery\n- Generous whitespace\n- Buttons: subtle border + hover fill\n- Avoid bright colors\n"
+	case ThemeMinimal:
+		return "\nTHEME: MINIMAL\n- Extremely clean and simple layout\n- Maximum whitespace\n- Color palette: black, white, gray only\n- Nearly flat, minimal borders and shadows\n- Typography-focused, reduce visual clutter\n- Fewer visual elements, tighter content\n"
+	case ThemeBold:
+		return "\nTHEME: BOLD\n- High contrast colors\n- Strong visual hierarchy\n- Large headings (text-5xl or bigger)\n- Use gradients and accent colors\n- Buttons must stand out strongly\n- Dynamic, energetic layout\n"
+	default: // ThemeModern
+		return "\nTHEME: MODERN\n- Clean startup-style UI\n- Soft shadows and rounded corners\n- Balanced color palette (blues, neutrals)\n- Friendly and professional\n- Standard SaaS-style layout\n"
+	}
+}
+
+// stripMarkdownFences removes any markdown code fences the model may have added.
+func stripMarkdownFences(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, "```html")
+	s = strings.TrimPrefix(s, "```")
+	s = strings.TrimSuffix(s, "```")
+	return strings.TrimSpace(s)
+}
+
+// isValidHTML checks that the output is a complete HTML document.
+func isValidHTML(s string) bool {
+	return len(s) > 2000 &&
+		strings.Contains(s, "<html") &&
+		strings.Contains(s, "</html>") &&
+		strings.Contains(s, "<body") &&
+		strings.Contains(s, "</body>")
+}
+
+// generateHTML calls the configured HTML generator (Gemini 2.5 Flash or Claude fallback)
+// to produce a complete single-file website.
 func (s *Service) generateHTML(ctx context.Context, spec *SiteSpec, logoDataURI string) (string, error) {
 	photos := getIndustryPhotos(spec.Industry)
 	heroURL     := photoURL(photos[0])
@@ -204,34 +294,79 @@ IMAGES (use these exact URLs):
 		buildContactButton(spec),
 		heroURL, servicesURL, ctaURL)
 
-	prompt := basePrompt + "\n\n" + inputData
+	const maxInputDataChars = 2000
+	if len(inputData) > maxInputDataChars {
+		inputData = inputData[:maxInputDataChars]
+	}
 
-	html, err := s.callClaude(ctx, prompt)
+	activeBase := basePrompt
+	if s.useTailwind {
+		activeBase = basePromptTailwind
+	}
+	prompt := activeBase + s.getThemePrompt() + "\n\n" + inputData
+
+	html, err := s.callHTMLGen(ctx, prompt)
 	if err != nil {
-		return "", fmt.Errorf("claude html: %w", err)
+		return "", fmt.Errorf("html gen: %w", err)
 	}
-
-	// Validate completeness — retry once if truncated or too short.
-	if !strings.Contains(html, "</html>") || len(html) < 3000 {
-		html, err = s.callClaude(ctx, prompt)
-		if err != nil {
-			return "", fmt.Errorf("claude html retry: %w", err)
-		}
-	}
-
 	return html, nil
 }
 
-func (s *Service) callClaude(ctx context.Context, prompt string) (string, error) {
-	html, err := s.claude.Complete(ctx, prompt)
+// callHTMLGen calls the HTML generator with timeout, observability, retry,
+// and runtime Claude fallback if Gemini fails.
+func (s *Service) callHTMLGen(ctx context.Context, prompt string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 40*time.Second)
+	defer cancel()
+
+	start := time.Now()
+	html, err := s.htmlGen.Complete(ctx, prompt)
+	duration := time.Since(start)
+
 	if err != nil {
+		slog.Error("webbot: htmlGen primary failed",
+			"prompt_version", promptVersion,
+			"duration_ms", duration.Milliseconds(),
+			"err", err,
+		)
+		// Runtime fallback to Claude
+		if s.htmlGen != s.claude {
+			slog.Warn("webbot: falling back to Claude for HTML generation")
+			return s.claude.Complete(ctx, prompt)
+		}
 		return "", err
 	}
-	html = strings.TrimSpace(html)
-	html = strings.TrimPrefix(html, "```html")
-	html = strings.TrimPrefix(html, "```")
-	html = strings.TrimSuffix(html, "```")
-	return strings.TrimSpace(html), nil
+
+	cleaned := stripMarkdownFences(html)
+
+	if !isValidHTML(cleaned) {
+		slog.Warn("webbot: invalid HTML on first attempt, retrying",
+			"prompt_version", promptVersion,
+		)
+		retryPrompt := prompt + "\n\n[IMPORTANT: Your previous response was not valid HTML. Output ONLY valid HTML from <!DOCTYPE html> to </html>. No explanations, no code fences.]"
+		retryHTML, retryErr := s.htmlGen.Complete(ctx, retryPrompt)
+		if retryErr == nil {
+			retryClean := stripMarkdownFences(retryHTML)
+			if isValidHTML(retryClean) {
+				slog.Info("webbot: retry succeeded", "prompt_version", promptVersion)
+				return retryClean, nil
+			}
+		}
+		// Retry failed — fallback to Claude
+		if s.htmlGen != s.claude {
+			slog.Warn("webbot: retry failed, falling back to Claude")
+			return s.claude.Complete(ctx, prompt)
+		}
+		return "", fmt.Errorf("html generation produced invalid output after retry")
+	}
+
+	slog.Info("webbot: html generation success",
+		"prompt_version", promptVersion,
+		"theme", s.theme,
+		"use_tailwind", s.useTailwind,
+		"duration_ms", duration.Milliseconds(),
+		"output_length", len(cleaned),
+	)
+	return cleaned, nil
 }
 
 func buildContactButton(spec *SiteSpec) string {

@@ -1,0 +1,35 @@
+{
+  "name": "chatrecept-secretariat",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.46.2",
+    "iconv-lite": "^0.6.3",
+    "lucide-react": "^0.468.0",
+    "next": "^15.5.12",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^4.4.168",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/iconv-lite": "^0.0.1",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.0.1",
+    "eslint": "^9",
+    "eslint-config-next": "15.1.0",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}

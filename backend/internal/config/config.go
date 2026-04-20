@@ -25,8 +25,9 @@ type Config struct {
 
 	// AI providers
 	AnthropicAPIKey string
-	AIModel         string // Claude model ID for English tenants
+	AIModel         string // Claude model ID for English tenants and spec parsing
 	ZhipuAPIKey     string // GLM-4-Flash for Chinese tenants (free)
+	GeminiAPIKey    string // Gemini 2.5 Flash for HTML generation (optional — Claude fallback if empty)
 
 	// Auth (Supabase JWT secret)
 	JWTSecret string
@@ -70,6 +71,7 @@ func Load() (*Config, error) {
 		AnthropicAPIKey:        os.Getenv("ANTHROPIC_API_KEY"),
 		AIModel:                getEnv("AI_MODEL", "claude-haiku-4-5-20251001"),
 		ZhipuAPIKey:            os.Getenv("ZHIPU_API_KEY"),
+		GeminiAPIKey:           os.Getenv("GEMINI_API_KEY"),
 		JWTSecret:              os.Getenv("JWT_SECRET"),
 		ConversationCreditCost: getEnvInt("CONVERSATION_CREDIT_COST", 1),
 		StripeSecretKey:        os.Getenv("STRIPE_SECRET_KEY"),

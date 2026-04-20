@@ -67,7 +67,31 @@ func main() {
 	leadSvc := leads.NewService(database, claudeSvc)
 	affiliateSvc := affiliate.NewService(database)
 
-	webbotSvc := webbot.NewService(database, claudeSvc, cfg.TogetherAPIKey, cfg.CFAccountID, cfg.CFAPIToken, cfg.PublicBaseURL, cfg.WebbotFreeCredits)
+	// HTML generator: Gemini 2.5 Flash if key present, Claude fallback otherwise.
+	var htmlGenerator interface {
+		Complete(context.Context, string) (string, error)
+	}
+	useTailwind := false
+	if cfg.GeminiAPIKey != "" {
+		geminiSvc, err := ai.NewGeminiCompleter(cfg.GeminiAPIKey)
+		if err != nil {
+			slog.Error("gemini init failed", "err", err)
+			os.Exit(1)
+		}
+		htmlGenerator = geminiSvc
+		useTailwind = true
+		slog.Info("webbot: HTML generator = Gemini 2.5 Flash")
+	} else {
+		htmlGenerator = claudeSvc
+		slog.Info("webbot: HTML generator = Claude (fallback)")
+	}
+
+	webbotSvc := webbot.NewService(
+		database, claudeSvc, htmlGenerator,
+		useTailwind, webbot.ThemeModern,
+		cfg.TogetherAPIKey, cfg.CFAccountID, cfg.CFAPIToken,
+		cfg.PublicBaseURL, cfg.WebbotFreeCredits,
+	)
 
 	var webbotHandler *webbot.TelegramHandler
 	if cfg.TelegramWebbotToken != "" {

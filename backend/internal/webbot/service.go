@@ -10,15 +10,29 @@ import (
 	"github.com/jc/pabot/internal/db"
 )
 
-// claudeClient is the minimal interface we need from the AI package.
-type claudeClient interface {
+// completionClient is the minimal interface for single-turn LLM text completion.
+// Implemented by *ai.ClaudeProvider and *ai.GeminiCompleter.
+type completionClient interface {
 	Complete(ctx context.Context, prompt string) (string, error)
 }
+
+// Theme controls the visual style of generated websites.
+type Theme string
+
+const (
+	ThemeModern  Theme = "modern"
+	ThemeLuxury  Theme = "luxury"
+	ThemeMinimal Theme = "minimal"
+	ThemeBold    Theme = "bold"
+)
 
 // Service orchestrates the full site-generation pipeline.
 type Service struct {
 	db             *db.DB
-	claude         claudeClient
+	claude         completionClient // parseDescription — stays on Claude
+	htmlGen        completionClient // generateHTML — Gemini if key present, else Claude
+	useTailwind    bool
+	theme          Theme
 	togetherAPIKey string
 	cfAccountID    string
 	cfAPIToken     string
@@ -26,10 +40,21 @@ type Service struct {
 	freeCredits    int
 }
 
-func NewService(database *db.DB, claude claudeClient, togetherAPIKey, cfAccountID, cfAPIToken, publicBaseURL string, freeCredits int) *Service {
+func NewService(
+	database *db.DB,
+	claude completionClient,
+	htmlGen completionClient,
+	useTailwind bool,
+	theme Theme,
+	togetherAPIKey, cfAccountID, cfAPIToken, publicBaseURL string,
+	freeCredits int,
+) *Service {
 	return &Service{
 		db:             database,
 		claude:         claude,
+		htmlGen:        htmlGen,
+		useTailwind:    useTailwind,
+		theme:          theme,
 		togetherAPIKey: togetherAPIKey,
 		cfAccountID:    cfAccountID,
 		cfAPIToken:     cfAPIToken,
