@@ -11,9 +11,20 @@ function CallbackHandler() {
   const params = useSearchParams()
 
   useEffect(() => {
-    const code = params.get('code')
+    const code     = params.get('code')
+    const redirect = params.get('redirect')
+
     if (code) {
-      supabase.auth.exchangeCodeForSession(code).then(() => router.replace('/'))
+      supabase.auth.exchangeCodeForSession(code).then(({ data }) => {
+        const session = data?.session
+        if (redirect && session) {
+          // Forward tokens to the target service via URL hash (not logged server-side)
+          const url = `${redirect}/auth/set-session#access_token=${session.access_token}&refresh_token=${session.refresh_token}`
+          window.location.href = url
+        } else {
+          router.replace('/')
+        }
+      })
     } else {
       router.replace('/')
     }

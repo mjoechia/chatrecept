@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { redirectToLogin } from '@/lib/auth'
 import type { Form45Data } from '@/lib/types'
 import { FileText, Plus, Upload, Download, Trash2, Search, Settings } from 'lucide-react'
 
@@ -19,7 +20,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) router.push('/login')
+      if (!data.session) redirectToLogin()
     })
     loadForms()
   }, [])

@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { redirectToLogin } from '@/lib/auth'
 import { DEFAULT_FIELDS, DEFAULT_CHECKBOXES } from '@/lib/pdf'
 import type { CoordMap, FieldCoord, CheckboxCoord } from '@/lib/types'
 import {
@@ -46,7 +47,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) router.push('/login')
+      if (!data.session) redirectToLogin()
     })
     loadAll()
   }, [])
@@ -57,7 +58,7 @@ export default function AdminPage() {
       fetch('/api/admin/coordinates'),
       fetch('/api/admin/api-keys'),
     ])
-    if (s.status === 401) { router.push('/login'); return }
+    if (s.status === 401) { redirectToLogin(); return }
     const [sj, cj, kj] = await Promise.all([s.json(), c.json(), k.json()])
     setStatus(sj)
     setCoords({ fields: cj.fields, checkboxes: cj.checkboxes })

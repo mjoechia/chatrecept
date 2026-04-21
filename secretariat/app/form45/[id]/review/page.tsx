@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { redirectToLogin } from '@/lib/auth'
 import type { Form45Data } from '@/lib/types'
 
 const DECLARATION_LABELS: Record<string, string> = {
@@ -26,7 +27,7 @@ export default function ReviewPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) router.push('/login')
+      if (!data.session) redirectToLogin()
     })
     loadForm()
   }, [id])

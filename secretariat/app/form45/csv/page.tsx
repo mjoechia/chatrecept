@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { redirectToLogin } from '@/lib/auth'
 import type { CsvParseResult } from '@/lib/types'
 import { Upload, AlertCircle, CheckCircle } from 'lucide-react'
 
@@ -33,7 +34,7 @@ export default function CsvUploadPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) router.push('/login')
+      if (!data.session) redirectToLogin()
     })
   }, [])
 

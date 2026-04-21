@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { maskNric, validateNric } from '@/lib/nric'
+import { redirectToLogin } from '@/lib/auth'
 
 const DECLARATIONS = [
   { key: 'bankrupt',     label: 'An undischarged bankrupt' },
@@ -41,7 +42,7 @@ export default function NewFormPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) router.push('/login')
+      if (!data.session) redirectToLogin()
     })
   }, [])
 
@@ -71,7 +72,7 @@ export default function NewFormPage() {
 
     setSaving(true)
     const { data: session } = await supabase.auth.getSession()
-    if (!session.session) { router.push('/login'); return }
+    if (!session.session) { redirectToLogin(); return }
 
     const nric_display = nricRaw ? maskNric(nricRaw) : null
 

@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { redirectToLogin } from '@/lib/auth'
 import type { Form45Data } from '@/lib/types'
 import { Download, Copy, CheckCheck, Plus } from 'lucide-react'
 
@@ -20,7 +21,7 @@ export default function OutputPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) router.push('/login')
+      if (!data.session) redirectToLogin()
     })
     poll()
     return () => { if (pollRef.current) clearInterval(pollRef.current) }

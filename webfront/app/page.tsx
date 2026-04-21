@@ -96,9 +96,14 @@ export default function ComingSoonPage() {
   }, [])
 
   function handleGoogleLogin() {
+    const params = new URLSearchParams(location.search)
+    const redirect = params.get("redirect")
+    const callbackUrl = redirect
+      ? `${location.origin}/auth/callback?redirect=${encodeURIComponent(redirect)}`
+      : `${location.origin}/auth/callback`
     supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${location.origin}/auth/callback` },
+      options: { redirectTo: callbackUrl },
     })
   }
 

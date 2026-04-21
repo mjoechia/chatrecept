@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { redirectToLogin } from '@/lib/auth'
 import Script from 'next/script'
 import type { CoordMap } from '@/lib/types'
 import { CheckCircle2, Save, Crosshair } from 'lucide-react'
@@ -48,7 +49,7 @@ export default function CalibratePage() {
   // Load existing coordinates from backend
   useEffect(() => {
     fetch('/api/admin/coordinates').then(async r => {
-      if (r.status === 401) { router.push('/login'); return }
+      if (r.status === 401) { redirectToLogin(); return }
       const j = await r.json()
       setCoords({ fields: j.fields, checkboxes: j.checkboxes })
     })
