@@ -155,7 +155,7 @@ export default function ComingSoonPage() {
           </div>
           <div className="flex items-center gap-4">
             {user ? (
-              <div className="hidden sm:flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <span className="text-xs text-[#5e799c] font-medium">{user.email}</span>
                 <button
                   onClick={handleLogout}
@@ -167,7 +167,7 @@ export default function ComingSoonPage() {
             ) : (
               <button
                 onClick={handleGoogleLogin}
-                className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border border-[#c8d8e8] text-[#3a5a7a] hover:bg-[#f0f6fb] transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border border-[#c8d8e8] text-[#3a5a7a] hover:bg-[#f0f6fb] transition-colors"
               >
                 <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>

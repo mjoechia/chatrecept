@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  generateBuildId: () => String(Date.now()),
   images: {
     remotePatterns: [
       {
