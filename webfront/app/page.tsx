@@ -31,6 +31,9 @@ function Icon({
   );
 }
 
+/* ── Constants ─────────────────────────────────────────────────────────── */
+const SECRETARIAT_URL = process.env.NEXT_PUBLIC_SECRETARIAT_URL ?? ''
+
 /* ── Data ───────────────────────────────────────────────────────────────── */
 const BENEFITS = [
   "Free website via WebsiteBot on Telegram — instant",
@@ -109,6 +112,14 @@ export default function ComingSoonPage() {
 
   function handleLogout() {
     supabase.auth.signOut()
+  }
+
+  async function handleOpenSecretariat() {
+    const { data } = await supabase.auth.getSession()
+    const session = data.session
+    if (!session) { handleGoogleLogin(); return }
+    const url = `${SECRETARIAT_URL}/auth/set-session#access_token=${session.access_token}&refresh_token=${session.refresh_token}`
+    window.open(url, '_blank')
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -210,6 +221,78 @@ export default function ComingSoonPage() {
           <span className="text-xs font-bold text-primary shrink-0">Try it →</span>
         </a>
       </div>
+
+      {/* ── Logged-in dashboard ──────────────────────────────────────────── */}
+      {user && (
+        <section className="max-w-7xl mx-auto px-6 pt-6 pb-2">
+          <div className="rounded-2xl border border-[#dde8f5] bg-white p-6">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#5e799c] mb-5">Your Services</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              {/* AI Secretariat — Live */}
+              <div className="rounded-xl border border-[#dde8f5] p-5 flex flex-col gap-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#eaf1ff] flex items-center justify-center shrink-0">
+                      <Icon name="folder_managed" className="text-primary" size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-[#12304f] text-sm">AI Secretariat</h3>
+                      <p className="text-xs text-[#5e799c]">Corporate Secretary Automation</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-green-50 text-green-600 shrink-0">Live</span>
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-[#12304f]">How to get started:</p>
+                  {[
+                    'Click "Open Secretariat" below',
+                    'Select "New Form 45" from the dashboard',
+                    'Fill in company & director details',
+                    'Generate & download the ACRA-compliant PDF',
+                  ].map((step, i) => (
+                    <div key={i} className="flex items-start gap-2 text-xs text-[#425d7f]">
+                      <span className="w-4 h-4 rounded-full bg-[#eaf1ff] text-primary font-bold flex items-center justify-center shrink-0 text-[10px] mt-0.5">{i + 1}</span>
+                      <span>{step}</span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={handleOpenSecretariat}
+                  className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white transition-colors hover:opacity-90"
+                  style={{ background: "linear-gradient(135deg, #006092 0%, #4db0f7 100%)" }}
+                >
+                  Open Secretariat →
+                </button>
+              </div>
+
+              {/* AI Personal Assistant — Coming Soon */}
+              <div className="rounded-xl border border-[#dde8f5] bg-[#fafbfd] p-5 flex flex-col gap-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#f3f6ff] flex items-center justify-center shrink-0">
+                      <Icon name="psychology" className="text-[#94afd5]" size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-[#425d7f] text-sm">AI Personal Assistant</h3>
+                      <p className="text-xs text-[#94afd5]">Productivity & Task Automation</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#f0f4fa] text-[#94afd5] shrink-0">Soon</span>
+                </div>
+                <p className="text-xs text-[#94afd5]">Your AI for scheduling, reminders, and personal task management. You'll be notified when it's ready.</p>
+                <button
+                  disabled
+                  className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-[#94afd5] bg-[#f0f4fa] cursor-not-allowed"
+                >
+                  Coming Soon
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden pt-14 pb-24 px-6">
@@ -548,6 +631,77 @@ export default function ComingSoonPage() {
                   Try on Telegram
                 </a>
               </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ── Our Products ─────────────────────────────────────────────────── */}
+      <section className="py-24 px-6 bg-[#f3f6ff]">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <h2
+              className="text-4xl md:text-5xl font-black tracking-tight text-[#12304f] mb-4"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              Our AI Products
+            </h2>
+            <p className="text-[#425d7f] text-lg">Purpose-built AI tools for professionals and businesses.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            {/* AI Secretariat */}
+            <div className="bg-white rounded-[2rem] p-8 border border-[#dde8f5] flex flex-col gap-6">
+              <div className="flex items-center justify-between">
+                <div
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                  style={{ background: "linear-gradient(135deg, #eaf1ff, #dce9ff)" }}
+                >
+                  <Icon name="folder_managed" className="text-primary" size={28} />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full bg-green-50 text-green-600">Live</span>
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-[#12304f] mb-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                  AI Secretariat
+                </h3>
+                <p className="text-[#425d7f] leading-relaxed">
+                  Automate ACRA filings, Form 45 Consents to Act as Director, and corporate secretary work — from data entry to signed PDF in minutes.
+                </p>
+              </div>
+              <button
+                onClick={user ? handleOpenSecretariat : handleGoogleLogin}
+                className="inline-flex items-center gap-2 font-bold text-sm text-primary hover:text-[#005080] transition-colors self-start"
+              >
+                {user ? 'Open Secretariat' : 'Log in to get started'}
+                <Icon name="arrow_forward" className="text-primary" size={16} />
+              </button>
+            </div>
+
+            {/* AI Personal Assistant */}
+            <div className="bg-white rounded-[2rem] p-8 border border-[#dde8f5] flex flex-col gap-6">
+              <div className="flex items-center justify-between">
+                <div
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                  style={{ background: "#f3f6ff" }}
+                >
+                  <Icon name="psychology" className="text-[#94afd5]" size={28} />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full bg-[#f0f4fa] text-[#5e799c]">Coming Soon</span>
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-[#12304f] mb-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                  AI Personal Assistant
+                </h3>
+                <p className="text-[#425d7f] leading-relaxed">
+                  Your intelligent AI for scheduling, reminders, personal task management, and productivity automation — coming next.
+                </p>
+              </div>
+              <a href="#signup" className="inline-flex items-center gap-2 font-bold text-sm text-[#5e799c] hover:text-primary transition-colors self-start">
+                Join the waitlist
+                <Icon name="arrow_forward" className="text-[#5e799c]" size={16} />
+              </a>
             </div>
 
           </div>
