@@ -76,24 +76,20 @@ export default function NewFormPage() {
 
     const nric_display = nricRaw ? maskNric(nricRaw) : null
 
-    const { data, error } = await supabase
-      .schema('app_secretariat')
-      .from('form45')
-      .insert({
-        ...form,
-        nric_display,
-        source: 'ui',
-      })
-      .select()
-      .single()
+    const res = await fetch('/api/form45/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...form, nric_display }),
+    })
+    const json = await res.json()
 
-    if (error || !data) {
-      alert(`Error saving form: ${error?.message}`)
+    if (!res.ok || !json.id) {
+      alert(`Error saving form: ${json.error ?? 'Unknown error'}`)
       setSaving(false)
       return
     }
 
-    router.push(`/form45/${data.id}/review`)
+    router.push(`/form45/${json.id}/review`)
   }
 
   const inputClass = 'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
