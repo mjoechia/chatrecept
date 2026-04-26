@@ -28,6 +28,18 @@ const STATUS_BADGE: Record<UserStatus, string> = {
   suspended: 'bg-red-500/20 text-red-300 border border-red-500/30',
 }
 
+function statusLabel(u: Profile): string {
+  if (u.status === 'invited' && !u.invited_by) return 'pending'
+  return u.status
+}
+
+function statusBadgeClass(u: Profile): string {
+  if (u.status === 'invited' && !u.invited_by) {
+    return 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+  }
+  return STATUS_BADGE[u.status]
+}
+
 export default function AdminUsersPage() {
   const router = useRouter()
   const [users, setUsers]   = useState<Profile[]>([])
@@ -102,9 +114,14 @@ export default function AdminUsersPage() {
 
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
-          <Link href="/admin" className="text-sm hover:text-white transition-colors" style={{ color: '#6B7280' }}>
-            ← Admin
+          <Link href="/" className="text-sm hover:text-white transition-colors" style={{ color: '#6B7280' }}>
+            ← Dashboard
           </Link>
+          <span style={{ color: '#374151' }}>/</span>
+          <Link href="/admin" className="text-sm hover:text-white transition-colors" style={{ color: '#6B7280' }}>
+            Admin
+          </Link>
+          <span style={{ color: '#374151' }}>/</span>
           <h1 className="text-xl font-bold text-white">User Management</h1>
         </div>
 
@@ -187,8 +204,8 @@ export default function AdminUsersPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_BADGE[u.status]}`}>
-                        {u.status}
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadgeClass(u)}`}>
+                        {statusLabel(u)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs" style={{ color: '#6B7280' }}>
@@ -196,7 +213,27 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2 flex-wrap">
-                        {u.status === 'invited' && (
+                        {u.status === 'invited' && !u.invited_by && (
+                          <>
+                            <button
+                              onClick={() => patchUser(u.id, { status: 'active' })}
+                              disabled={actionBusy === u.id}
+                              className="text-xs px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
+                              style={{ background: 'rgba(34,197,94,0.15)', color: '#4ADE80' }}
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => patchUser(u.id, { status: 'suspended' })}
+                              disabled={actionBusy === u.id}
+                              className="text-xs px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
+                              style={{ background: 'rgba(239,68,68,0.15)', color: '#F87171' }}
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+                        {u.status === 'invited' && u.invited_by && (
                           <button
                             onClick={() => resendInvite(u.id)}
                             disabled={actionBusy === u.id}

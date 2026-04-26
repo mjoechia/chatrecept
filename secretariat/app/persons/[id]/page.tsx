@@ -77,7 +77,11 @@ export default function EditPersonPage() {
           <Users className="w-5 h-5 text-blue-600" />
           <h1 className="text-lg font-semibold">Edit Person</h1>
         </div>
-        <button onClick={() => router.push('/persons')} className="text-sm text-gray-500 hover:underline">← Persons</button>
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.push('/')} className="text-sm text-gray-500 hover:text-gray-800">← Dashboard</button>
+          <span className="text-gray-300">/</span>
+          <button onClick={() => router.push('/persons')} className="text-sm text-gray-500 hover:text-gray-800">Persons</button>
+        </div>
       </header>
 
       <main className="max-w-lg mx-auto px-6 py-8">

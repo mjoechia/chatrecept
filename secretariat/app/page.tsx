@@ -7,7 +7,8 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { redirectToLogin } from '@/lib/auth'
 import type { Form45Data, FormTemplate, Company } from '@/lib/types'
-import { FileText, Plus, Upload, Download, Trash2, Search, Settings, Layers, Building2, Users } from 'lucide-react'
+import Image from 'next/image'
+import { Plus, Upload, Download, Trash2, Search, Settings, Layers, Building2, Users } from 'lucide-react'
 
 interface MyBatch {
   id: string
@@ -37,7 +38,9 @@ export default function DashboardPage() {
       if (!data.session) { redirectToLogin(); return }
       // Fetch profile and redirect admins
       fetch('/api/user/me').then(res => {
+        if (res.status === 403) { router.push('/auth/pending'); return }
         if (res.ok) res.json().then(profile => {
+          if (profile.pending_approval) { router.push('/auth/pending'); return }
           setUserRole(profile.role)
           if (profile.role === 'admin') { router.push('/admin'); return }
         })
@@ -138,7 +141,7 @@ export default function DashboardPage() {
       {/* Header */}
       <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <FileText className="w-5 h-5 text-blue-600" />
+          <Image src="/chatrecept.png" alt="ChatRecept" width={32} height={32} className="rounded-lg" />
           <h1 className="text-lg font-semibold">Secretariat</h1>
         </div>
         <div className="flex gap-2">

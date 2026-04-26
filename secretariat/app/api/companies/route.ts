@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSessionClient } from '@/lib/supabase-server'
+import { createServiceClient } from '@/lib/supabase'
 
 // GET /api/companies — list user's companies (soft-deleted excluded)
 export async function GET() {
-  const supabase = await createSessionClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const session = await createSessionClient()
+  const { data: { user } } = await session.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data, error } = await supabase
+  const svc = createServiceClient()
+  const { data, error } = await svc
     .schema('app_secretariat')
     .from('companies')
     .select('id, name, uen, created_at, updated_at')
+    .eq('user_id', user.id)
     .is('deleted_at', null)
     .order('name')
 
@@ -20,8 +23,8 @@ export async function GET() {
 
 // POST /api/companies — create company
 export async function POST(req: NextRequest) {
-  const supabase = await createSessionClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const session = await createSessionClient()
+  const { data: { user } } = await session.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   let body: { name?: string; uen?: string }
@@ -33,7 +36,8 @@ export async function POST(req: NextRequest) {
   const uen  = String(body.uen  ?? '').trim()
   if (!name || !uen) return NextResponse.json({ error: 'name and uen are required' }, { status: 400 })
 
-  const { data, error } = await supabase
+  const svc = createServiceClient()
+  const { data, error } = await svc
     .schema('app_secretariat')
     .from('companies')
     .insert({ user_id: user.id, name, uen })

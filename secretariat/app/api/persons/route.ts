@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSessionClient } from '@/lib/supabase-server'
+import { createServiceClient } from '@/lib/supabase'
 
 // GET /api/persons — list user's persons (soft-deleted excluded)
 export async function GET() {
-  const supabase = await createSessionClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const session = await createSessionClient()
+  const { data: { user } } = await session.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data, error } = await supabase
+  const svc = createServiceClient()
+  const { data, error } = await svc
     .schema('app_secretariat')
     .from('persons')
     .select('id, full_name, nric_masked, nationality, dob, address, created_at, updated_at')
+    .eq('user_id', user.id)
     .is('deleted_at', null)
     .order('full_name')
 
@@ -20,8 +23,8 @@ export async function GET() {
 
 // POST /api/persons — create person (with soft duplicate detection)
 export async function POST(req: NextRequest) {
-  const supabase = await createSessionClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const session = await createSessionClient()
+  const { data: { user } } = await session.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   let body: {
@@ -39,13 +42,16 @@ export async function POST(req: NextRequest) {
   const full_name = String(body.full_name ?? '').trim()
   if (!full_name) return NextResponse.json({ error: 'full_name is required' }, { status: 400 })
 
-  // Soft duplicate detection: same full_name + dob
+  const svc = createServiceClient()
+
+  // Soft duplicate detection: same full_name + dob for this user
   let duplicate_warning = false
   if (body.dob) {
-    const { data: existing } = await supabase
+    const { data: existing } = await svc
       .schema('app_secretariat')
       .from('persons')
       .select('id')
+      .eq('user_id', user.id)
       .eq('full_name', full_name)
       .eq('dob', body.dob)
       .is('deleted_at', null)
@@ -53,17 +59,17 @@ export async function POST(req: NextRequest) {
     duplicate_warning = (existing?.length ?? 0) > 0
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await svc
     .schema('app_secretariat')
     .from('persons')
     .insert({
-      user_id:         user.id,
+      user_id:        user.id,
       full_name,
-      nric_masked:     body.nric_masked     ? String(body.nric_masked).trim()     : null,
-      nric_encrypted:  body.nric_encrypted  ? String(body.nric_encrypted).trim()  : null,
-      nationality:     body.nationality     ? String(body.nationality).trim()     : null,
-      dob:             body.dob             ? String(body.dob).trim()             : null,
-      address:         body.address         ? String(body.address).trim()         : null,
+      nric_masked:    body.nric_masked    ? String(body.nric_masked).trim()    : null,
+      nric_encrypted: body.nric_encrypted ? String(body.nric_encrypted).trim() : null,
+      nationality:    body.nationality    ? String(body.nationality).trim()    : null,
+      dob:            body.dob            ? String(body.dob).trim()            : null,
+      address:        body.address        ? String(body.address).trim()        : null,
     })
     .select('id, full_name, nric_masked, nationality, dob, address, created_at, updated_at')
     .single()

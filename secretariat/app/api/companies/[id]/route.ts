@@ -1,28 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSessionClient } from '@/lib/supabase-server'
+import { createServiceClient } from '@/lib/supabase'
 
 type Params = { params: Promise<{ id: string }> }
 
 // GET /api/companies/[id] — company + linked persons
 export async function GET(_req: NextRequest, { params }: Params) {
-  const supabase = await createSessionClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const session = await createSessionClient()
+  const { data: { user } } = await session.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
+  const svc = createServiceClient()
 
-  const { data: company, error } = await supabase
+  const { data: company, error } = await svc
     .schema('app_secretariat')
     .from('companies')
     .select('id, name, uen, created_at, updated_at')
     .eq('id', id)
+    .eq('user_id', user.id)
     .is('deleted_at', null)
     .single()
 
   if (error || !company) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  // Fetch linked persons (only non-deleted)
-  const { data: links } = await supabase
+  const { data: links } = await svc
     .schema('app_secretariat')
     .from('company_persons')
     .select(`
@@ -44,8 +46,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 // PATCH /api/companies/[id] — update name/uen
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const supabase = await createSessionClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const session = await createSessionClient()
+  const { data: { user } } = await session.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
@@ -58,11 +60,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if ('name' in body) updates.name = String(body.name).trim()
   if ('uen'  in body) updates.uen  = String(body.uen).trim()
 
-  const { data, error } = await supabase
+  const svc = createServiceClient()
+  const { data, error } = await svc
     .schema('app_secretariat')
     .from('companies')
     .update(updates)
     .eq('id', id)
+    .eq('user_id', user.id)
     .is('deleted_at', null)
     .select('id, name, uen, updated_at')
     .single()
@@ -73,17 +77,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 // DELETE /api/companies/[id] — soft delete
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const supabase = await createSessionClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const session = await createSessionClient()
+  const { data: { user } } = await session.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
+  const svc = createServiceClient()
 
-  const { error } = await supabase
+  const { error } = await svc
     .schema('app_secretariat')
     .from('companies')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
+    .eq('user_id', user.id)
     .is('deleted_at', null)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

@@ -194,7 +194,11 @@ export default function CompanyDetailPage() {
             </div>
           )}
         </div>
-        <button onClick={() => router.push('/companies')} className="text-sm text-gray-500 hover:underline">← Companies</button>
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.push('/')} className="text-sm text-gray-500 hover:text-gray-800">← Dashboard</button>
+          <span className="text-gray-300">/</span>
+          <button onClick={() => router.push('/companies')} className="text-sm text-gray-500 hover:text-gray-800">Companies</button>
+        </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-8 space-y-6">
