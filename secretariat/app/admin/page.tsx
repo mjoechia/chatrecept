@@ -34,6 +34,7 @@ export default function AdminPage() {
   const [status,   setStatus]   = useState<StatusData | null>(null)
   const [coords,   setCoords]   = useState<CoordMap | null>(null)
   const [apiKeys,  setApiKeys]  = useState<ApiKeyRecord[]>([])
+  const [userCounts, setUserCounts] = useState<{ active: number; invited: number; suspended: number } | null>(null)
   const [saving,   setSaving]   = useState(false)
   const [uploading, setUploading] = useState<'template' | 'font' | null>(null)
   const [testUrl,  setTestUrl]  = useState<string | null>(null)
@@ -53,16 +54,24 @@ export default function AdminPage() {
   }, [])
 
   async function loadAll() {
-    const [s, c, k] = await Promise.all([
+    const [s, c, k, u] = await Promise.all([
       fetch('/api/admin/status'),
       fetch('/api/admin/coordinates'),
       fetch('/api/admin/api-keys'),
+      fetch('/api/admin/users'),
     ])
     if (s.status === 401) { redirectToLogin(); return }
-    const [sj, cj, kj] = await Promise.all([s.json(), c.json(), k.json()])
+    const [sj, cj, kj, uj] = await Promise.all([s.json(), c.json(), k.json(), u.json()])
     setStatus(sj)
     setCoords({ fields: cj.fields, checkboxes: cj.checkboxes })
     setApiKeys(kj.keys ?? [])
+    if (Array.isArray(uj)) {
+      setUserCounts({
+        active:    uj.filter((p: { status: string }) => p.status === 'active').length,
+        invited:   uj.filter((p: { status: string }) => p.status === 'invited').length,
+        suspended: uj.filter((p: { status: string }) => p.status === 'suspended').length,
+      })
+    }
   }
 
   async function handleUpload(type: 'template' | 'font', ref: React.RefObject<HTMLInputElement | null>) {
@@ -186,6 +195,28 @@ export default function AdminPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+
+        {/* ── Users ───────────────────────────────────────────────────── */}
+        <section className="bg-white rounded-xl border p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-gray-800">Users</h2>
+            <a href="/admin/users" className="flex items-center gap-1 text-sm text-blue-600 hover:underline">
+              Manage Users <ArrowRight className="w-3.5 h-3.5" />
+            </a>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              { label: 'Active',    value: userCounts?.active    ?? '—', colour: 'text-green-600' },
+              { label: 'Invited',   value: userCounts?.invited   ?? '—', colour: 'text-yellow-600' },
+              { label: 'Suspended', value: userCounts?.suspended ?? '—', colour: 'text-red-500' },
+            ].map(({ label, value, colour }) => (
+              <div key={label} className="bg-gray-50 rounded-lg p-4 text-center">
+                <p className={`text-2xl font-bold ${colour}`}>{value}</p>
+                <p className="text-xs text-gray-500 mt-1">{label}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {/* ── Status Overview ─────────────────────────────────────────── */}
         {status && (

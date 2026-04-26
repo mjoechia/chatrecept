@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
       total: body.rows.length,
       source_type: body.source_type ?? 'csv',
       status: 'pending',
+      user_id: user.id,
     })
     .select('id')
     .single()

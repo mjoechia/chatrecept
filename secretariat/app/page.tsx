@@ -6,28 +6,42 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { redirectToLogin } from '@/lib/auth'
-import type { Form45Data, FormTemplate, BatchJob, Company } from '@/lib/types'
+import type { Form45Data, FormTemplate, Company } from '@/lib/types'
 import { FileText, Plus, Upload, Download, Trash2, Search, Settings, Layers, Building2, Users } from 'lucide-react'
 
-interface BatchRow extends Pick<BatchJob, 'id' | 'label' | 'total' | 'completed' | 'failed_count' | 'status' | 'created_at'> {
-  template_name?: string
+interface MyBatch {
+  id: string
+  label: string | null
+  total: number
+  processed: number
+  status: string
+  created_at: string
+  form_templates: { name: string } | null
 }
 
 export default function DashboardPage() {
   const router   = useRouter()
   const supabase = createClient()
 
-  const [forms, setForms]     = useState<Form45Data[]>([])
-  const [loading, setLoading] = useState(true)
-  const [query, setQuery]     = useState('')
-  const [deleting, setDeleting] = useState<string | null>(null)
-  const [templates,  setTemplates]  = useState<Pick<FormTemplate, 'id' | 'name' | 'status'>[]>([])
-  const [batches,    setBatches]    = useState<BatchRow[]>([])
-  const [companies,  setCompanies]  = useState<Pick<Company, 'id' | 'name' | 'uen'>[]>([])
+  const [forms, setForms]         = useState<Form45Data[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [query, setQuery]         = useState('')
+  const [deleting, setDeleting]   = useState<string | null>(null)
+  const [templates, setTemplates] = useState<Pick<FormTemplate, 'id' | 'name' | 'status'>[]>([])
+  const [batches, setBatches]     = useState<MyBatch[]>([])
+  const [companies, setCompanies] = useState<Pick<Company, 'id' | 'name' | 'uen'>[]>([])
+  const [userRole, setUserRole]   = useState<'admin' | 'user' | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) redirectToLogin()
+      if (!data.session) { redirectToLogin(); return }
+      // Fetch profile and redirect admins
+      fetch('/api/user/me').then(res => {
+        if (res.ok) res.json().then(profile => {
+          setUserRole(profile.role)
+          if (profile.role === 'admin') { router.push('/admin'); return }
+        })
+      })
     })
     loadForms()
     loadTemplates()
@@ -52,14 +66,10 @@ export default function DashboardPage() {
   }
 
   async function loadBatches() {
-    const { data } = await supabase
-      .schema('app_secretariat')
-      .from('batch_jobs')
-      .select('id, label, total, completed, failed_count, status, created_at, template_id')
-      .order('created_at', { ascending: false })
-      .limit(10)
-    if (data) {
-      setBatches(data as BatchRow[])
+    const res = await fetch('/api/user/batches')
+    if (res.ok) {
+      const data: MyBatch[] = await res.json()
+      setBatches(data)
     }
   }
 
@@ -109,6 +119,20 @@ export default function DashboardPage() {
     )
   }
 
+  const batchStatusBadge = (s: string) => {
+    const styles: Record<string, string> = {
+      pending:      'bg-gray-100 text-gray-500',
+      running:      'bg-yellow-100 text-yellow-700',
+      done:         'bg-green-100 text-green-700',
+      partial_fail: 'bg-orange-100 text-orange-700',
+    }
+    return (
+      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${styles[s] ?? 'bg-gray-100'}`}>
+        {s}
+      </span>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -116,7 +140,6 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           <FileText className="w-5 h-5 text-blue-600" />
           <h1 className="text-lg font-semibold">Secretariat</h1>
-          <span className="text-gray-400 text-sm">Form 45</span>
         </div>
         <div className="flex gap-2">
           <button
@@ -131,27 +154,23 @@ export default function DashboardPage() {
           >
             <Building2 className="w-4 h-4" /> Companies
           </button>
-          <button
-            onClick={() => router.push('/admin')}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50"
-          >
-            <Settings className="w-4 h-4" /> Admin
-          </button>
+          {userRole === 'admin' && (
+            <button
+              onClick={() => router.push('/admin')}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50"
+            >
+              <Settings className="w-4 h-4" /> Admin
+            </button>
+          )}
           <button
             onClick={() => router.push('/batch/new')}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            <Layers className="w-4 h-4" /> New Batch
-          </button>
-          <button
-            onClick={() => router.push('/form45/csv')}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50"
-          >
-            <Upload className="w-4 h-4" /> CSV Upload
+            <Layers className="w-4 h-4" /> New Import
           </button>
           <button
             onClick={() => router.push('/form45/new')}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50"
           >
             <Plus className="w-4 h-4" /> New Form
           </button>
@@ -199,14 +218,75 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Templates */}
+        {/* My Groups (batch imports) */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-gray-800">My Groups</h2>
+            <button
+              onClick={() => router.push('/batch/new')}
+              className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+            >
+              <Upload className="w-3.5 h-3.5" /> New Import
+            </button>
+          </div>
+          {batches.length === 0 ? (
+            <div
+              onClick={() => router.push('/batch/new')}
+              className="bg-white border-2 border-dashed rounded-xl p-8 text-center cursor-pointer hover:border-blue-300 hover:bg-blue-50/30 transition-colors"
+            >
+              <Upload className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+              <p className="text-sm font-medium text-gray-600">No groups yet</p>
+              <p className="text-xs text-gray-400 mt-1">Upload a CSV or Excel file to generate forms for multiple people at once</p>
+              <span className="mt-4 inline-block text-sm text-blue-600 font-medium">New Import →</span>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Label</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Template</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Count</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Date</th>
+                    <th className="px-4 py-3 text-right font-medium text-gray-600">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {batches.map(b => (
+                    <tr key={b.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium">{b.label ?? `Import ${b.id.slice(0, 8)}`}</td>
+                      <td className="px-4 py-3 text-gray-500">{b.form_templates?.name ?? '—'}</td>
+                      <td className="px-4 py-3 text-gray-500">{b.total}</td>
+                      <td className="px-4 py-3">{batchStatusBadge(b.status)}</td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">{new Date(b.created_at).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-right">
+                        {b.status === 'done' || b.status === 'partial_fail' ? (
+                          <a href={`/api/batch/${b.id}/zip`} className="text-xs text-green-600 hover:underline">
+                            Download ZIP
+                          </a>
+                        ) : (
+                          <button
+                            onClick={() => router.push(`/batch/${b.id}/progress`)}
+                            className="text-xs text-blue-600 hover:underline"
+                          >
+                            View progress
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        {/* Active Templates */}
         {templates.length > 0 && (
           <section>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold text-gray-800">Templates</h2>
-              <button onClick={() => router.push('/admin/templates')} className="text-xs text-blue-600 hover:underline">
-                Manage →
-              </button>
+              <h2 className="font-semibold text-gray-800">Available Templates</h2>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {templates.map(t => (
@@ -227,151 +307,88 @@ export default function DashboardPage() {
           </section>
         )}
 
-        {/* Recent Batches */}
-        {batches.length > 0 && (
-          <section>
-            <h2 className="font-semibold text-gray-800 mb-3">Recent Batches</h2>
+        {/* Form 45 — Individual (legacy) */}
+        <section>
+          <h2 className="font-semibold text-gray-800 mb-3">Form 45 — Individual</h2>
+          <div className="relative mb-6">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by company, UEN, or director…"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            />
+          </div>
+
+          {loading ? (
+            <div className="text-center py-16 text-gray-400">Loading…</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              {forms.length === 0 ? 'No forms yet. Create your first one.' : 'No results found.'}
+            </div>
+          ) : (
             <div className="bg-white rounded-xl border overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Label</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Progress</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Company</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">UEN</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Director</th>
                     <th className="px-4 py-3 text-left font-medium text-gray-600">Date</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
                     <th className="px-4 py-3 text-right font-medium text-gray-600">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {batches.map(b => {
-                    const batchStatusStyle: Record<string, string> = {
-                      pending:      'bg-gray-100 text-gray-500',
-                      running:      'bg-yellow-100 text-yellow-700',
-                      done:         'bg-green-100 text-green-700',
-                      partial_fail: 'bg-orange-100 text-orange-700',
-                    }
-                    return (
-                      <tr key={b.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-medium">{b.label ?? `Batch ${b.id.slice(0, 8)}`}</td>
-                        <td className="px-4 py-3 text-gray-500">{b.completed}/{b.total}</td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${batchStatusStyle[b.status] ?? 'bg-gray-100'}`}>
-                            {b.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-gray-500 text-xs">
-                          {new Date(b.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {b.status === 'done' || b.status === 'partial_fail' ? (
-                            <a
-                              href={`/api/batch/${b.id}/zip`}
-                              className="text-xs text-green-600 hover:underline"
-                            >
-                              Download ZIP
-                            </a>
-                          ) : (
+                  {filtered.map(form => (
+                    <tr key={form.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium">{form.company_name}</td>
+                      <td className="px-4 py-3 text-gray-500">{form.uen}</td>
+                      <td className="px-4 py-3">{form.director_name}</td>
+                      <td className="px-4 py-3 text-gray-500">{form.consent_date}</td>
+                      <td className="px-4 py-3">{statusBadge(form.status)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-2">
+                          {form.status === 'draft' && (
                             <button
-                              onClick={() => router.push(`/batch/${b.id}/progress`)}
-                              className="text-xs text-blue-600 hover:underline"
+                              onClick={() => router.push(`/form45/${form.id}/review`)}
+                              className="text-blue-600 hover:underline text-xs"
                             >
-                              View
+                              Review
                             </button>
                           )}
-                        </td>
-                      </tr>
-                    )
-                  })}
+                          {form.status === 'generated' && (
+                            <button
+                              onClick={() => handleDownload(form)}
+                              className="flex items-center gap-1 text-green-600 hover:underline text-xs"
+                            >
+                              <Download className="w-3 h-3" /> PDF
+                            </button>
+                          )}
+                          {form.status === 'failed' && (
+                            <button
+                              onClick={() => router.push(`/form45/${form.id}/review`)}
+                              className="text-orange-500 hover:underline text-xs"
+                            >
+                              Retry
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDelete(form.id)}
+                            disabled={deleting === form.id}
+                            className="text-red-400 hover:text-red-600 disabled:opacity-40"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-          </section>
-        )}
-
-        {/* Form 45 legacy section */}
-        <section>
-          <h2 className="font-semibold text-gray-800 mb-3">Form 45 — Individual</h2>
-        {/* Search */}
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by company, UEN, or director…"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          />
-        </div>
-
-        {/* Table */}
-        {loading ? (
-          <div className="text-center py-16 text-gray-400">Loading…</div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            {forms.length === 0 ? 'No forms yet. Create your first one.' : 'No results found.'}
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl border overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Company</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">UEN</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Director</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Date</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-600">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {filtered.map(form => (
-                  <tr key={form.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{form.company_name}</td>
-                    <td className="px-4 py-3 text-gray-500">{form.uen}</td>
-                    <td className="px-4 py-3">{form.director_name}</td>
-                    <td className="px-4 py-3 text-gray-500">{form.consent_date}</td>
-                    <td className="px-4 py-3">{statusBadge(form.status)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-2">
-                        {form.status === 'draft' && (
-                          <button
-                            onClick={() => router.push(`/form45/${form.id}/review`)}
-                            className="text-blue-600 hover:underline text-xs"
-                          >
-                            Review
-                          </button>
-                        )}
-                        {form.status === 'generated' && (
-                          <button
-                            onClick={() => handleDownload(form)}
-                            className="flex items-center gap-1 text-green-600 hover:underline text-xs"
-                          >
-                            <Download className="w-3 h-3" /> PDF
-                          </button>
-                        )}
-                        {form.status === 'failed' && (
-                          <button
-                            onClick={() => router.push(`/form45/${form.id}/review`)}
-                            className="text-orange-500 hover:underline text-xs"
-                          >
-                            Retry
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDelete(form.id)}
-                          disabled={deleting === form.id}
-                          className="text-red-400 hover:text-red-600 disabled:opacity-40"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+          )}
         </section>
 
       </main>
