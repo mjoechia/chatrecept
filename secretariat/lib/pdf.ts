@@ -3,12 +3,10 @@ import fontkit from '@pdf-lib/fontkit'
 import fs from 'fs'
 import path from 'path'
 import { createServiceClient } from './supabase'
-import { downloadAsset } from './storage'
-import type { Form45Data, CoordMap, FieldCoord, CheckboxCoord } from './types'
+import { downloadAsset, downloadByPath } from './storage'
+import type { Form45Data, CoordMap, FieldCoord, TemplateCoordMap, FieldDef } from './types'
 
-// ── Default coordinate map ──────────────────────────────────────────────────
-// Placeholder values — calibrate via Admin → Calibrate or Admin → Coordinate Map.
-// These are overridden by values saved in the database.
+// ── Legacy Form 45 defaults (used by overlayForm45 adapter) ─────────────────
 
 const DEFAULT_FIELDS: CoordMap['fields'] = {
   company_name:  { x: 180, y: 690, maxWidth: 320 },
@@ -33,10 +31,9 @@ const DEFAULT_CHECKBOXES: CoordMap['checkboxes'] = {
 
 export { DEFAULT_FIELDS, DEFAULT_CHECKBOXES }
 
-// ── Asset loaders ───────────────────────────────────────────────────────────
+// ── Asset loaders ────────────────────────────────────────────────────────────
 
 async function loadCoordinates(): Promise<CoordMap> {
-  // 1. Try DB (set via Admin UI → Coordinate Map / Calibration)
   try {
     const supabase = createServiceClient()
     const { data } = await supabase
@@ -55,7 +52,6 @@ async function loadCoordinates(): Promise<CoordMap> {
     }
   } catch {}
 
-  // 2. Filesystem calibration file (local dev)
   const calibPath = path.join(process.cwd(), 'calibration', 'form45.json')
   if (fs.existsSync(calibPath)) {
     try {
@@ -71,11 +67,9 @@ async function loadCoordinates(): Promise<CoordMap> {
 }
 
 export async function loadTemplate(): Promise<Buffer> {
-  // 1. Filesystem (local dev or committed file)
   const local = path.join(process.cwd(), 'assets', 'form45-template.pdf')
   if (fs.existsSync(local)) return fs.readFileSync(local)
 
-  // 2. Supabase Storage (uploaded via Admin → Setup)
   const bytes = await downloadAsset('template.pdf')
   if (bytes) return Buffer.from(bytes)
 
@@ -86,16 +80,14 @@ export async function loadTemplate(): Promise<Buffer> {
 }
 
 export async function loadFont(): Promise<Buffer | null> {
-  // 1. Filesystem
   const local = path.join(process.cwd(), 'assets', 'NotoSans-Regular.ttf')
   if (fs.existsSync(local)) return fs.readFileSync(local)
 
-  // 2. Supabase Storage
   const bytes = await downloadAsset('NotoSans.ttf')
   return bytes ? Buffer.from(bytes) : null
 }
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function hasUnicode(text: string): boolean {
   return /[^\x00-\x7F]/.test(text)
@@ -104,14 +96,8 @@ function hasUnicode(text: string): boolean {
 function drawWrappedText({
   page, text, x, y, maxWidth, lineHeight = 11, font, size = 10,
 }: {
-  page: PDFPage
-  text: string
-  x: number
-  y: number
-  maxWidth: number
-  lineHeight?: number
-  font: PDFFont
-  size?: number
+  page: PDFPage; text: string; x: number; y: number
+  maxWidth: number; lineHeight?: number; font: PDFFont; size?: number
 }) {
   const words = text.split(' ')
   let line = ''
@@ -132,7 +118,120 @@ function drawWrappedText({
   if (line) page.drawText(line, { x, y: cursorY, size, font, color: rgb(0, 0, 0) })
 }
 
-// ── Main export ─────────────────────────────────────────────────────────────
+// ── Transform / logic helpers (used by overlayTemplate) ─────────────────────
+
+function applyTransform(raw: unknown, transform?: FieldDef['transform']): string {
+  let value = raw == null ? '' : String(raw)
+  if (!transform) return value
+  if (transform.trim)      value = value.trim()
+  if (transform.uppercase) value = value.toUpperCase()
+  if (transform.prefix)    value = transform.prefix + value
+  if (transform.suffix)    value = value + transform.suffix
+  if (transform.format_date && value) {
+    // Basic ISO → display format conversion (DD/MM/YYYY etc.)
+    try {
+      const d = new Date(value)
+      if (!isNaN(d.getTime()) && transform.format_date === 'DD/MM/YYYY') {
+        const dd = String(d.getDate()).padStart(2, '0')
+        const mm = String(d.getMonth() + 1).padStart(2, '0')
+        const yyyy = d.getFullYear()
+        value = `${dd}/${mm}/${yyyy}`
+      }
+    } catch {}
+  }
+  return value
+}
+
+function evaluateLogic(raw: unknown, logic?: FieldDef['logic']): boolean {
+  if (!logic) return Boolean(raw)
+  const rule = logic.show_when
+  if (rule === 'truthy')  return Boolean(raw)
+  if (rule === 'falsy')   return !raw
+  if (typeof rule === 'object' && 'equals' in rule) {
+    return String(raw) === rule.equals
+  }
+  return false
+}
+
+// ── Generic template overlay ─────────────────────────────────────────────────
+
+/**
+ * Overlay data onto a blank template PDF using TemplateCoordMap.
+ * `data` is already resolved: source_key → final value (post column_map lookup).
+ * Checkbox/radio fields are drawn based on their `logic` rule.
+ * Zero form-specific code — all logic comes from coordMap.
+ */
+export async function overlayTemplate(
+  coordMap: TemplateCoordMap,
+  templatePdfBytes: Uint8Array | Buffer,
+  data: Record<string, unknown>,
+  fontBytes?: Buffer | null,
+): Promise<Uint8Array> {
+  const doc = await PDFDocument.load(templatePdfBytes)
+  doc.registerFontkit(fontkit)
+
+  const helvetica = await doc.embedFont(StandardFonts.Helvetica)
+  let noto: PDFFont = helvetica
+  if (fontBytes) {
+    try { noto = await doc.embedFont(fontBytes) } catch {}
+  }
+  const usingNoto = noto !== helvetica
+
+  function pickFont(text: string): PDFFont {
+    return (usingNoto && hasUnicode(text)) ? noto : helvetica
+  }
+
+  const checkChar = usingNoto ? '✓' : 'X'
+
+  for (const [, field] of Object.entries(coordMap.fields)) {
+    const pages = doc.getPages()
+    const pageIdx = field.page ?? 0
+    if (pageIdx >= pages.length) continue
+    const page = pages[pageIdx]
+
+    const rawValue = data[field.mapping.source_key]
+    const fontSize = field.style?.font_size ?? 10
+
+    if (field.type === 'text' || field.type === 'date') {
+      const value = applyTransform(rawValue, field.transform)
+      if (!value) continue
+      const maxWidth = field.dimensions?.width ?? 320
+      const lineH = field.dimensions?.height ?? 11
+      drawWrappedText({
+        page, text: value, x: field.position.x, y: field.position.y,
+        maxWidth, lineHeight: lineH, font: pickFont(value), size: fontSize,
+      })
+
+    } else if (field.type === 'checkbox') {
+      if (evaluateLogic(rawValue, field.logic)) {
+        page.drawText(checkChar, {
+          x: field.position.x, y: field.position.y,
+          size: fontSize, font: usingNoto ? noto : helvetica, color: rgb(0, 0, 0),
+        })
+      }
+
+    } else if (field.type === 'radio') {
+      for (const opt of field.options ?? []) {
+        const optPageIdx = opt.page ?? pageIdx
+        if (optPageIdx >= pages.length) continue
+        const optPage = pages[optPageIdx]
+        if (evaluateLogic(rawValue, { show_when: { equals: opt.value } })) {
+          optPage.drawText(checkChar, {
+            x: opt.position.x, y: opt.position.y,
+            size: fontSize, font: usingNoto ? noto : helvetica, color: rgb(0, 0, 0),
+          })
+        }
+      }
+    }
+    // 'signature' and 'date' placeholders handled via 'text' path above
+  }
+
+  return doc.save()
+}
+
+// ── Legacy Form 45 adapter ───────────────────────────────────────────────────
+// Kept for backward compat with existing /api/form45/* routes.
+// Translates Form45Data into the generic overlayTemplate format.
 
 export async function overlayForm45(data: Form45Data): Promise<Uint8Array> {
   const [templateBytes, fontBytes, coords] = await Promise.all([
@@ -168,7 +267,7 @@ export async function overlayForm45(data: Form45Data): Promise<Uint8Array> {
     })
   }
 
-  // Checkboxes — ✓ when NOT disqualified (passing/expected state)
+  // Checkboxes — ✓ when NOT disqualified
   const checkChar = usingNoto ? '✓' : 'X'
   const checkFont = usingNoto ? noto : helvetica
 
@@ -181,4 +280,14 @@ export async function overlayForm45(data: Form45Data): Promise<Uint8Array> {
   }
 
   return doc.save()
+}
+
+// ── Template loader for generic system ──────────────────────────────────────
+
+export async function loadTemplateByPath(storagePath: string): Promise<Buffer> {
+  // Try Supabase Storage (primary)
+  const bytes = await downloadByPath(storagePath)
+  if (bytes) return Buffer.from(bytes)
+
+  throw new Error(`Template PDF not found at storage path: ${storagePath}`)
 }

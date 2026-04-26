@@ -7,6 +7,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { maskNric, validateNric } from '@/lib/nric'
 import { redirectToLogin } from '@/lib/auth'
+import { mapToForm45 } from '@/lib/form-mappers'
+import type { Company, Person } from '@/lib/types'
+import { Info } from 'lucide-react'
 
 const DECLARATIONS = [
   { key: 'bankrupt',     label: 'An undischarged bankrupt' },
@@ -20,14 +23,21 @@ export default function NewFormPage() {
   const searchParams = useSearchParams()
   const supabase     = createClient()
 
-  const [saving, setSaving] = useState(false)
-  const [nricRaw, setNricRaw] = useState('')
-  const [nricError, setNricError] = useState('')
+  const companyId = searchParams.get('company_id')
+  const personId  = searchParams.get('person_id')
+  const isPreFill = !!(companyId && personId)
+
+  const [saving,       setSaving]       = useState(false)
+  const [prefillReady, setPrefillReady] = useState(!isPreFill)
+  const [nricRaw,      setNricRaw]      = useState('')
+  const [nricError,    setNricError]    = useState('')
+  // When pre-filling, we have the masked NRIC from the person record
+  const [maskedNricFromStore, setMaskedNricFromStore] = useState<string | null>(null)
 
   const [form, setForm] = useState({
-    company_name:  searchParams.get('company')  ?? '',
-    uen:           searchParams.get('uen')       ?? '',
-    director_name: searchParams.get('director')  ?? '',
+    company_name:  searchParams.get('company')     ?? '',
+    uen:           searchParams.get('uen')          ?? '',
+    director_name: searchParams.get('director')    ?? '',
     nationality:   searchParams.get('nationality') ?? 'Singaporean',
     dob:           '',
     address:       '',
@@ -44,7 +54,32 @@ export default function NewFormPage() {
     supabase.auth.getSession().then(({ data }) => {
       if (!data.session) redirectToLogin()
     })
+    if (isPreFill) prefillFromStore()
   }, [])
+
+  async function prefillFromStore() {
+    const [compRes, perRes] = await Promise.all([
+      fetch(`/api/companies/${companyId}`),
+      fetch(`/api/persons/${personId}`),
+    ])
+    if (!compRes.ok || !perRes.ok) { setPrefillReady(true); return }
+
+    const company: Company = await compRes.json()
+    const person: Person   = await perRes.json()
+
+    const prefilled = mapToForm45(company, person)
+    setForm(f => ({
+      ...f,
+      company_name:  prefilled.company_name  ?? f.company_name,
+      uen:           prefilled.uen           ?? f.uen,
+      director_name: prefilled.director_name ?? f.director_name,
+      nationality:   prefilled.nationality   ?? f.nationality,
+      dob:           prefilled.dob           ?? f.dob,
+      address:       prefilled.address       ?? f.address,
+    }))
+    if (person.nric_masked) setMaskedNricFromStore(person.nric_masked)
+    setPrefillReady(true)
+  }
 
   function set(key: string, value: string) {
     setForm(f => ({ ...f, [key]: value }))
@@ -74,12 +109,19 @@ export default function NewFormPage() {
     const { data: session } = await supabase.auth.getSession()
     if (!session.session) { redirectToLogin(); return }
 
-    const nric_display = nricRaw ? maskNric(nricRaw) : null
+    // If user entered a raw NRIC, mask it. Otherwise use the pre-filled masked value.
+    const nric_display = nricRaw ? maskNric(nricRaw) : (maskedNricFromStore ?? null)
 
     const res = await fetch('/api/form45/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, nric_display }),
+      body: JSON.stringify({
+        ...form,
+        nric_display,
+        // Pass source IDs so save route can build audit snapshot
+        company_id: companyId ?? undefined,
+        person_id:  personId  ?? undefined,
+      }),
     })
     const json = await res.json()
 
@@ -95,6 +137,10 @@ export default function NewFormPage() {
   const inputClass = 'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
   const labelClass = 'block text-sm font-medium text-gray-700 mb-1'
 
+  if (!prefillReady) {
+    return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading stored data…</div>
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b px-6 py-4">
@@ -106,6 +152,13 @@ export default function NewFormPage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-6 py-8">
+        {isPreFill && (
+          <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-6 text-sm text-blue-800">
+            <Info className="w-4 h-4 mt-0.5 shrink-0" />
+            Pre-filled from stored company and director data — all fields are editable.
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
 
           {/* Company section */}
@@ -130,16 +183,35 @@ export default function NewFormPage() {
             </div>
             <div>
               <label className={labelClass}>NRIC / FIN / Passport No.</label>
-              <input
-                value={nricRaw}
-                onChange={e => { setNricRaw(e.target.value.toUpperCase()); setNricError('') }}
-                onBlur={handleNricBlur}
-                className={`${inputClass} ${nricError ? 'border-red-400' : ''}`}
-                placeholder="S1234567A — masked after you leave this field"
-              />
-              {nricError && <p className="text-red-500 text-xs mt-1">{nricError}</p>}
-              {!nricError && nricRaw && validateNric(nricRaw) && (
-                <p className="text-gray-400 text-xs mt-1">Will be stored as: {maskNric(nricRaw)}</p>
+              {maskedNricFromStore && !nricRaw ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    value={maskedNricFromStore}
+                    readOnly
+                    className={`${inputClass} bg-gray-50 text-gray-500`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMaskedNricFromStore(null)}
+                    className="text-xs text-blue-600 hover:underline whitespace-nowrap"
+                  >
+                    Enter new
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    value={nricRaw}
+                    onChange={e => { setNricRaw(e.target.value.toUpperCase()); setNricError('') }}
+                    onBlur={handleNricBlur}
+                    className={`${inputClass} ${nricError ? 'border-red-400' : ''}`}
+                    placeholder="S1234567A — masked after you leave this field"
+                  />
+                  {nricError && <p className="text-red-500 text-xs mt-1">{nricError}</p>}
+                  {!nricError && nricRaw && validateNric(nricRaw) && (
+                    <p className="text-gray-400 text-xs mt-1">Will be stored as: {maskNric(nricRaw)}</p>
+                  )}
+                </>
               )}
             </div>
             <div className="grid grid-cols-2 gap-4">

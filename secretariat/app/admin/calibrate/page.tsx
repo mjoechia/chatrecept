@@ -3,16 +3,16 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { redirectToLogin } from '@/lib/auth'
 import Script from 'next/script'
-import type { CoordMap } from '@/lib/types'
+import type { CoordMap, TemplateCoordMap, FieldDef } from '@/lib/types'
 import { CheckCircle2, Save, Crosshair } from 'lucide-react'
 
 const SCALE = 1.5
 
-// All calibratable fields in display order
-const FIELD_LIST = [
+// ── Legacy Form 45 field list (used when no template_id param) ───────────────
+const LEGACY_FIELD_LIST = [
   { key: 'company_name',   label: 'Company Name',   group: 'fields' },
   { key: 'uen',            label: 'UEN',             group: 'fields' },
   { key: 'director_name',  label: 'Director Name',   group: 'fields' },
@@ -29,33 +29,64 @@ const FIELD_LIST = [
   { key: 'employment_pass',  label: '☑ Employ. Pass', group: 'checkboxes' },
 ] as const
 
-type FieldKey = typeof FIELD_LIST[number]['key']
-type Group    = 'fields' | 'checkboxes'
+type LegacyFieldKey = typeof LEGACY_FIELD_LIST[number]['key']
+
+// ── Dynamic field item (template mode) ──────────────────────────────────────
+interface DynField { key: string; label: string; type: FieldDef['type']; page: number }
 
 export default function CalibratePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const templateId = searchParams.get('template_id')
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [pdfjsReady,   setPdfjsReady]   = useState(false)
   const [pdfRendered,  setPdfRendered]  = useState(false)
   const [canvasH,      setCanvasH]      = useState(0)
-  const [active,       setActive]       = useState<FieldKey>('company_name')
   const [hover,        setHover]        = useState<{ x: number; y: number } | null>(null)
-  const [coords,       setCoords]       = useState<CoordMap | null>(null)
   const [saving,       setSaving]       = useState(false)
   const [saved,        setSaved]        = useState(false)
   const [loadError,    setLoadError]    = useState<string | null>(null)
 
-  // Load existing coordinates from backend
-  useEffect(() => {
-    fetch('/api/admin/coordinates').then(async r => {
-      if (r.status === 401) { redirectToLogin(); return }
-      const j = await r.json()
-      setCoords({ fields: j.fields, checkboxes: j.checkboxes })
-    })
-  }, [])
+  // ── Legacy mode state ─────────────────────────────────────────────────────
+  const [legacyCoords, setLegacyCoords] = useState<CoordMap | null>(null)
+  const [legacyActive, setLegacyActive] = useState<LegacyFieldKey>('company_name')
 
-  // Render PDF once pdf.js CDN script is loaded + coords are ready
+  // ── Template mode state ───────────────────────────────────────────────────
+  const [dynFields,     setDynFields]     = useState<DynField[]>([])
+  const [dynActive,     setDynActive]     = useState<string>('')
+  const [templateCoords, setTemplateCoords] = useState<TemplateCoordMap | null>(null)
+
+  const isTemplateMode = !!templateId
+
+  // Load coordinates and field list
+  useEffect(() => {
+    if (isTemplateMode) {
+      fetch(`/api/admin/templates/${templateId}`)
+        .then(async r => {
+          if (r.status === 401) { redirectToLogin(); return }
+          if (!r.ok) { setLoadError('Template not found'); return }
+          const t = await r.json()
+          const coordMap: TemplateCoordMap = t.coord_map
+          setTemplateCoords(coordMap)
+          const fields = Object.entries(coordMap.fields ?? {}).map(([key, def]) => ({
+            key,
+            label: (def as FieldDef)._detect_label ?? key,
+            type: (def as FieldDef).type,
+            page: (def as FieldDef).page ?? 0,
+          }))
+          setDynFields(fields)
+          if (fields.length > 0) setDynActive(fields[0].key)
+        })
+    } else {
+      fetch('/api/admin/coordinates').then(async r => {
+        if (r.status === 401) { redirectToLogin(); return }
+        const j = await r.json()
+        setLegacyCoords({ fields: j.fields, checkboxes: j.checkboxes })
+      })
+    }
+  }, [templateId])
+
   const renderPdf = useCallback(async () => {
     if (!canvasRef.current) return
     const pdfjs = (window as Window & { pdfjsLib?: unknown }).pdfjsLib as {
@@ -65,35 +96,39 @@ export default function CalibratePage() {
       }> }> }
       GlobalWorkerOptions: { workerSrc: string }
     }
-
     pdfjs.GlobalWorkerOptions.workerSrc =
       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
 
     try {
-      const res = await fetch('/api/admin/template-pdf')
-      if (!res.ok) { setLoadError('Template not found. Upload it in Admin → Setup first.'); return }
+      const endpoint = isTemplateMode
+        ? `/api/admin/templates/${templateId}/pdf`
+        : '/api/admin/template-pdf'
+      const res = await fetch(endpoint)
+      if (!res.ok) {
+        setLoadError(isTemplateMode
+          ? 'Template PDF not found in storage.'
+          : 'Template not found. Upload it in Admin → Setup first.')
+        return
+      }
       const data = new Uint8Array(await res.arrayBuffer())
       const pdf  = await pdfjs.getDocument({ data }).promise
       const page = await pdf.getPage(1)
       const viewport = page.getViewport({ scale: SCALE })
-
       const canvas = canvasRef.current
       canvas.width  = viewport.width
       canvas.height = viewport.height
       setCanvasH(viewport.height)
-
       await page.render({ canvasContext: canvas.getContext('2d')!, viewport }).promise
       setPdfRendered(true)
     } catch (e) {
       setLoadError(String(e))
     }
-  }, [])
+  }, [isTemplateMode, templateId])
 
   useEffect(() => {
     if (pdfjsReady) renderPdf()
   }, [pdfjsReady, renderPdf])
 
-  // Get PDF coordinates from a canvas click event
   function pdfCoords(e: React.MouseEvent<HTMLCanvasElement>) {
     const rect = e.currentTarget.getBoundingClientRect()
     const x = parseFloat(((e.clientX - rect.left) / SCALE).toFixed(1))
@@ -104,19 +139,39 @@ export default function CalibratePage() {
   function handleClick(e: React.MouseEvent<HTMLCanvasElement>) {
     if (!pdfRendered) return
     const { x, y } = pdfCoords(e)
-    const entry = FIELD_LIST.find(f => f.key === active)!
-    setCoords(c => {
-      if (!c) return c
-      if (entry.group === 'fields') {
-        const prev = c.fields[active] ?? { x, y, maxWidth: 300 }
-        return { ...c, fields: { ...c.fields, [active]: { ...prev, x, y } } }
-      } else {
-        return { ...c, checkboxes: { ...c.checkboxes, [active]: { x, y } } }
-      }
-    })
-    // Advance to next field automatically
-    const idx = FIELD_LIST.findIndex(f => f.key === active)
-    if (idx < FIELD_LIST.length - 1) setActive(FIELD_LIST[idx + 1].key)
+
+    if (isTemplateMode) {
+      // Update TemplateCoordMap field position
+      setTemplateCoords(prev => {
+        if (!prev || !dynActive) return prev
+        const field = prev.fields[dynActive]
+        if (!field) return prev
+        return {
+          ...prev,
+          fields: {
+            ...prev.fields,
+            [dynActive]: { ...field, position: { x, y } },
+          },
+        }
+      })
+      // Advance to next field
+      const idx = dynFields.findIndex(f => f.key === dynActive)
+      if (idx < dynFields.length - 1) setDynActive(dynFields[idx + 1].key)
+    } else {
+      // Legacy CoordMap update
+      const entry = LEGACY_FIELD_LIST.find(f => f.key === legacyActive)!
+      setLegacyCoords(c => {
+        if (!c) return c
+        if (entry.group === 'fields') {
+          const prev = c.fields[legacyActive] ?? { x, y, maxWidth: 300 }
+          return { ...c, fields: { ...c.fields, [legacyActive]: { ...prev, x, y } } }
+        } else {
+          return { ...c, checkboxes: { ...c.checkboxes, [legacyActive]: { x, y } } }
+        }
+      })
+      const idx = LEGACY_FIELD_LIST.findIndex(f => f.key === legacyActive)
+      if (idx < LEGACY_FIELD_LIST.length - 1) setLegacyActive(LEGACY_FIELD_LIST[idx + 1].key)
+    }
   }
 
   function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
@@ -125,24 +180,38 @@ export default function CalibratePage() {
   }
 
   async function handleSave() {
-    if (!coords) return
     setSaving(true)
-    const res = await fetch('/api/admin/coordinates', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(coords),
-    })
+    let res: Response
+    if (isTemplateMode && templateCoords) {
+      res = await fetch(`/api/admin/templates/${templateId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coord_map: templateCoords }),
+      })
+    } else if (legacyCoords) {
+      res = await fetch('/api/admin/coordinates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(legacyCoords),
+      })
+    } else {
+      setSaving(false); return
+    }
     setSaving(false)
     if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2000) }
     else alert('Failed to save coordinates')
   }
 
-  // Convert PDF coord to canvas screen position for SVG overlay
   function toScreen(x: number, y: number) {
     return { sx: x * SCALE, sy: canvasH - y * SCALE }
   }
 
-  const dotColor = (key: string) => key === active ? '#2563eb' : '#22c55e'
+  const dotColor = (key: string) =>
+    (isTemplateMode ? dynActive : legacyActive) === key ? '#2563eb' : '#22c55e'
+
+  // Render sidebar fields
+  const legacyTextFields = LEGACY_FIELD_LIST.filter(f => f.group === 'fields')
+  const legacyCheckboxes = LEGACY_FIELD_LIST.filter(f => f.group === 'checkboxes')
 
   return (
     <>
@@ -152,10 +221,14 @@ export default function CalibratePage() {
       />
 
       <div className="min-h-screen bg-gray-900 flex flex-col">
-        {/* Header */}
         <header className="bg-gray-800 border-b border-gray-700 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => router.push('/admin')} className="text-sm text-gray-400 hover:text-gray-100">← Admin</button>
+            <button
+              onClick={() => router.push(isTemplateMode ? `/admin/templates/${templateId}` : '/admin')}
+              className="text-sm text-gray-400 hover:text-gray-100"
+            >
+              ← {isTemplateMode ? 'Template' : 'Admin'}
+            </button>
             <span className="text-gray-600">/</span>
             <div className="flex items-center gap-2">
               <Crosshair className="w-4 h-4 text-blue-400" />
@@ -170,7 +243,7 @@ export default function CalibratePage() {
             )}
             <button
               onClick={handleSave}
-              disabled={saving || !coords}
+              disabled={saving || (!legacyCoords && !templateCoords)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
               {saved
@@ -182,53 +255,84 @@ export default function CalibratePage() {
         </header>
 
         <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar — field list */}
           <aside className="w-52 bg-gray-800 border-r border-gray-700 overflow-y-auto flex-shrink-0">
             <div className="p-3">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Text Fields</p>
-              {FIELD_LIST.filter(f => f.group === 'fields').map(f => {
-                const coord = coords?.fields[f.key]
-                return (
-                  <button
-                    key={f.key}
-                    onClick={() => setActive(f.key)}
-                    className={`w-full text-left px-2 py-2 rounded text-sm mb-0.5 ${
-                      active === f.key
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-300 hover:bg-gray-700'
-                    }`}
-                  >
-                    <div className="font-medium">{f.label}</div>
-                    {coord && (
-                      <div className="text-xs opacity-60 font-mono">{coord.x}, {coord.y}</div>
-                    )}
-                  </button>
-                )
-              })}
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mt-3 mb-2">Checkboxes</p>
-              {FIELD_LIST.filter(f => f.group === 'checkboxes').map(f => {
-                const coord = coords?.checkboxes[f.key]
-                return (
-                  <button
-                    key={f.key}
-                    onClick={() => setActive(f.key)}
-                    className={`w-full text-left px-2 py-2 rounded text-sm mb-0.5 ${
-                      active === f.key
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-300 hover:bg-gray-700'
-                    }`}
-                  >
-                    <div className="font-medium">{f.label}</div>
-                    {coord && (
-                      <div className="text-xs opacity-60 font-mono">{coord.x}, {coord.y}</div>
-                    )}
-                  </button>
-                )
-              })}
+              {isTemplateMode ? (
+                <>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Fields</p>
+                  {dynFields.length === 0 && (
+                    <p className="text-xs text-gray-500">No fields. Run AI detect first.</p>
+                  )}
+                  {dynFields.map(f => {
+                    const coord = templateCoords?.fields[f.key]
+                    return (
+                      <button
+                        key={f.key}
+                        onClick={() => setDynActive(f.key)}
+                        className={`w-full text-left px-2 py-2 rounded text-sm mb-0.5 ${
+                          dynActive === f.key
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-300 hover:bg-gray-700'
+                        }`}
+                      >
+                        <div className="font-medium truncate">{f.label || f.key}</div>
+                        <div className="text-xs opacity-60">{f.type}</div>
+                        {coord && (
+                          <div className="text-xs opacity-60 font-mono">
+                            {coord.position.x}, {coord.position.y}
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })}
+                </>
+              ) : (
+                <>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Text Fields</p>
+                  {legacyTextFields.map(f => {
+                    const coord = legacyCoords?.fields[f.key]
+                    return (
+                      <button
+                        key={f.key}
+                        onClick={() => setLegacyActive(f.key)}
+                        className={`w-full text-left px-2 py-2 rounded text-sm mb-0.5 ${
+                          legacyActive === f.key
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-300 hover:bg-gray-700'
+                        }`}
+                      >
+                        <div className="font-medium">{f.label}</div>
+                        {coord && (
+                          <div className="text-xs opacity-60 font-mono">{coord.x}, {coord.y}</div>
+                        )}
+                      </button>
+                    )
+                  })}
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mt-3 mb-2">Checkboxes</p>
+                  {legacyCheckboxes.map(f => {
+                    const coord = legacyCoords?.checkboxes[f.key]
+                    return (
+                      <button
+                        key={f.key}
+                        onClick={() => setLegacyActive(f.key)}
+                        className={`w-full text-left px-2 py-2 rounded text-sm mb-0.5 ${
+                          legacyActive === f.key
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-300 hover:bg-gray-700'
+                        }`}
+                      >
+                        <div className="font-medium">{f.label}</div>
+                        {coord && (
+                          <div className="text-xs opacity-60 font-mono">{coord.x}, {coord.y}</div>
+                        )}
+                      </button>
+                    )
+                  })}
+                </>
+              )}
             </div>
           </aside>
 
-          {/* Canvas area */}
           <main className="flex-1 overflow-auto bg-gray-700 p-4">
             {loadError ? (
               <div className="flex items-center justify-center h-full">
@@ -251,47 +355,64 @@ export default function CalibratePage() {
                 className="block cursor-crosshair shadow-2xl"
               />
 
-              {/* SVG overlay for coordinate dots */}
-              {pdfRendered && coords && (
+              {pdfRendered && (
                 <svg
                   className="absolute inset-0 pointer-events-none"
                   width={canvasRef.current?.width ?? 0}
                   height={canvasH}
                 >
-                  {/* Field dots */}
-                  {Object.entries(coords.fields).map(([key, cfg]) => {
-                    const { sx, sy } = toScreen(cfg.x, cfg.y)
-                    const color = dotColor(key)
-                    return (
-                      <g key={key}>
-                        <circle cx={sx} cy={sy} r={5} fill={color} opacity={0.85} />
-                        <text x={sx + 8} y={sy + 4} fontSize="10" fill={color} fontFamily="monospace">{key}</text>
-                      </g>
-                    )
-                  })}
-                  {/* Checkbox dots */}
-                  {Object.entries(coords.checkboxes).map(([key, coord]) => {
-                    const { sx, sy } = toScreen(coord.x, coord.y)
-                    const color = dotColor(key)
-                    return (
-                      <g key={key}>
-                        <rect x={sx - 4} y={sy - 4} width={9} height={9} fill={color} opacity={0.85} />
-                        <text x={sx + 8} y={sy + 4} fontSize="10" fill={color} fontFamily="monospace">{key}</text>
-                      </g>
-                    )
-                  })}
+                  {isTemplateMode ? (
+                    Object.entries(templateCoords?.fields ?? {}).map(([key, def]) => {
+                      const { sx, sy } = toScreen((def as FieldDef).position.x, (def as FieldDef).position.y)
+                      const color = dotColor(key)
+                      const isCheckbox = (def as FieldDef).type === 'checkbox'
+                      return isCheckbox ? (
+                        <g key={key}>
+                          <rect x={sx - 4} y={sy - 4} width={9} height={9} fill={color} opacity={0.85} />
+                          <text x={sx + 8} y={sy + 4} fontSize="10" fill={color} fontFamily="monospace">{key}</text>
+                        </g>
+                      ) : (
+                        <g key={key}>
+                          <circle cx={sx} cy={sy} r={5} fill={color} opacity={0.85} />
+                          <text x={sx + 8} y={sy + 4} fontSize="10" fill={color} fontFamily="monospace">{key}</text>
+                        </g>
+                      )
+                    })
+                  ) : (
+                    <>
+                      {legacyCoords && Object.entries(legacyCoords.fields).map(([key, cfg]) => {
+                        const { sx, sy } = toScreen(cfg.x, cfg.y)
+                        const color = dotColor(key)
+                        return (
+                          <g key={key}>
+                            <circle cx={sx} cy={sy} r={5} fill={color} opacity={0.85} />
+                            <text x={sx + 8} y={sy + 4} fontSize="10" fill={color} fontFamily="monospace">{key}</text>
+                          </g>
+                        )
+                      })}
+                      {legacyCoords && Object.entries(legacyCoords.checkboxes).map(([key, coord]) => {
+                        const { sx, sy } = toScreen(coord.x, coord.y)
+                        const color = dotColor(key)
+                        return (
+                          <g key={key}>
+                            <rect x={sx - 4} y={sy - 4} width={9} height={9} fill={color} opacity={0.85} />
+                            <text x={sx + 8} y={sy + 4} fontSize="10" fill={color} fontFamily="monospace">{key}</text>
+                          </g>
+                        )
+                      })}
+                    </>
+                  )}
                 </svg>
               )}
             </div>
           </main>
         </div>
 
-        {/* Instructions */}
         <div className="bg-gray-800 border-t border-gray-700 px-4 py-2">
           <p className="text-xs text-gray-400 text-center">
-            Select a field in the sidebar → click on the PDF where the text should start →
-            dots update live → click <strong className="text-gray-200">Save All</strong> when done.
-            Blue dot = currently selected. Green dots = saved positions.
+            Select a field → click on the PDF where the text should start →
+            click <strong className="text-gray-200">Save All</strong> when done.
+            Blue = active field. Green = saved positions.
           </p>
         </div>
       </div>

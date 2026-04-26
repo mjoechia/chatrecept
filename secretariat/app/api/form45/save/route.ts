@@ -18,28 +18,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  // Use service client to bypass PostgREST schema restrictions
+  // Use service client with public-schema RPC to bypass PostgREST schema restrictions
   const supabase = createServiceClient()
 
-  const { data, error } = await supabase
-    .schema('app_secretariat')
-    .from('form45')
-    .insert({
+  // Build audit snapshot if company_id/person_id were provided (pre-fill flow)
+  let source_snapshot: Record<string, unknown> | null = null
+  if (body.company_id || body.person_id) {
+    source_snapshot = {
+      company_id:    body.company_id    ?? null,
+      person_id:     body.person_id     ?? null,
       company_name:  body.company_name,
       uen:           body.uen,
       director_name: body.director_name,
-      nric_display:  body.nric_display ?? null,
-      nationality:   body.nationality ?? 'Singaporean',
-      dob:           body.dob || null,
-      address:       body.address || null,
-      declarations:  body.declarations ?? {},
-      consent_date:  body.consent_date,
-      source:        'ui',
-    })
-    .select()
-    .single()
+      nric_display:  body.nric_display  ?? null,
+      nationality:   body.nationality   ?? null,
+      dob:           body.dob           ?? null,
+      address:       body.address       ?? null,
+    }
+  }
 
-  if (error || !data) {
+  const { data, error } = await supabase.rpc('insert_form45', {
+    p_company_name:    body.company_name,
+    p_uen:             body.uen,
+    p_director_name:   body.director_name,
+    p_nric_display:    body.nric_display ?? null,
+    p_nationality:     body.nationality ?? 'Singaporean',
+    p_dob:             body.dob || null,
+    p_address:         body.address || null,
+    p_declarations:    body.declarations ?? {},
+    p_consent_date:    body.consent_date,
+    p_source:          'ui',
+    p_source_snapshot: source_snapshot,
+  })
+
+  if (error || !data?.id) {
     return NextResponse.json({ error: error?.message ?? 'Insert failed' }, { status: 500 })
   }
 
