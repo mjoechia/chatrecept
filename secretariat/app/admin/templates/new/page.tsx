@@ -16,6 +16,12 @@ export default function NewTemplatePage() {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [pdfFile, setPdfFile] = useState<File | null>(null)
+  const [pageCount, setPageCount] = useState(0)
+  const [selectedPages, setSelectedPages] = useState<Set<number>>(new Set())
+  const [detectProgress, setDetectProgress] = useState<{ current: number; total: number; page: number } | null>(null)
+  const [emptyPages, setEmptyPages] = useState<number[]>([])
+  const [pageSizesRef, setPageSizesRef] = useState<Record<string, { width: number; height: number }>>({})
+  const [totalPageCount, setTotalPageCount] = useState(1)
   const [detectedFields, setDetectedFields] = useState<DetectedField[]>([])
   const [editedFields, setEditedFields] = useState<DetectedField[]>([])
   const [detecting, setDetecting] = useState(false)
@@ -36,42 +42,53 @@ export default function NewTemplatePage() {
     setError('')
     setDetectedFields([])
     setEditedFields([])
+    setEmptyPages([])
+    setPageCount(0)
+
+    try {
+      const pdfjs = await import('pdfjs-dist')
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`
+      const buf = await file.arrayBuffer()
+      const pdf = await pdfjs.getDocument({ data: buf }).promise
+      const n = pdf.numPages
+      setPageCount(n)
+      setSelectedPages(new Set(Array.from({ length: n }, (_, i) => i)))
+    } catch {
+      setPageCount(1)
+      setSelectedPages(new Set([0]))
+    }
+  }
+
+  function togglePage(idx: number) {
+    setSelectedPages(prev => {
+      const next = new Set(prev)
+      if (next.has(idx)) {
+        if (next.size > 1) next.delete(idx) // keep at least one
+      } else {
+        next.add(idx)
+      }
+      return next
+    })
+  }
+
+  function selectAll() {
+    setSelectedPages(new Set(Array.from({ length: pageCount }, (_, i) => i)))
   }
 
   async function handleDetect() {
     if (!pdfFile) return
+    if (!name.trim()) { setError('Enter a template name before detecting fields.'); return }
     setDetecting(true)
     setError('')
+    setEmptyPages([])
 
     try {
-      // Render page 0 of the PDF to canvas using pdfjs
       const pdfjs = await import('pdfjs-dist')
       pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`
       const arrayBuffer = await pdfFile.arrayBuffer()
       const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise
-      const page = await pdf.getPage(1)
-      const viewport = page.getViewport({ scale: 1.5 })
 
-      const canvas = document.createElement('canvas')
-      canvas.width = viewport.width
-      canvas.height = viewport.height
-      const ctx = canvas.getContext('2d')!
-      await page.render({ canvasContext: ctx, viewport }).promise
-
-      // Get base64 PNG (strip data: prefix)
-      const dataUrl = canvas.toDataURL('image/png')
-      const base64 = dataUrl.replace(/^data:image\/png;base64,/, '')
-
-      // Get PDF native dimensions (unscaled)
-      const nativeViewport = page.getViewport({ scale: 1 })
-
-      // First create the template to get an ID, then detect
-      if (!name.trim()) {
-        setError('Please enter a template name before detecting fields.')
-        setDetecting(false)
-        return
-      }
-
+      // Create template record first
       const fd = new FormData()
       fd.append('name', name.trim())
       fd.append('description', description.trim())
@@ -84,37 +101,74 @@ export default function NewTemplatePage() {
         return
       }
       const { id: templateId } = await createRes.json()
+      sessionStorage.setItem('pendingTemplateId', templateId)
 
-      const detectRes = await fetch(`/api/admin/templates/${templateId}/detect`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          image: base64,
-          img_width: viewport.width,
-          img_height: viewport.height,
-          pdf_width: nativeViewport.width,
-          pdf_height: nativeViewport.height,
-          page_index: 0,
-        }),
-      })
+      const pagesToAnalyze = Array.from(selectedPages).sort((a, b) => a - b)
+      const pageSizes: Record<string, { width: number; height: number }> = {}
+      const allFields: DetectedField[] = []
+      const emptyPageNums: number[] = []
 
-      if (!detectRes.ok) {
-        const j = await detectRes.json()
-        setError(j.error ?? 'Detection failed')
-        setDetecting(false)
-        return
+      for (let i = 0; i < pagesToAnalyze.length; i++) {
+        const pageIdx = pagesToAnalyze[i] // 0-based
+        setDetectProgress({ current: i + 1, total: pagesToAnalyze.length, page: pageIdx + 1 })
+
+        const page = await pdf.getPage(pageIdx + 1) // pdfjs pages are 1-based
+        const nativeViewport = page.getViewport({ scale: 1 })
+        const renderViewport = page.getViewport({ scale: 1.5 })
+
+        pageSizes[String(pageIdx)] = {
+          width: nativeViewport.width,
+          height: nativeViewport.height,
+        }
+
+        const canvas = document.createElement('canvas')
+        canvas.width = renderViewport.width
+        canvas.height = renderViewport.height
+        const ctx = canvas.getContext('2d')!
+        await page.render({ canvasContext: ctx, viewport: renderViewport }).promise
+
+        const base64 = canvas.toDataURL('image/png').replace(/^data:image\/png;base64,/, '')
+
+        const detectRes = await fetch(`/api/admin/templates/${templateId}/detect`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image: base64,
+            img_width: renderViewport.width,
+            img_height: renderViewport.height,
+            pdf_width: nativeViewport.width,
+            pdf_height: nativeViewport.height,
+            page_index: pageIdx,
+          }),
+        })
+
+        if (!detectRes.ok) {
+          const j = await detectRes.json()
+          setError(j.error ?? `Detection failed on page ${pageIdx + 1}`)
+          setDetecting(false)
+          return
+        }
+
+        const { fields } = await detectRes.json()
+        if ((fields as DetectedField[]).length === 0) {
+          emptyPageNums.push(pageIdx + 1)
+        } else {
+          allFields.push(...(fields as DetectedField[]))
+        }
       }
 
-      const { fields } = await detectRes.json()
-      setDetectedFields(fields)
-      setEditedFields(fields.map((f: DetectedField) => ({ ...f })))
-      // Store templateId in sessionStorage for save step
-      sessionStorage.setItem('pendingTemplateId', templateId)
+      setPageSizesRef(pageSizes)
+      setTotalPageCount(pdf.numPages)
+      setDetectedFields(allFields)
+      setEditedFields(allFields.map(f => ({ ...f })))
+      setEmptyPages(emptyPageNums)
+      setDetectProgress(null)
       setStep('review')
     } catch (e) {
       setError(`Error: ${String(e)}`)
     } finally {
       setDetecting(false)
+      setDetectProgress(null)
     }
   }
 
@@ -138,11 +192,15 @@ export default function NewTemplatePage() {
     setSaving(true)
     setError('')
 
-    // Build TemplateCoordMap from edited fields
     const coordMap: TemplateCoordMap = {
       version: 1,
       coordinate_system: { origin: 'bottom_left', unit: 'points' },
-      pdf_meta: { page_count: 1, page_sizes: { '0': { width: 595, height: 842 } } },
+      pdf_meta: {
+        page_count: totalPageCount,
+        page_sizes: Object.keys(pageSizesRef).length > 0
+          ? pageSizesRef
+          : { '0': { width: 595, height: 842 } },
+      },
       fields: Object.fromEntries(
         editedFields.map(f => [
           f.suggested_column_name,
@@ -181,10 +239,14 @@ export default function NewTemplatePage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b px-6 py-4">
-        <button onClick={() => router.push('/admin/templates')} className="text-sm text-gray-500 hover:text-gray-800">
-          ← Templates
-        </button>
-        <h1 className="text-lg font-semibold mt-1">New Template</h1>
+        <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
+          <button onClick={() => router.push('/')} className="hover:text-gray-800">← Dashboard</button>
+          <span className="text-gray-300">/</span>
+          <button onClick={() => router.push('/admin')} className="hover:text-gray-800">Admin</button>
+          <span className="text-gray-300">/</span>
+          <button onClick={() => router.push('/admin/templates')} className="hover:text-gray-800">Templates</button>
+        </div>
+        <h1 className="text-lg font-semibold">New Template</h1>
         <p className="text-xs text-gray-400">Upload a PDF, detect fields with AI, then calibrate coordinates</p>
       </header>
 
@@ -216,7 +278,7 @@ export default function NewTemplatePage() {
             <section className="bg-white rounded-xl border p-6 space-y-4">
               <h2 className="font-semibold text-gray-800">Upload PDF</h2>
               <p className="text-sm text-gray-500">
-                Upload the blank PDF form. AI will analyze page 1 and suggest fillable field locations.
+                Upload the blank PDF form. AI will analyze each selected page and suggest fillable field locations.
               </p>
               <input
                 ref={fileRef} type="file" accept=".pdf"
@@ -224,27 +286,69 @@ export default function NewTemplatePage() {
                 className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 file:font-medium hover:file:bg-blue-100"
               />
               {pdfFile && <p className="text-xs text-gray-500">Selected: {pdfFile.name}</p>}
+
+              {pageCount > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-700">
+                      {pageCount} page{pageCount !== 1 ? 's' : ''} detected — select pages to analyze:
+                    </p>
+                    {selectedPages.size < pageCount && (
+                      <button onClick={selectAll} className="text-xs text-blue-600 hover:underline">Select all</button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {Array.from({ length: pageCount }, (_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => togglePage(i)}
+                        className={`px-3 py-1.5 text-sm rounded-lg border font-medium transition-colors ${
+                          selectedPages.has(i)
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                        }`}
+                      >
+                        Page {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    {selectedPages.size} of {pageCount} page{pageCount !== 1 ? 's' : ''} selected.
+                    Pages with no fillable fields will be skipped automatically.
+                  </p>
+                </div>
+              )}
             </section>
 
             <button
               onClick={handleDetect}
-              disabled={!pdfFile || !name.trim() || detecting}
+              disabled={!pdfFile || !name.trim() || detecting || selectedPages.size === 0}
               className="w-full bg-blue-600 text-white rounded-lg py-3 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
             >
-              {detecting ? 'Detecting fields with AI…' : 'Detect Fields with AI →'}
+              {detecting
+                ? detectProgress
+                  ? `Analyzing page ${detectProgress.page} (${detectProgress.current} of ${detectProgress.total})…`
+                  : 'Preparing…'
+                : `Detect Fields with AI → (${selectedPages.size} page${selectedPages.size !== 1 ? 's' : ''})`}
             </button>
           </>
         )}
 
         {step === 'review' && (
           <>
+            {emptyPages.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-4 py-3 text-sm">
+                Page{emptyPages.length > 1 ? 's' : ''} {emptyPages.join(', ')} had no fillable fields detected and were skipped.
+              </div>
+            )}
+
             <section className="bg-white rounded-xl border p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="font-semibold text-gray-800">Detected Fields</h2>
                   <p className="text-sm text-gray-500 mt-0.5">
-                    {editedFields.length} fields detected. Review column names, then save.
-                    Coordinates can be fine-tuned later via Calibrate.
+                    {editedFields.length} fields detected across {selectedPages.size - emptyPages.length} page{selectedPages.size - emptyPages.length !== 1 ? 's' : ''}.
+                    Review column names, then save. Coordinates can be fine-tuned later via Calibrate.
                   </p>
                 </div>
                 <button
@@ -289,6 +393,9 @@ export default function NewTemplatePage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 mt-4">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                        p{f.page + 1}
+                      </span>
                       <span className={`text-xs px-2 py-0.5 rounded-full ${f.confidence >= 0.8 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                         {Math.round(f.confidence * 100)}%
                       </span>
