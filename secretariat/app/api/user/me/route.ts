@@ -10,12 +10,19 @@ export async function GET() {
 
   const svc = createServiceClient()
 
-  // Look up by user id first
-  const { data: existing } = await svc
+  // If migration 018 hasn't been run, the profiles table won't exist.
+  // Fall back to email-based admin check so the admin isn't locked out.
+  const { data: existing, error: lookupError } = await svc
     .from('secretariat_profiles')
     .select('id, role, status, display_name, email, invited_by')
     .eq('id', user.id)
     .single()
+
+  // Table doesn't exist yet (migration not run) — fall back to email check
+  if (lookupError?.code === '42P01' || lookupError?.message?.includes('relation') || lookupError?.message?.includes('does not exist')) {
+    const role = isAdmin(user.email) ? 'admin' : 'user'
+    return NextResponse.json({ id: user.id, role, status: 'active', display_name: null, email: user.email })
+  }
 
   if (!existing) {
     // No profile by id — check if admin pre-invited this email
@@ -89,6 +96,16 @@ export async function GET() {
       return NextResponse.json({ id, role: 'admin', status: 'active', display_name, email })
     }
     return NextResponse.json({ ...existing, pending_approval: true })
+  }
+
+  // Stale profile: role=user but email is in ADMIN_EMAILS — auto-promote
+  if (existing.role === 'user' && isAdmin(user.email)) {
+    await svc
+      .from('secretariat_profiles')
+      .update({ role: 'admin', updated_at: new Date().toISOString() })
+      .eq('id', user.id)
+    const { id, display_name, email } = existing
+    return NextResponse.json({ id, role: 'admin', status: existing.status, display_name, email })
   }
 
   const { id, role, status, display_name, email } = existing

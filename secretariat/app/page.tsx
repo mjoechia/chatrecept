@@ -4,7 +4,6 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
 import { redirectToLogin } from '@/lib/auth'
 import type { Form45Data, FormTemplate, Company } from '@/lib/types'
 import Image from 'next/image'
@@ -21,8 +20,7 @@ interface MyBatch {
 }
 
 export default function DashboardPage() {
-  const router   = useRouter()
-  const supabase = createClient()
+  const router = useRouter()
 
   const [forms, setForms]         = useState<Form45Data[]>([])
   const [loading, setLoading]     = useState(true)
@@ -34,17 +32,17 @@ export default function DashboardPage() {
   const [userRole, setUserRole]   = useState<'admin' | 'user' | null>(null)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) { redirectToLogin(); return }
-      // Fetch profile and redirect admins
-      fetch('/api/user/me').then(res => {
-        if (res.status === 403) { router.push('/auth/pending'); return }
-        if (res.ok) res.json().then(profile => {
-          if (profile.pending_approval) { router.push('/auth/pending'); return }
-          setUserRole(profile.role)
-          if (profile.role === 'admin') { router.push('/admin'); return }
-        })
-      })
+    // Check session then resolve role
+    fetch('/api/user/me').then(async res => {
+      if (res.status === 401) { redirectToLogin(); return }
+      if (res.status === 403) { router.push('/auth/pending'); return }
+      if (res.ok) {
+        const profile = await res.json()
+        if (profile.pending_approval) { router.push('/auth/pending'); return }
+        setUserRole(profile.role)
+        if (profile.role === 'admin') { router.push('/admin'); return }
+      }
+      // If 500 (e.g. migration not yet run), fall through and show dashboard
     })
     loadForms()
     loadTemplates()
@@ -78,19 +76,15 @@ export default function DashboardPage() {
 
   async function loadForms() {
     setLoading(true)
-    const { data } = await supabase
-      .schema('app_secretariat')
-      .from('form45')
-      .select('*')
-      .order('created_at', { ascending: false })
-    setForms((data as Form45Data[]) ?? [])
+    const res = await fetch('/api/form45')
+    if (res.ok) setForms(await res.json())
     setLoading(false)
   }
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this form? This cannot be undone.')) return
     setDeleting(id)
-    await supabase.schema('app_secretariat').from('form45').delete().eq('id', id)
+    await fetch(`/api/form45/${id}`, { method: 'DELETE' })
     setForms(f => f.filter(x => x.id !== id))
     setDeleting(null)
   }

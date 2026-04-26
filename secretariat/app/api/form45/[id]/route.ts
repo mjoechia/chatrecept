@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createSessionClient } from '@/lib/supabase-server'
 import { createServiceClient } from '@/lib/supabase'
 import { getSignedUrl } from '@/lib/storage'
 
@@ -31,4 +32,27 @@ export async function GET(
   }
 
   return NextResponse.json({ ...data, download_url })
+}
+
+// DELETE /api/form45/[id]
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await createSessionClient()
+  const { data: { user } } = await session.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { id } = await params
+  const svc = createServiceClient()
+
+  const { error } = await svc
+    .schema('app_secretariat')
+    .from('form45')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ ok: true })
 }
