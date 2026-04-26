@@ -3,13 +3,14 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { redirectToLogin } from '@/lib/auth'
 import type { FormTemplate, ParseResult } from '@/lib/types'
 
 export default function NewBatchPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -33,7 +34,13 @@ export default function NewBatchPage() {
     const res = await fetch('/api/admin/templates')
     if (res.ok) {
       const data: FormTemplate[] = await res.json()
-      setTemplates(data.filter(t => t.status === 'active'))
+      const active = data.filter(t => t.status === 'active')
+      setTemplates(active)
+      // Pre-select from query param if valid
+      const preselect = searchParams.get('template_id')
+      if (preselect && active.some(t => t.id === preselect)) {
+        setSelectedTemplateId(preselect)
+      }
     }
   }
 

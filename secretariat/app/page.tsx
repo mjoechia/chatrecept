@@ -279,25 +279,27 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Active Templates */}
+        {/* Forms Ready for Filling */}
         {templates.length > 0 && (
           <section>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold text-gray-800">Available Templates</h2>
+              <h2 className="font-semibold text-gray-800">Forms Ready for Filling</h2>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {templates.map(t => (
-                <div key={t.id} className="bg-white border rounded-xl p-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-800 truncate max-w-[160px]">{t.name}</p>
-                    <p className="text-xs text-green-600 mt-0.5">Active</p>
+                <div key={t.id} className="bg-white border rounded-xl p-4 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{t.name}</p>
+                    <p className="text-xs text-green-600 mt-0.5">Ready</p>
                   </div>
-                  <button
-                    onClick={() => router.push(`/batch/new`)}
-                    className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-lg hover:bg-blue-100 shrink-0"
-                  >
-                    Use
-                  </button>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => router.push(`/batch/new?template_id=${t.id}`)}
+                      className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
+                    >
+                      Batch Import
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

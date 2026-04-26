@@ -7,6 +7,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { redirectToLogin } from '@/lib/auth'
 import type { FormTemplate, FieldDef } from '@/lib/types'
+import { ExternalLink, FileText } from 'lucide-react'
 
 export default function EditTemplatePage() {
   const router = useRouter()
@@ -19,6 +20,8 @@ export default function EditTemplatePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
+  const [testUrl, setTestUrl] = useState<string | null>(null)
+  const [testing, setTesting] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -49,6 +52,16 @@ export default function EditTemplatePage() {
     fetchTemplate()
   }
 
+  async function runTestFill() {
+    setTesting(true)
+    setTestUrl(null)
+    const res = await fetch(`/api/admin/templates/${id}/test-fill`, { method: 'POST' })
+    const j = await res.json()
+    if (j.error) alert(`Test fill failed: ${j.error}`)
+    else setTestUrl(j.url)
+    setTesting(false)
+  }
+
   async function toggleStatus() {
     if (!template) return
     const newStatus = template.status === 'active' ? 'draft' : 'active'
@@ -67,10 +80,14 @@ export default function EditTemplatePage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b px-6 py-4">
-        <button onClick={() => router.push('/admin/templates')} className="text-sm text-gray-500 hover:text-gray-800">
-          ← Templates
-        </button>
-        <h1 className="text-lg font-semibold mt-1">{template?.name ?? 'Loading…'}</h1>
+        <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
+          <button onClick={() => router.push('/')} className="hover:text-gray-800">← Dashboard</button>
+          <span className="text-gray-300">/</span>
+          <button onClick={() => router.push('/admin')} className="hover:text-gray-800">Admin</button>
+          <span className="text-gray-300">/</span>
+          <button onClick={() => router.push('/admin/templates')} className="hover:text-gray-800">Templates</button>
+        </div>
+        <h1 className="text-lg font-semibold">{template?.name ?? 'Loading…'}</h1>
         <p className="text-xs text-gray-400">v{template?.version} · {template?.status}</p>
       </header>
 
@@ -136,6 +153,14 @@ export default function EditTemplatePage() {
             Calibrate Coordinates
           </button>
           <button
+            onClick={runTestFill}
+            disabled={testing}
+            className="flex items-center gap-1.5 px-5 rounded-lg py-3 text-sm font-medium border border-blue-200 text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+          >
+            <FileText className="w-4 h-4" />
+            {testing ? 'Generating…' : 'Test Fill'}
+          </button>
+          <button
             onClick={toggleStatus}
             className={`px-6 rounded-lg py-3 text-sm font-medium border ${
               template?.status === 'active'
@@ -146,6 +171,18 @@ export default function EditTemplatePage() {
             {template?.status === 'active' ? 'Set to Draft' : 'Activate'}
           </button>
         </div>
+
+        {testUrl && (
+          <section className="bg-white rounded-xl border p-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-gray-800">Test Fill Preview</h2>
+              <a href={testUrl} target="_blank" className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline">
+                <ExternalLink className="w-3.5 h-3.5" /> Open PDF
+              </a>
+            </div>
+            <iframe src={testUrl} className="w-full h-[600px] border rounded-lg" title="Test fill preview" />
+          </section>
+        )}
       </main>
     </div>
   )
