@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { redirectToLogin } from '@/lib/auth'
+import { Download, Eye, X, FileText } from 'lucide-react'
 
 interface BatchStatus {
   id: string
@@ -16,14 +17,35 @@ interface BatchStatus {
   label: string | null
 }
 
+interface Submission {
+  id: string
+  recipient_data: Record<string, unknown>
+  pdf_path: string | null
+  status: string
+  error_msg: string | null
+  url: string | null
+}
+
+function recipientLabel(data: Record<string, unknown>): string {
+  return (
+    (data.director_name as string) ||
+    (data.full_name as string) ||
+    (data.name as string) ||
+    Object.values(data).find(v => typeof v === 'string') as string ||
+    'Recipient'
+  )
+}
+
 export default function BatchProgressPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
   const supabase = createClient()
 
-  const [jobStatus, setJobStatus] = useState<BatchStatus | null>(null)
-  const [running, setRunning] = useState(false)
-  const [error, setError] = useState('')
+  const [jobStatus, setJobStatus]   = useState<BatchStatus | null>(null)
+  const [submissions, setSubmissions] = useState<Submission[]>([])
+  const [running, setRunning]       = useState(false)
+  const [error, setError]           = useState('')
+  const [preview, setPreview]       = useState<Submission | null>(null)
   const stopRef = useRef(false)
 
   useEffect(() => {
@@ -32,6 +54,8 @@ export default function BatchProgressPage() {
       fetchStatus().then(status => {
         if (status && status.status !== 'done' && status.status !== 'partial_fail') {
           startProcessing()
+        } else if (status) {
+          fetchSubmissions()
         }
       })
     })
@@ -44,6 +68,11 @@ export default function BatchProgressPage() {
     const data: BatchStatus = await res.json()
     setJobStatus(data)
     return data
+  }
+
+  async function fetchSubmissions() {
+    const res = await fetch(`/api/batch/${id}/submissions`)
+    if (res.ok) setSubmissions(await res.json())
   }
 
   async function startProcessing() {
@@ -66,12 +95,15 @@ export default function BatchProgressPage() {
         status: data.done ? (data.failed_count > 0 ? 'partial_fail' : 'done') : 'running',
       } : null)
 
+      // Refresh submission list incrementally
+      fetchSubmissions()
+
       if (data.done) break
-      // Small pause to avoid hammering the server
-      await new Promise(r => setTimeout(r, 200))
+      await new Promise(r => setTimeout(r, 300))
     }
 
     setRunning(false)
+    fetchSubmissions()
   }
 
   const pct = jobStatus && jobStatus.total > 0
@@ -79,6 +111,7 @@ export default function BatchProgressPage() {
     : 0
 
   const isDone = jobStatus?.status === 'done' || jobStatus?.status === 'partial_fail'
+  const generated = submissions.filter(s => s.status === 'generated')
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -92,11 +125,11 @@ export default function BatchProgressPage() {
         <p className="text-xs text-gray-400">Generating PDFs for each recipient</p>
       </header>
 
-      <main className="max-w-xl mx-auto px-6 py-12 space-y-8">
+      <main className="max-w-3xl mx-auto px-6 py-8 space-y-6">
         {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>}
 
-        <div className="bg-white rounded-xl border p-8 space-y-6">
-          {/* Progress bar */}
+        {/* Progress card */}
+        <div className="bg-white rounded-xl border p-6 space-y-5">
           <div>
             <div className="flex justify-between text-sm text-gray-600 mb-2">
               <span>{running ? 'Generating…' : isDone ? 'Complete' : 'Pending'}</span>
@@ -105,7 +138,7 @@ export default function BatchProgressPage() {
             <div className="w-full bg-gray-100 rounded-full h-3">
               <div
                 className={`h-3 rounded-full transition-all duration-300 ${
-                  isDone && jobStatus.failed_count === 0 ? 'bg-green-500' :
+                  isDone && jobStatus!.failed_count === 0 ? 'bg-green-500' :
                   isDone ? 'bg-yellow-500' : 'bg-blue-500'
                 }`}
                 style={{ width: `${pct}%` }}
@@ -113,7 +146,6 @@ export default function BatchProgressPage() {
             </div>
           </div>
 
-          {/* Stats */}
           {jobStatus && (
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
@@ -134,29 +166,30 @@ export default function BatchProgressPage() {
           )}
 
           {isDone && (
-            <div className="space-y-3 pt-2">
-              {jobStatus.status === 'done' ? (
+            <div className="space-y-3 pt-1">
+              {jobStatus!.status === 'done' ? (
                 <p className="text-green-700 text-sm font-medium text-center">
-                  All {jobStatus.completed} PDFs generated successfully.
+                  All {jobStatus!.completed} PDFs generated successfully.
                 </p>
               ) : (
                 <p className="text-yellow-700 text-sm font-medium text-center">
-                  {jobStatus.completed} generated · {jobStatus.failed_count} failed.
+                  {jobStatus!.completed} generated · {jobStatus!.failed_count} failed.
                 </p>
               )}
 
-              {jobStatus.completed > 0 && (
+              {jobStatus!.completed > 0 && (
                 <a
                   href={`/api/batch/${id}/zip`}
-                  className="block w-full bg-blue-600 text-white rounded-lg py-3 text-sm font-medium hover:bg-blue-700 text-center"
+                  className="flex items-center justify-center gap-2 w-full bg-blue-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-blue-700"
                 >
-                  Download ZIP ({jobStatus.completed} PDFs)
+                  <Download className="w-4 h-4" />
+                  Download all as ZIP ({jobStatus!.completed} PDFs)
                 </a>
               )}
 
               <button
                 onClick={() => router.push('/batch/new')}
-                className="block w-full border border-gray-200 text-gray-600 rounded-lg py-3 text-sm font-medium hover:bg-gray-50 text-center"
+                className="w-full border border-gray-200 text-gray-600 rounded-lg py-2.5 text-sm font-medium hover:bg-gray-50"
               >
                 New Batch
               </button>
@@ -169,7 +202,87 @@ export default function BatchProgressPage() {
             </p>
           )}
         </div>
+
+        {/* Per-submission list */}
+        {submissions.length > 0 && (
+          <section className="bg-white rounded-xl border overflow-hidden">
+            <div className="px-5 py-3 border-b bg-gray-50">
+              <h2 className="text-sm font-semibold text-gray-700">
+                Generated Forms ({generated.length} / {submissions.length})
+              </h2>
+            </div>
+            <ul className="divide-y">
+              {submissions.map(sub => (
+                <li key={sub.id} className="flex items-center gap-3 px-5 py-3">
+                  <FileText className={`w-4 h-4 shrink-0 ${sub.status === 'generated' ? 'text-green-500' : sub.status === 'failed' ? 'text-red-400' : 'text-gray-300'}`} />
+                  <span className="flex-1 text-sm text-gray-800 truncate">
+                    {recipientLabel(sub.recipient_data)}
+                  </span>
+                  {sub.status === 'failed' && (
+                    <span className="text-xs text-red-500 truncate max-w-[180px]" title={sub.error_msg ?? ''}>
+                      {sub.error_msg ?? 'Failed'}
+                    </span>
+                  )}
+                  {sub.status !== 'failed' && sub.status !== 'generated' && (
+                    <span className="text-xs text-gray-400">{sub.status}</span>
+                  )}
+                  {sub.url && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => setPreview(sub)}
+                        title="Preview PDF"
+                        className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> Preview
+                      </button>
+                      <a
+                        href={sub.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="Download PDF"
+                        className="flex items-center gap-1 text-xs text-green-600 hover:underline"
+                      >
+                        <Download className="w-3.5 h-3.5" /> Download
+                      </a>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </main>
+
+      {/* PDF Preview modal */}
+      {preview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col" style={{ height: '85vh' }}>
+            <div className="flex items-center justify-between px-5 py-3 border-b">
+              <h3 className="font-semibold text-gray-800 truncate">
+                {recipientLabel(preview.recipient_data)}
+              </h3>
+              <div className="flex items-center gap-3">
+                <a
+                  href={preview.url!}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline"
+                >
+                  <Download className="w-3.5 h-3.5" /> Download
+                </a>
+                <button onClick={() => setPreview(null)} className="text-gray-400 hover:text-gray-700">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <iframe
+              src={preview.url!}
+              className="flex-1 w-full rounded-b-2xl"
+              title={recipientLabel(preview.recipient_data)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
