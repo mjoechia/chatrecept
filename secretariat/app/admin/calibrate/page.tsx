@@ -69,6 +69,18 @@ export default function CalibratePage() {
   const [newFieldName, setNewFieldName] = useState('')
   const [newFieldType, setNewFieldType] = useState<FieldDef['type']>('text')
 
+  // Show/hide field markers on canvas
+  const [hiddenFields, setHiddenFields] = useState<Set<string>>(new Set())
+
+  function toggleFieldVisibility(key: string) {
+    setHiddenFields(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
   const isTemplateMode = !!templateId
 
   // Load template data
@@ -462,8 +474,9 @@ export default function CalibratePage() {
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="text-gray-500 border-b border-gray-700">
+                        <th className="py-1 pl-1 w-5" title="Show on canvas" />
                         <th className="text-left py-1 pl-1 font-medium">Field</th>
-                        <th className="text-right py-1 pr-1 font-medium whitespace-nowrap">Det. Page</th>
+                        <th className="text-right py-1 pr-1 font-medium whitespace-nowrap">Page</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -471,17 +484,32 @@ export default function CalibratePage() {
                         const coord = templateCoords?.fields[f.key]
                         const isPlaced = coord && (coord.position.x !== 0 || coord.position.y !== 0)
                         const isActive = dynActive === f.key
+                        const isHidden = hiddenFields.has(f.key)
                         return (
                           <tr
                             key={f.key}
-                            onClick={() => { setDynActive(f.key); goToPage(f.page) }}
-                            className={`cursor-pointer rounded ${isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                            className={`cursor-pointer ${isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
                           >
-                            <td className="py-1.5 pl-1 pr-1">
-                              <div className="font-medium truncate max-w-[120px]">{f.label || f.key}</div>
+                            <td className="py-1.5 pl-1" onClick={e => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={!isHidden}
+                                onChange={() => toggleFieldVisibility(f.key)}
+                                className="w-3 h-3 accent-blue-500 cursor-pointer"
+                                title={isHidden ? 'Show marker' : 'Hide marker'}
+                              />
+                            </td>
+                            <td
+                              className="py-1.5 pl-1 pr-1"
+                              onClick={() => { setDynActive(f.key); goToPage(f.page) }}
+                            >
+                              <div className={`font-medium truncate max-w-[100px] ${isHidden && !isActive ? 'opacity-40' : ''}`}>{f.label || f.key}</div>
                               <div className={`text-xs ${isActive ? 'opacity-70' : 'text-gray-500'}`}>{f.type}</div>
                             </td>
-                            <td className="py-1.5 pr-1 text-right">
+                            <td
+                              className="py-1.5 pr-1 text-right"
+                              onClick={() => { setDynActive(f.key); goToPage(f.page) }}
+                            >
                               <span className={isPlaced ? (isActive ? 'text-green-300' : 'text-green-400') : (isActive ? 'text-yellow-300' : 'text-yellow-500')}>
                                 {f.page + 1}
                               </span>
@@ -551,7 +579,7 @@ export default function CalibratePage() {
               >
                 {isTemplateMode ? (
                   Object.entries(templateCoords?.fields ?? {})
-                    .filter(([, def]) => (def as FieldDef).page === currentPage)
+                    .filter(([key, def]) => (def as FieldDef).page === currentPage && !hiddenFields.has(key))
                     .map(([key, def]) => {
                       const { sx, sy } = toScreen((def as FieldDef).position.x, (def as FieldDef).position.y)
                       const color = dotColor(key)

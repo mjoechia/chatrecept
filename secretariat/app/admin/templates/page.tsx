@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { redirectToLogin } from '@/lib/auth'
+import { Trash2 } from 'lucide-react'
 
 interface TemplateRow {
   id: string
@@ -43,6 +44,16 @@ export default function TemplateListPage() {
 
   async function archiveTemplate(id: string) {
     if (!confirm('Archive this template? It will no longer be available for new batches.')) return
+    await fetch(`/api/admin/templates/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'archived' }),
+    })
+    fetchTemplates()
+  }
+
+  async function deleteTemplate(id: string, name: string) {
+    if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return
     await fetch(`/api/admin/templates/${id}`, { method: 'DELETE' })
     fetchTemplates()
   }
@@ -110,11 +121,18 @@ export default function TemplateListPage() {
                   {t.status !== 'archived' && (
                     <button
                       onClick={() => archiveTemplate(t.id)}
-                      className="text-sm text-red-500 hover:underline px-3 py-1"
+                      className="text-sm text-gray-500 hover:underline px-3 py-1"
                     >
                       Archive
                     </button>
                   )}
+                  <button
+                    onClick={() => deleteTemplate(t.id, t.name)}
+                    className="flex items-center gap-1 text-sm text-red-500 hover:text-red-700 px-2 py-1"
+                    title="Delete permanently"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             ))}
