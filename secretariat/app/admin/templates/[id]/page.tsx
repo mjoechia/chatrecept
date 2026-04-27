@@ -22,6 +22,7 @@ export default function EditTemplatePage() {
   const [saved, setSaved] = useState(false)
   const [testUrl, setTestUrl] = useState<string | null>(null)
   const [testing, setTesting] = useState(false)
+  const [testError, setTestError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
@@ -56,11 +57,20 @@ export default function EditTemplatePage() {
   async function runTestFill() {
     setTesting(true)
     setTestUrl(null)
-    const res = await fetch(`/api/admin/templates/${id}/test-fill`, { method: 'POST' })
-    const j = await res.json()
-    if (j.error) alert(`Test fill failed: ${j.error}`)
-    else setTestUrl(j.url)
-    setTesting(false)
+    setTestError(null)
+    try {
+      const res = await fetch(`/api/admin/templates/${id}/test-fill`, { method: 'POST' })
+      const j = await res.json()
+      if (!res.ok || j.error) {
+        setTestError(j.error ?? `HTTP ${res.status}`)
+      } else {
+        setTestUrl(j.url)
+      }
+    } catch (err) {
+      setTestError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setTesting(false)
+    }
   }
 
   async function toggleStatus() {
@@ -212,6 +222,12 @@ export default function EditTemplatePage() {
             {deleting ? 'Deleting…' : 'Delete'}
           </button>
         </div>
+
+        {testError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
+            Test fill failed: {testError}
+          </div>
+        )}
 
         {testUrl && (
           <section className="bg-white rounded-xl border p-6 space-y-3">

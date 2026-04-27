@@ -574,17 +574,21 @@ export default function CalibratePage() {
                           <div className="flex items-center gap-1 pl-6 pr-1 pb-1.5">
                             <span className={`text-[10px] ${isActive ? 'text-blue-200' : 'text-gray-500'}`}>x</span>
                             <input
+                              key={`${f.key}-x-${coord?.position.x ?? 0}`}
                               type="number"
-                              value={coord?.position.x ?? 0}
-                              onChange={e => updateCoord(f.key, 'x', e.target.value)}
+                              defaultValue={coord?.position.x ?? 0}
+                              onBlur={e => updateCoord(f.key, 'x', e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                               onClick={e => e.stopPropagation()}
                               className="w-14 bg-gray-700 text-gray-100 text-[10px] rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield]"
                             />
                             <span className={`text-[10px] ${isActive ? 'text-blue-200' : 'text-gray-500'}`}>y</span>
                             <input
+                              key={`${f.key}-y-${coord?.position.y ?? 0}`}
                               type="number"
-                              value={coord?.position.y ?? 0}
-                              onChange={e => updateCoord(f.key, 'y', e.target.value)}
+                              defaultValue={coord?.position.y ?? 0}
+                              onBlur={e => updateCoord(f.key, 'y', e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                               onClick={e => e.stopPropagation()}
                               className="w-14 bg-gray-700 text-gray-100 text-[10px] rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield]"
                             />
