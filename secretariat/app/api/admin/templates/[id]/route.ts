@@ -39,15 +39,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const supabase = createServiceClient()
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('form_templates')
     .update(updates)
     .eq('id', id)
-    .select('id, name, version, coord_map, updated_at')
-    .single()
 
-  if (error || !data) return NextResponse.json({ error: error?.message ?? 'Update failed' }, { status: 500 })
-  return NextResponse.json(data)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ ok: true })
 }
 
 // DELETE /api/admin/templates/[id] — permanent hard delete

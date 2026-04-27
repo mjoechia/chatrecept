@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { redirectToLogin } from '@/lib/auth'
 import type { CoordMap, TemplateCoordMap, FieldDef, DetectedField } from '@/lib/types'
-import { CheckCircle2, Save, Crosshair, ChevronLeft, ChevronRight, Plus, Scan, PenLine, X, Eye, EyeOff } from 'lucide-react'
+import { CheckCircle2, Save, Crosshair, ChevronLeft, ChevronRight, Plus, Scan, PenLine, X, Eye, EyeOff, Copy } from 'lucide-react'
 
 const SCALE = 1.5
 
@@ -233,8 +233,13 @@ export default function CalibratePage() {
       setSaving(false); return
     }
     setSaving(false)
-    if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2000) }
-    else alert('Failed to save coordinates')
+    if (res.ok) {
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } else {
+      const j = await res.json().catch(() => null)
+      alert(`Save failed (${res.status}): ${j?.error ?? 'unknown error'}`)
+    }
   }
 
   function toScreen(x: number, y: number) {
@@ -314,6 +319,36 @@ export default function CalibratePage() {
     setAddMode('none')
   }
 
+  function duplicateField(key: string) {
+    const field = templateCoords?.fields[key]
+    if (!field) return
+    let newKey = `${key}_2`
+    let n = 2
+    while (templateCoords?.fields[newKey]) { n++; newKey = `${key}_${n}` }
+    const newField: FieldDef = { ...field, position: { x: 0, y: 0 } }
+    setTemplateCoords(prev => prev ? { ...prev, fields: { ...prev.fields, [newKey]: newField } } : prev)
+    const orig = dynFields.find(f => f.key === key)
+    if (orig) {
+      setDynFields(prev => [...prev, { key: newKey, label: `${orig.label} (copy)`, type: orig.type, page: orig.page }])
+      setDynActive(newKey)
+    }
+  }
+
+  function updateCoord(key: string, axis: 'x' | 'y', raw: string) {
+    const num = parseFloat(raw)
+    if (isNaN(num)) return
+    setTemplateCoords(prev => {
+      if (!prev?.fields[key]) return prev
+      return {
+        ...prev,
+        fields: {
+          ...prev.fields,
+          [key]: { ...prev.fields[key], position: { ...prev.fields[key].position, [axis]: num } },
+        },
+      }
+    })
+  }
+
   const legacyTextFields = LEGACY_FIELD_LIST.filter(f => f.group === 'fields')
   const legacyCheckboxes = LEGACY_FIELD_LIST.filter(f => f.group === 'checkboxes')
 
@@ -369,7 +404,7 @@ export default function CalibratePage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* ── Sidebar ── */}
-        <aside className="w-60 bg-gray-800 border-r border-gray-700 overflow-y-auto flex-shrink-0 flex flex-col">
+        <aside className="w-72 bg-gray-800 border-r border-gray-700 overflow-y-auto flex-shrink-0 flex flex-col">
           <div className="flex-1 overflow-y-auto">
             {isTemplateMode ? (
               <div className="p-3">
@@ -467,61 +502,75 @@ export default function CalibratePage() {
                   </div>
                 )}
 
-                {/* Field table */}
+                {/* Field list */}
                 {dynFields.length === 0 ? (
                   <p className="text-xs text-gray-500">No fields. Use Add → Detect or Manual.</p>
                 ) : (
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="text-gray-500 border-b border-gray-700">
-                        <th className="py-1 pl-1 w-6" title="Show on canvas" />
-                        <th className="text-left py-1 pl-1 font-medium">Field</th>
-                        <th className="text-right py-1 pr-1 font-medium whitespace-nowrap">Page</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dynFields.map(f => {
-                        const coord = templateCoords?.fields[f.key]
-                        const isPlaced = coord && (coord.position.x !== 0 || coord.position.y !== 0)
-                        const isActive = dynActive === f.key
-                        const isHidden = hiddenFields.has(f.key)
-                        return (
-                          <tr
-                            key={f.key}
-                            className={`cursor-pointer ${isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
-                          >
-                            <td className="py-1.5 pl-1 w-6" onClick={e => e.stopPropagation()}>
-                              <button
-                                onClick={() => toggleFieldVisibility(f.key)}
-                                title={isHidden ? 'Show marker on canvas' : 'Hide marker on canvas'}
-                                className={`flex items-center justify-center w-5 h-5 rounded hover:bg-gray-600 ${isHidden ? 'text-gray-600' : 'text-blue-400'}`}
-                              >
-                                {isHidden
-                                  ? <EyeOff className="w-3.5 h-3.5" />
-                                  : <Eye className="w-3.5 h-3.5" />
-                                }
-                              </button>
-                            </td>
-                            <td
-                              className="py-1.5 pl-1 pr-1"
+                  <div className="space-y-0.5">
+                    {dynFields.map(f => {
+                      const coord = templateCoords?.fields[f.key]
+                      const isPlaced = coord && (coord.position.x !== 0 || coord.position.y !== 0)
+                      const isActive = dynActive === f.key
+                      const isHidden = hiddenFields.has(f.key)
+                      return (
+                        <div
+                          key={f.key}
+                          className={`rounded text-xs ${isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                        >
+                          {/* Row 1: eye, name, page badge, dup */}
+                          <div className="flex items-center gap-0.5 px-1 pt-1.5 pb-0.5">
+                            <button
+                              onClick={() => toggleFieldVisibility(f.key)}
+                              title={isHidden ? 'Show on canvas' : 'Hide from canvas'}
+                              className={`flex-shrink-0 flex items-center justify-center w-5 h-5 rounded hover:bg-black/20 ${isHidden ? 'text-gray-500' : 'text-blue-300'}`}
+                            >
+                              {isHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                            <div
+                              className={`flex-1 min-w-0 cursor-pointer pl-0.5 ${isHidden && !isActive ? 'opacity-40' : ''}`}
                               onClick={() => setDynActive(f.key)}
                             >
-                              <div className={`font-medium truncate max-w-[100px] ${isHidden && !isActive ? 'opacity-40' : ''}`}>{f.label || f.key}</div>
-                              <div className={`text-xs ${isActive ? 'opacity-70' : 'text-gray-500'}`}>{f.type}</div>
-                            </td>
-                            <td
-                              className="py-1.5 pr-1 text-right"
+                              <div className="font-medium truncate">{f.label || f.key}</div>
+                              <div className={`text-[10px] ${isActive ? 'opacity-70' : 'text-gray-500'}`}>{f.type}</div>
+                            </div>
+                            <span
+                              className={`text-[10px] flex-shrink-0 px-1 cursor-pointer ${isPlaced ? (isActive ? 'text-green-300' : 'text-green-400') : (isActive ? 'text-yellow-300' : 'text-yellow-500')}`}
                               onClick={() => setDynActive(f.key)}
+                              title={`Detected page ${f.page + 1}`}
                             >
-                              <span className={isPlaced ? (isActive ? 'text-green-300' : 'text-green-400') : (isActive ? 'text-yellow-300' : 'text-yellow-500')}>
-                                {f.page + 1}
-                              </span>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
+                              p.{f.page + 1}
+                            </span>
+                            <button
+                              onClick={() => duplicateField(f.key)}
+                              title="Duplicate field (same source_key, new position)"
+                              className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded hover:bg-black/20 text-gray-400 hover:text-gray-100"
+                            >
+                              <Copy className="w-3 h-3" />
+                            </button>
+                          </div>
+                          {/* Row 2: editable x/y coordinates */}
+                          <div className="flex items-center gap-1 pl-6 pr-1 pb-1.5">
+                            <span className={`text-[10px] ${isActive ? 'text-blue-200' : 'text-gray-500'}`}>x</span>
+                            <input
+                              type="number"
+                              value={coord?.position.x ?? 0}
+                              onChange={e => updateCoord(f.key, 'x', e.target.value)}
+                              onClick={e => e.stopPropagation()}
+                              className="w-14 bg-gray-700 text-gray-100 text-[10px] rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield]"
+                            />
+                            <span className={`text-[10px] ${isActive ? 'text-blue-200' : 'text-gray-500'}`}>y</span>
+                            <input
+                              type="number"
+                              value={coord?.position.y ?? 0}
+                              onChange={e => updateCoord(f.key, 'y', e.target.value)}
+                              onClick={e => e.stopPropagation()}
+                              className="w-14 bg-gray-700 text-gray-100 text-[10px] rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield]"
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 )}
               </div>
             ) : (
