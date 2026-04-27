@@ -6,8 +6,8 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { redirectToLogin } from '@/lib/auth'
-import type { Person } from '@/lib/types'
-import { Building2, UserPlus, Trash2, FileText, Layers } from 'lucide-react'
+import type { Person, FormTemplate } from '@/lib/types'
+import { Building2, UserPlus, Trash2, Layers, ChevronDown } from 'lucide-react'
 
 interface LinkedPerson extends Pick<Person, 'id' | 'full_name' | 'nric_masked' | 'nationality' | 'dob' | 'address'> {
   link_id: string
@@ -39,6 +39,8 @@ export default function CompanyDetailPage() {
   const [addMode,   setAddMode]   = useState<'existing' | 'new'>('existing')
   const [saving,    setSaving]    = useState(false)
   const [error,     setError]     = useState<string | null>(null)
+  const [templates, setTemplates] = useState<Pick<FormTemplate, 'id' | 'name'>[]>([])
+  const [selectedTplId, setSelectedTplId] = useState<string>('')
   const [editing,   setEditing]   = useState(false)
   const [eName,     setEName]     = useState('')
   const [eUen,      setEUen]      = useState('')
@@ -49,6 +51,7 @@ export default function CompanyDetailPage() {
     })
     loadCompany()
     loadPersons()
+    loadTemplates()
   }, [params.id])
 
   async function loadCompany() {
@@ -65,6 +68,15 @@ export default function CompanyDetailPage() {
   async function loadPersons() {
     const res = await fetch('/api/persons')
     if (res.ok) setPersons(await res.json())
+  }
+
+  async function loadTemplates() {
+    const res = await fetch('/api/admin/templates')
+    if (!res.ok) return
+    const all: FormTemplate[] = await res.json()
+    const active = all.filter(t => t.status === 'active')
+    setTemplates(active)
+    if (active.length > 0) setSelectedTplId(active[0].id)
   }
 
   async function handleSaveCompany() {
@@ -115,6 +127,34 @@ export default function CompanyDetailPage() {
     resetAddForm()
     loadCompany()
     loadPersons()
+  }
+
+  async function handleSingleBatch(p: LinkedPerson) {
+    if (!selectedTplId) return alert('No active template available. Ask your admin to set one up.')
+    const row = {
+      company_name:  company!.name,
+      uen:           company!.uen,
+      director_name: p.full_name,
+      nric_display:  p.nric_masked ?? '',
+      nationality:   p.nationality ?? '',
+      dob:           p.dob ?? '',
+      address:       p.address ?? '',
+      consent_date:  new Date().toISOString().slice(0, 10),
+    }
+    const columnMap: Record<string, string> = Object.fromEntries(Object.keys(row).map(k => [k, k]))
+    const res = await fetch('/api/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        template_id: selectedTplId,
+        label: `Form 45 — ${p.full_name} — ${company!.name}`,
+        column_map: columnMap,
+        rows: [row],
+      }),
+    })
+    if (!res.ok) return alert('Failed to create batch job')
+    const { id } = await res.json()
+    router.push(`/batch/${id}/progress`)
   }
 
   async function handleBatchAll() {
@@ -244,12 +284,26 @@ export default function CompanyDetailPage() {
                     <td className="px-4 py-3 text-gray-500">{p.nationality ?? '—'}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => router.push(`/form45/new?company_id=${company.id}&person_id=${p.id}`)}
-                          className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
-                        >
-                          <FileText className="w-3 h-3" /> Form 45
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <select
+                            value={selectedTplId}
+                            onChange={e => setSelectedTplId(e.target.value)}
+                            onClick={e => e.stopPropagation()}
+                            className="text-xs border rounded-lg px-2 py-1 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[120px]"
+                          >
+                            {templates.length === 0
+                              ? <option value="">No templates</option>
+                              : templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)
+                            }
+                          </select>
+                          <button
+                            onClick={() => handleSingleBatch(p)}
+                            disabled={!selectedTplId}
+                            className="flex items-center gap-1 text-xs bg-blue-600 text-white px-2 py-1 rounded-lg hover:bg-blue-700 disabled:opacity-40"
+                          >
+                            <ChevronDown className="w-3 h-3 rotate-[-90deg]" /> Generate
+                          </button>
+                        </div>
                         <button onClick={() => handleUnlink(p.link_id)} className="text-gray-400 hover:text-red-500">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>

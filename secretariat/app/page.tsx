@@ -31,6 +31,12 @@ export default function DashboardPage() {
   const [batches, setBatches]     = useState<MyBatch[]>([])
   const [companies, setCompanies] = useState<Pick<Company, 'id' | 'name' | 'uen'>[]>([])
   const [userRole, setUserRole]   = useState<'admin' | 'user' | null>(null)
+  const [showWelcome, setShowWelcome] = useState(false)
+
+  function dismissWelcome(dontShowAgain: boolean) {
+    setShowWelcome(false)
+    if (dontShowAgain) localStorage.setItem('secretariat_welcome_seen', '1')
+  }
 
   useEffect(() => {
     // Check session then resolve role
@@ -42,6 +48,7 @@ export default function DashboardPage() {
         if (profile.pending_approval) { router.push('/auth/pending'); return }
         setUserRole(profile.role)
         if (profile.role === 'admin') { router.push('/admin'); return }
+        if (!localStorage.getItem('secretariat_welcome_seen')) setShowWelcome(true)
       }
       // If 500 (e.g. migration not yet run), fall through and show dashboard
     })
@@ -139,6 +146,47 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Getting Started modal */}
+      {showWelcome && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">How to get started</h2>
+            <p className="text-sm text-gray-500 mb-6">Follow these steps to generate your first form.</p>
+            <ol className="space-y-4">
+              {[
+                { n: 1, text: 'Click "Open Secretariat" below' },
+                { n: 2, text: 'Select "New Form 45" from the dashboard' },
+                { n: 3, text: 'Fill in company & director details' },
+                { n: 4, text: 'Generate & download the ACRA-compliant PDF' },
+              ].map(({ n, text }) => (
+                <li key={n} className="flex items-start gap-4">
+                  <span className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white text-sm font-semibold flex items-center justify-center">
+                    {n}
+                  </span>
+                  <span className="text-sm text-gray-700 pt-1">{text}</span>
+                </li>
+              ))}
+            </ol>
+            <div className="mt-8 flex items-center justify-between gap-3">
+              <label className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  onChange={e => { if (e.target.checked) localStorage.setItem('secretariat_welcome_seen', '1') }}
+                  className="rounded"
+                />
+                Don&apos;t show again
+              </label>
+              <button
+                onClick={() => dismissWelcome(true)}
+                className="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">

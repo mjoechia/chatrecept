@@ -334,6 +334,22 @@ export default function CalibratePage() {
     setAddMode('none')
   }
 
+  function renameField(oldKey: string, rawNew: string) {
+    const newKey = rawNew.trim().replace(/\s+/g, '_').toLowerCase()
+    if (!newKey || newKey === oldKey) return
+    if (templateCoords?.fields[newKey]) { alert(`Field "${newKey}" already exists.`); return }
+    setTemplateCoords(prev => {
+      if (!prev) return prev
+      const field = prev.fields[oldKey]
+      if (!field) return prev
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { [oldKey]: _removed, ...rest } = prev.fields
+      return { ...prev, fields: { ...rest, [newKey]: { ...field, mapping: { source_key: newKey } } } }
+    })
+    setDynFields(prev => prev.map(f => f.key === oldKey ? { ...f, key: newKey, label: newKey } : f))
+    if (dynActive === oldKey) setDynActive(newKey)
+  }
+
   function duplicateField(key: string) {
     const field = templateCoords?.fields[key]
     if (!field) return
@@ -522,7 +538,7 @@ export default function CalibratePage() {
                   <p className="text-xs text-gray-500">No fields. Use Add → Detect or Manual.</p>
                 ) : (
                   <div className="space-y-0.5">
-                    {dynFields.map(f => {
+                    {[...dynFields].sort((a, b) => a.key.localeCompare(b.key)).map(f => {
                       const coord = templateCoords?.fields[f.key]
                       const isPlaced = coord && (coord.position.x !== 0 || coord.position.y !== 0)
                       const isActive = dynActive === f.key
@@ -542,10 +558,17 @@ export default function CalibratePage() {
                               {isHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                             </button>
                             <div
-                              className={`flex-1 min-w-0 cursor-pointer pl-0.5 ${isHidden && !isActive ? 'opacity-40' : ''}`}
+                              className={`flex-1 min-w-0 pl-0.5 ${isHidden && !isActive ? 'opacity-40' : ''}`}
                               onClick={() => setDynActive(f.key)}
                             >
-                              <div className="font-medium truncate">{f.label || f.key}</div>
+                              <input
+                                key={`${f.key}-name`}
+                                defaultValue={f.key}
+                                onBlur={e => renameField(f.key, e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                                onClick={e => { e.stopPropagation(); setDynActive(f.key) }}
+                                className={`w-full font-medium text-xs bg-transparent focus:outline-none focus:ring-1 focus:ring-white/40 rounded px-0.5 truncate ${isActive ? 'text-white placeholder-blue-200' : 'text-gray-200'}`}
+                              />
                               <div className={`text-[10px] ${isActive ? 'opacity-70' : 'text-gray-500'}`}>{f.type}</div>
                             </div>
                             <span
