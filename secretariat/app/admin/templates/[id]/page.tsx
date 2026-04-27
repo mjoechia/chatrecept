@@ -157,7 +157,7 @@ export default function EditTemplatePage() {
                     <tr key={key} className="border-b last:border-0">
                       <td className="py-2 pr-4 font-mono text-gray-800">{key}</td>
                       <td className="py-2 pr-4 text-gray-500">{(def as FieldDef).type}</td>
-                      <td className="py-2 pr-4 text-gray-500">{(def as FieldDef).page}</td>
+                      <td className="py-2 pr-4 text-gray-500">{((def as FieldDef).page ?? 0) + 1}</td>
                       <td className="py-2 pr-4 text-gray-500">{(def as FieldDef).position.x}</td>
                       <td className="py-2 text-gray-500">{(def as FieldDef).position.y}</td>
                     </tr>

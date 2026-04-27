@@ -26,6 +26,10 @@ export async function POST(
   const coordMap = template.coord_map as TemplateCoordMap
   const fields = coordMap.fields ?? {}
 
+  if (Object.keys(fields).length === 0) {
+    return NextResponse.json({ error: 'No fields in this template. Run AI detection in /admin/templates/new first, then save.' }, { status: 422 })
+  }
+
   // Auto-generate test values from source_keys
   const testData: Record<string, unknown> = {}
   for (const [, field] of Object.entries(fields)) {
