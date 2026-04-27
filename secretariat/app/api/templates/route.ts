@@ -12,7 +12,7 @@ export async function GET() {
   const svc = createServiceClient()
   const { data, error } = await svc
     .from('form_templates')
-    .select('id, name, description, status, user_visible, version, created_at')
+    .select('id, name, description, status, user_visible, version, created_at, coord_map')
     .eq('status', 'active')
     .eq('user_visible', true)
     .order('name')

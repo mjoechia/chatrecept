@@ -6,18 +6,14 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { redirectToLogin } from '@/lib/auth'
 import { createClient } from '@/lib/supabase'
-import type { FormTemplate } from '@/lib/types'
 import Image from 'next/image'
-import { Upload, Settings, Layers, Building2, Users, LogOut } from 'lucide-react'
+import { Settings, Layers, Building2, Users, LogOut, X } from 'lucide-react'
 
-interface MyBatch {
+interface TemplateRow {
   id: string
-  label: string | null
-  total: number
-  processed: number
+  name: string
   status: string
-  created_at: string
-  form_templates: { name: string } | null
+  coord_map?: { fields?: Record<string, unknown> }
 }
 
 interface Contact {
@@ -25,18 +21,57 @@ interface Contact {
   full_name: string
   nric_masked: string | null
   nationality: string | null
-  company_persons: { role: string; companies: { id: string; name: string } | null }[]
+  dob: string | null
+  address: string | null
+  company_persons: { role: string; companies: { id: string; name: string; uen: string } | null }[]
+}
+
+// Maps template field key → human label
+const FIELD_LABELS: Record<string, string> = {
+  company_name: 'Company Name',
+  uen:          'UEN',
+  director_name:'Director Name',
+  full_name:    'Full Name',
+  nric_display: 'NRIC',
+  nric_masked:  'NRIC',
+  nationality:  'Nationality',
+  dob:          'Date of Birth',
+  address:      'Address',
+}
+
+const COMPANY_KEYS = new Set(['company_name', 'uen'])
+const PERSON_KEYS  = new Set(['director_name', 'full_name', 'nric_display', 'nric_masked', 'nationality', 'dob', 'address'])
+const AUTO_FIELDS  = new Set(['consent_date', 'date', 'today', 'generated_date'])
+const STANDARD_FIELDS = ['company_name', 'uen', 'director_name', 'nric_display', 'nationality', 'dob', 'address']
+
+// template field key → persons table column
+const PERSON_COL: Record<string, string> = {
+  director_name: 'full_name',
+  full_name:     'full_name',
+  nric_display:  'nric_masked',
+  nric_masked:   'nric_masked',
+  nationality:   'nationality',
+  dob:           'dob',
+  address:       'address',
+}
+// template field key → companies table column
+const COMPANY_COL: Record<string, string> = {
+  company_name: 'name',
+  uen:          'uen',
 }
 
 export default function DashboardPage() {
   const router = useRouter()
 
-  const [templates, setTemplates] = useState<Pick<FormTemplate, 'id' | 'name' | 'status'>[]>([])
-  const [batches, setBatches]     = useState<MyBatch[]>([])
-  const [contacts, setContacts]   = useState<Contact[]>([])
-  const [userRole, setUserRole]   = useState<'admin' | 'user' | null>(null)
+  const [templates,    setTemplates]    = useState<TemplateRow[]>([])
+  const [contacts,     setContacts]     = useState<Contact[]>([])
+  const [userRole,     setUserRole]     = useState<'admin' | 'user' | null>(null)
+  const [editContact,  setEditContact]  = useState<Contact | null>(null)
+  const [editValues,   setEditValues]   = useState<Record<string, string>>({})
+  const [editSaving,   setEditSaving]   = useState(false)
+  const [editError,    setEditError]    = useState<string | null>(null)
+
   useEffect(() => {
-    // Check session then resolve role
     fetch('/api/user/me').then(async res => {
       if (res.status === 401) { redirectToLogin(); return }
       if (res.status === 403) { router.push('/auth/pending'); return }
@@ -46,10 +81,8 @@ export default function DashboardPage() {
         setUserRole(profile.role)
         if (profile.role === 'admin') { router.push('/admin'); return }
       }
-      // If 500 (e.g. migration not yet run), fall through and show dashboard
     })
     loadTemplates()
-    loadBatches()
     loadContacts()
   }, [])
 
@@ -61,40 +94,89 @@ export default function DashboardPage() {
 
   async function loadContacts() {
     const res = await fetch('/api/persons')
-    if (res.ok) {
-      const data: Contact[] = await res.json()
-      setContacts(data)
-    }
+    if (res.ok) setContacts(await res.json())
   }
 
   async function loadTemplates() {
-    const res = await fetch('/api/admin/templates')
-    if (res.ok) {
-      const data: FormTemplate[] = await res.json()
-      setTemplates(data.filter(t => t.status === 'active').slice(0, 6))
-    }
+    const res = await fetch('/api/templates')
+    if (res.ok) setTemplates(await res.json())
   }
 
-  async function loadBatches() {
-    const res = await fetch('/api/user/batches')
-    if (res.ok) {
-      const data: MyBatch[] = await res.json()
-      setBatches(data)
+  // Derive edit-form field list from active templates' coord_maps (fallback: standard set)
+  const templateFields: string[] = (() => {
+    const seen = new Set<string>()
+    for (const tpl of templates) {
+      for (const key of Object.keys(tpl.coord_map?.fields ?? {})) {
+        if (!AUTO_FIELDS.has(key) && (COMPANY_KEYS.has(key) || PERSON_KEYS.has(key))) seen.add(key)
+      }
     }
+    return seen.size > 0 ? [...seen] : STANDARD_FIELDS
+  })()
+
+  const companyFields = templateFields.filter(k => COMPANY_KEYS.has(k))
+  const personFields  = templateFields.filter(k => PERSON_KEYS.has(k))
+
+  function openEdit(contact: Contact) {
+    const company = contact.company_persons?.[0]?.companies
+    const values: Record<string, string> = {}
+    for (const key of templateFields) {
+      if (key === 'company_name')                          values[key] = company?.name ?? ''
+      else if (key === 'uen')                              values[key] = company?.uen  ?? ''
+      else if (key === 'director_name' || key === 'full_name') values[key] = contact.full_name ?? ''
+      else if (key === 'nric_display'  || key === 'nric_masked') values[key] = contact.nric_masked ?? ''
+      else if (key === 'nationality')                      values[key] = contact.nationality ?? ''
+      else if (key === 'dob')                              values[key] = contact.dob ?? ''
+      else if (key === 'address')                          values[key] = contact.address ?? ''
+      else values[key] = ''
+    }
+    setEditValues(values)
+    setEditContact(contact)
+    setEditError(null)
   }
 
-  const batchStatusBadge = (s: string) => {
-    const styles: Record<string, string> = {
-      pending:      'bg-gray-100 text-gray-500',
-      running:      'bg-yellow-100 text-yellow-700',
-      done:         'bg-green-100 text-green-700',
-      partial_fail: 'bg-orange-100 text-orange-700',
+  async function saveEdit() {
+    if (!editContact) return
+    setEditSaving(true)
+    setEditError(null)
+    try {
+      // Person update
+      const personUpdate: Record<string, string | null> = {}
+      for (const [key, col] of Object.entries(PERSON_COL)) {
+        if (key in editValues) personUpdate[col] = editValues[key] || null
+      }
+      if (Object.keys(personUpdate).length > 0) {
+        const res = await fetch(`/api/persons/${editContact.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(personUpdate),
+        })
+        if (!res.ok) throw new Error((await res.json()).error ?? 'Failed to save person')
+      }
+
+      // Company update (only if contact is linked to a company)
+      const company = editContact.company_persons?.[0]?.companies
+      if (company) {
+        const companyUpdate: Record<string, string | null> = {}
+        for (const [key, col] of Object.entries(COMPANY_COL)) {
+          if (key in editValues) companyUpdate[col] = editValues[key] || null
+        }
+        if (Object.keys(companyUpdate).length > 0) {
+          const res = await fetch(`/api/companies/${company.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(companyUpdate),
+          })
+          if (!res.ok) throw new Error((await res.json()).error ?? 'Failed to save company')
+        }
+      }
+
+      await loadContacts()
+      setEditContact(null)
+    } catch (e: unknown) {
+      setEditError(e instanceof Error ? e.message : 'Save failed')
+    } finally {
+      setEditSaving(false)
     }
-    return (
-      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${styles[s] ?? 'bg-gray-100'}`}>
-        {s}
-      </span>
-    )
   }
 
   return (
@@ -146,17 +228,7 @@ export default function DashboardPage() {
 
         {/* Contacts */}
         <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-gray-800">Contacts</h2>
-            <div className="flex items-center gap-3">
-              <button onClick={() => router.push('/companies')} className="text-xs text-blue-600 hover:underline">
-                Companies →
-              </button>
-              <button onClick={() => router.push('/persons')} className="text-xs text-blue-600 hover:underline">
-                All Persons →
-              </button>
-            </div>
-          </div>
+          <h2 className="font-semibold text-gray-800 mb-3">Contacts</h2>
           {contacts.length === 0 ? (
             <div className="bg-white border rounded-xl p-6 text-center">
               <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
@@ -182,39 +254,20 @@ export default function DashboardPage() {
                 </thead>
                 <tbody className="divide-y">
                   {contacts.map(c => {
-                    const link = c.company_persons?.[0]
-                    const company = link?.companies ?? null
+                    const company = c.company_persons?.[0]?.companies ?? null
                     return (
                       <tr key={c.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 font-medium">{c.full_name}</td>
-                        <td className="px-4 py-3 text-gray-500">
-                          {company ? (
-                            <button
-                              onClick={() => router.push(`/companies/${company.id}`)}
-                              className="text-blue-600 hover:underline"
-                            >
-                              {company.name}
-                            </button>
-                          ) : '—'}
-                        </td>
+                        <td className="px-4 py-3 text-gray-500">{company?.name ?? '—'}</td>
                         <td className="px-4 py-3 text-gray-500">{c.nric_masked ?? '—'}</td>
                         <td className="px-4 py-3 text-gray-500">{c.nationality ?? '—'}</td>
                         <td className="px-4 py-3 text-right">
-                          {company ? (
-                            <button
-                              onClick={() => router.push(`/companies/${company.id}`)}
-                              className="text-xs text-blue-600 hover:underline"
-                            >
-                              Open Company
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => router.push('/persons')}
-                              className="text-xs text-gray-400 hover:underline"
-                            >
-                              View
-                            </button>
-                          )}
+                          <button
+                            onClick={() => openEdit(c)}
+                            className="text-xs text-blue-600 hover:underline"
+                          >
+                            Edit Company Info
+                          </button>
                         </td>
                       </tr>
                     )
@@ -225,76 +278,10 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* My Groups (batch imports) */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-gray-800">My Groups</h2>
-            <button
-              onClick={() => router.push('/batch/new')}
-              className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
-            >
-              <Upload className="w-3.5 h-3.5" /> New Import
-            </button>
-          </div>
-          {batches.length === 0 ? (
-            <div
-              onClick={() => router.push('/batch/new')}
-              className="bg-white border-2 border-dashed rounded-xl p-8 text-center cursor-pointer hover:border-blue-300 hover:bg-blue-50/30 transition-colors"
-            >
-              <Upload className="w-8 h-8 text-gray-300 mx-auto mb-3" />
-              <p className="text-sm font-medium text-gray-600">No groups yet</p>
-              <p className="text-xs text-gray-400 mt-1">Upload a CSV or Excel file to generate forms for multiple people at once</p>
-              <span className="mt-4 inline-block text-sm text-blue-600 font-medium">New Import →</span>
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl border overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Label</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Template</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Count</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Date</th>
-                    <th className="px-4 py-3 text-right font-medium text-gray-600">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {batches.map(b => (
-                    <tr key={b.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium">{b.label ?? `Import ${b.id.slice(0, 8)}`}</td>
-                      <td className="px-4 py-3 text-gray-500">{b.form_templates?.name ?? '—'}</td>
-                      <td className="px-4 py-3 text-gray-500">{b.total}</td>
-                      <td className="px-4 py-3">{batchStatusBadge(b.status)}</td>
-                      <td className="px-4 py-3 text-gray-500 text-xs">{new Date(b.created_at).toLocaleDateString()}</td>
-                      <td className="px-4 py-3 text-right">
-                        {b.status === 'done' || b.status === 'partial_fail' ? (
-                          <a href={`/api/batch/${b.id}/zip`} className="text-xs text-green-600 hover:underline">
-                            Download ZIP
-                          </a>
-                        ) : (
-                          <button
-                            onClick={() => router.push(`/batch/${b.id}/progress`)}
-                            className="text-xs text-blue-600 hover:underline"
-                          >
-                            View progress
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-
         {/* Forms Ready for Filling */}
         {templates.length > 0 && (
           <section>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold text-gray-800">Forms Ready for Filling</h2>
-            </div>
+            <h2 className="font-semibold text-gray-800 mb-3">Forms Ready for Filling</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {templates.map(t => (
                 <div key={t.id} className="bg-white border rounded-xl p-4 flex items-center justify-between gap-3">
@@ -302,22 +289,109 @@ export default function DashboardPage() {
                     <p className="text-sm font-medium text-gray-800 truncate">{t.name}</p>
                     <p className="text-xs text-green-600 mt-0.5">Ready</p>
                   </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button
-                      onClick={() => router.push(`/batch/new?template_id=${t.id}`)}
-                      className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
-                    >
-                      Batch Import
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => router.push(`/batch/new?template_id=${t.id}`)}
+                    className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 shrink-0"
+                  >
+                    Batch Import
+                  </button>
                 </div>
               ))}
             </div>
           </section>
         )}
 
-
       </main>
+
+      {/* Edit Contact Modal */}
+      {editContact && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <div>
+                <h3 className="font-semibold text-gray-900">Edit Company Info</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{editContact.full_name}</p>
+              </div>
+              <button onClick={() => setEditContact(null)} className="text-gray-400 hover:text-gray-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-6">
+              {editError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+                  {editError}
+                </div>
+              )}
+
+              {/* Company fields — only shown if contact is linked to a company */}
+              {companyFields.length > 0 && editContact.company_persons?.[0]?.companies && (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Company</p>
+                  {companyFields.map(key => (
+                    <div key={key}>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        {FIELD_LABELS[key] ?? key}
+                      </label>
+                      <input
+                        type="text"
+                        value={editValues[key] ?? ''}
+                        onChange={e => setEditValues(prev => ({ ...prev, [key]: e.target.value }))}
+                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Person fields */}
+              {personFields.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Director / Person</p>
+                  {personFields.map(key => (
+                    <div key={key}>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        {FIELD_LABELS[key] ?? key}
+                      </label>
+                      {key === 'address' ? (
+                        <textarea
+                          value={editValues[key] ?? ''}
+                          onChange={e => setEditValues(prev => ({ ...prev, [key]: e.target.value }))}
+                          rows={2}
+                          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        />
+                      ) : (
+                        <input
+                          type={key === 'dob' ? 'date' : 'text'}
+                          value={editValues[key] ?? ''}
+                          onChange={e => setEditValues(prev => ({ ...prev, [key]: e.target.value }))}
+                          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 justify-end px-6 py-4 border-t">
+              <button
+                onClick={() => setEditContact(null)}
+                className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveEdit}
+                disabled={editSaving}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {editSaving ? 'Saving…' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
