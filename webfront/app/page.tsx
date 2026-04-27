@@ -89,11 +89,25 @@ export default function ComingSoonPage() {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [user, setUser] = useState<User | null>(null);
+  const [secretariatUrl, setSecretariatUrl] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       setUser(session?.user ?? null)
+      if (session) {
+        const url = `${SECRETARIAT_URL}/auth/set-session#access_token=${session.access_token}&refresh_token=${session.refresh_token}`
+        setSecretariatUrl(url)
+      } else {
+        setSecretariatUrl(null)
+      }
+    })
+    // Also resolve on initial load
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        const url = `${SECRETARIAT_URL}/auth/set-session#access_token=${session.access_token}&refresh_token=${session.refresh_token}`
+        setSecretariatUrl(url)
+      }
     })
     return () => subscription.unsubscribe()
   }, [])
@@ -118,13 +132,7 @@ export default function ComingSoonPage() {
     setUser(null)
   }
 
-  async function handleOpenSecretariat() {
-    const { data } = await supabase.auth.getSession()
-    const session = data.session
-    if (!session) { handleGoogleLogin(); return }
-    const url = `${SECRETARIAT_URL}/auth/set-session#access_token=${session.access_token}&refresh_token=${session.refresh_token}`
-    window.location.href = url
-  }
+
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -261,13 +269,23 @@ export default function ComingSoonPage() {
                     </div>
                   ))}
                 </div>
-                <button
-                  onClick={handleOpenSecretariat}
-                  className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white transition-colors hover:opacity-90"
-                  style={{ background: "linear-gradient(135deg, #006092 0%, #4db0f7 100%)" }}
-                >
-                  Open Secretariat →
-                </button>
+                {secretariatUrl ? (
+                  <a
+                    href={secretariatUrl}
+                    className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white transition-colors hover:opacity-90"
+                    style={{ background: "linear-gradient(135deg, #006092 0%, #4db0f7 100%)" }}
+                  >
+                    Open Secretariat →
+                  </a>
+                ) : (
+                  <button
+                    onClick={handleGoogleLogin}
+                    className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white transition-colors hover:opacity-90"
+                    style={{ background: "linear-gradient(135deg, #006092 0%, #4db0f7 100%)" }}
+                  >
+                    Log in to get started →
+                  </button>
+                )}
               </div>
 
               {/* AI Personal Assistant — Coming Soon */}
@@ -674,13 +692,23 @@ export default function ComingSoonPage() {
                   Automate ACRA filings, Form 45 Consents to Act as Director, and corporate secretary work — from data entry to signed PDF in minutes.
                 </p>
               </div>
-              <button
-                onClick={user ? handleOpenSecretariat : handleGoogleLogin}
-                className="inline-flex items-center gap-2 font-bold text-sm text-primary hover:text-[#005080] transition-colors self-start"
-              >
-                {user ? 'Open Secretariat' : 'Log in to get started'}
-                <Icon name="arrow_forward" className="text-primary" size={16} />
-              </button>
+              {secretariatUrl ? (
+                <a
+                  href={secretariatUrl}
+                  className="inline-flex items-center gap-2 font-bold text-sm text-primary hover:text-[#005080] transition-colors self-start"
+                >
+                  Open Secretariat
+                  <Icon name="arrow_forward" className="text-primary" size={16} />
+                </a>
+              ) : (
+                <button
+                  onClick={handleGoogleLogin}
+                  className="inline-flex items-center gap-2 font-bold text-sm text-primary hover:text-[#005080] transition-colors self-start"
+                >
+                  Log in to get started
+                  <Icon name="arrow_forward" className="text-primary" size={16} />
+                </button>
+              )}
             </div>
 
             {/* AI Personal Assistant */}
