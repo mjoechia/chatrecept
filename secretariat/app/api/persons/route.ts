@@ -11,7 +11,7 @@ export async function GET() {
   const svc = createServiceClient()
   const { data, error } = await svc
     .from('persons')
-    .select('id, full_name, nric_masked, nationality, dob, address, created_at, updated_at')
+    .select('id, full_name, nric_masked, nationality, dob, address, created_at, updated_at, company_persons(role, companies(id, name))')
     .eq('user_id', user.id)
     .is('deleted_at', null)
     .order('full_name')

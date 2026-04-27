@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { redirectToLogin } from '@/lib/auth'
 import { createClient } from '@/lib/supabase'
-import type { FormTemplate, Company } from '@/lib/types'
+import type { FormTemplate } from '@/lib/types'
 import Image from 'next/image'
 import { Upload, Settings, Layers, Building2, Users, LogOut } from 'lucide-react'
 
@@ -20,12 +20,20 @@ interface MyBatch {
   form_templates: { name: string } | null
 }
 
+interface Contact {
+  id: string
+  full_name: string
+  nric_masked: string | null
+  nationality: string | null
+  company_persons: { role: string; companies: { id: string; name: string } | null }[]
+}
+
 export default function DashboardPage() {
   const router = useRouter()
 
   const [templates, setTemplates] = useState<Pick<FormTemplate, 'id' | 'name' | 'status'>[]>([])
   const [batches, setBatches]     = useState<MyBatch[]>([])
-  const [companies, setCompanies] = useState<Pick<Company, 'id' | 'name' | 'uen'>[]>([])
+  const [contacts, setContacts]   = useState<Contact[]>([])
   const [userRole, setUserRole]   = useState<'admin' | 'user' | null>(null)
   useEffect(() => {
     // Check session then resolve role
@@ -42,7 +50,7 @@ export default function DashboardPage() {
     })
     loadTemplates()
     loadBatches()
-    loadCompanies()
+    loadContacts()
   }, [])
 
   async function handleLogout() {
@@ -51,11 +59,11 @@ export default function DashboardPage() {
     redirectToLogin()
   }
 
-  async function loadCompanies() {
-    const res = await fetch('/api/companies')
+  async function loadContacts() {
+    const res = await fetch('/api/persons')
     if (res.ok) {
-      const data: Company[] = await res.json()
-      setCompanies(data.slice(0, 6))
+      const data: Contact[] = await res.json()
+      setContacts(data)
     }
   }
 
@@ -136,41 +144,83 @@ export default function DashboardPage() {
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-10">
 
-        {/* My Companies */}
+        {/* Contacts */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-gray-800">My Companies</h2>
-            <button onClick={() => router.push('/companies')} className="text-xs text-blue-600 hover:underline">
-              Manage →
-            </button>
+            <h2 className="font-semibold text-gray-800">Contacts</h2>
+            <div className="flex items-center gap-3">
+              <button onClick={() => router.push('/companies')} className="text-xs text-blue-600 hover:underline">
+                Companies →
+              </button>
+              <button onClick={() => router.push('/persons')} className="text-xs text-blue-600 hover:underline">
+                All Persons →
+              </button>
+            </div>
           </div>
-          {companies.length === 0 ? (
+          {contacts.length === 0 ? (
             <div className="bg-white border rounded-xl p-6 text-center">
-              <Building2 className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">No companies yet.</p>
+              <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-sm text-gray-500">No contacts yet.</p>
               <button
-                onClick={() => router.push('/companies')}
+                onClick={() => router.push('/persons')}
                 className="mt-3 text-sm text-blue-600 hover:underline"
               >
-                Add your first company →
+                Add your first person →
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {companies.map(c => (
-                <div key={c.id} className="bg-white border rounded-xl p-4 flex items-center justify-between">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate max-w-[160px]">{c.name}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{c.uen}</p>
-                  </div>
-                  <button
-                    onClick={() => router.push(`/companies/${c.id}`)}
-                    className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-lg hover:bg-blue-100 shrink-0 ml-2"
-                  >
-                    Open
-                  </button>
-                </div>
-              ))}
+            <div className="bg-white rounded-xl border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Name</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Company</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">NRIC</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Nationality</th>
+                    <th className="px-4 py-3 text-right font-medium text-gray-600">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {contacts.map(c => {
+                    const link = c.company_persons?.[0]
+                    const company = link?.companies ?? null
+                    return (
+                      <tr key={c.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 font-medium">{c.full_name}</td>
+                        <td className="px-4 py-3 text-gray-500">
+                          {company ? (
+                            <button
+                              onClick={() => router.push(`/companies/${company.id}`)}
+                              className="text-blue-600 hover:underline"
+                            >
+                              {company.name}
+                            </button>
+                          ) : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-gray-500">{c.nric_masked ?? '—'}</td>
+                        <td className="px-4 py-3 text-gray-500">{c.nationality ?? '—'}</td>
+                        <td className="px-4 py-3 text-right">
+                          {company ? (
+                            <button
+                              onClick={() => router.push(`/companies/${company.id}`)}
+                              className="text-xs text-blue-600 hover:underline"
+                            >
+                              Open Company
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => router.push('/persons')}
+                              className="text-xs text-gray-400 hover:underline"
+                            >
+                              View
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </section>
