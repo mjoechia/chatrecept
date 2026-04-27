@@ -264,6 +264,9 @@ export default function ComingSoonPage() {
                 >
                   Open Secretariat →
                 </button>
+                <p className="text-[11px] text-[#7a9abf] leading-snug">
+                  ⚠ Your browser may block the new tab. If nothing opens, look for a pop-up blocked icon in your address bar, click it, and select <strong>Always allow</strong>.
+                </p>
               </div>
 
               {/* AI Personal Assistant — Coming Soon */}
@@ -677,6 +680,11 @@ export default function ComingSoonPage() {
                 {user ? 'Open Secretariat' : 'Log in to get started'}
                 <Icon name="arrow_forward" className="text-primary" size={16} />
               </button>
+              {user && (
+                <p className="text-xs text-[#7a9abf] leading-snug">
+                  ⚠ Your browser may block the new tab. If nothing opens, look for a pop-up blocked icon in your address bar and select <strong>Always allow</strong>.
+                </p>
+              )}
             </div>
 
             {/* AI Personal Assistant */}
@@ -850,12 +858,20 @@ export default function ComingSoonPage() {
               © {new Date().getFullYear()} ChatRecept · AI-powered messaging automation
             </p>
           </div>
-          <a
-            href="/terms"
-            className="text-sm text-[#12304f]/60 hover:text-primary underline decoration-[#5dfd8a] decoration-2 underline-offset-4 transition-colors"
-          >
-            Terms &amp; Conditions
-          </a>
+          <div className="flex items-center gap-4">
+            <a
+              href="/terms"
+              className="text-sm text-[#12304f]/60 hover:text-primary underline decoration-[#5dfd8a] decoration-2 underline-offset-4 transition-colors"
+            >
+              Terms &amp; Conditions
+            </a>
+            <a
+              href="/privacy"
+              className="text-sm text-[#12304f]/60 hover:text-primary underline decoration-[#5dfd8a] decoration-2 underline-offset-4 transition-colors"
+            >
+              Privacy Policy
+            </a>
+          </div>
         </div>
       </footer>
 
