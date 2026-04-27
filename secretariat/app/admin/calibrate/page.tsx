@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { redirectToLogin } from '@/lib/auth'
 import type { CoordMap, TemplateCoordMap, FieldDef, DetectedField } from '@/lib/types'
-import { CheckCircle2, Save, Crosshair, ChevronLeft, ChevronRight, Plus, Scan, PenLine, X } from 'lucide-react'
+import { CheckCircle2, Save, Crosshair, ChevronLeft, ChevronRight, Plus, Scan, PenLine, X, Eye, EyeOff } from 'lucide-react'
 
 const SCALE = 1.5
 
@@ -474,7 +474,7 @@ export default function CalibratePage() {
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="text-gray-500 border-b border-gray-700">
-                        <th className="py-1 pl-1 w-5" title="Show on canvas" />
+                        <th className="py-1 pl-1 w-6" title="Show on canvas" />
                         <th className="text-left py-1 pl-1 font-medium">Field</th>
                         <th className="text-right py-1 pr-1 font-medium whitespace-nowrap">Page</th>
                       </tr>
@@ -490,14 +490,17 @@ export default function CalibratePage() {
                             key={f.key}
                             className={`cursor-pointer ${isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
                           >
-                            <td className="py-1.5 pl-1" onClick={e => e.stopPropagation()}>
-                              <input
-                                type="checkbox"
-                                checked={!isHidden}
-                                onChange={() => toggleFieldVisibility(f.key)}
-                                className="w-3 h-3 accent-blue-500 cursor-pointer"
-                                title={isHidden ? 'Show marker' : 'Hide marker'}
-                              />
+                            <td className="py-1.5 pl-1 w-6" onClick={e => e.stopPropagation()}>
+                              <button
+                                onClick={() => toggleFieldVisibility(f.key)}
+                                title={isHidden ? 'Show marker on canvas' : 'Hide marker on canvas'}
+                                className={`flex items-center justify-center w-5 h-5 rounded hover:bg-gray-600 ${isHidden ? 'text-gray-600' : 'text-blue-400'}`}
+                              >
+                                {isHidden
+                                  ? <EyeOff className="w-3.5 h-3.5" />
+                                  : <Eye className="w-3.5 h-3.5" />
+                                }
+                              </button>
                             </td>
                             <td
                               className="py-1.5 pl-1 pr-1"
