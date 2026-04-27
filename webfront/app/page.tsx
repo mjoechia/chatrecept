@@ -123,7 +123,7 @@ export default function ComingSoonPage() {
     const session = data.session
     if (!session) { handleGoogleLogin(); return }
     const url = `${SECRETARIAT_URL}/auth/set-session#access_token=${session.access_token}&refresh_token=${session.refresh_token}`
-    window.open(url, '_blank')
+    window.location.href = url
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -268,9 +268,6 @@ export default function ComingSoonPage() {
                 >
                   Open Secretariat →
                 </button>
-                <p className="text-[11px] text-[#7a9abf] leading-snug">
-                  ⚠ Your browser may block the new tab. If nothing opens, look for a pop-up blocked icon in your address bar, click it, and select <strong>Always allow</strong>.
-                </p>
               </div>
 
               {/* AI Personal Assistant — Coming Soon */}
@@ -684,11 +681,6 @@ export default function ComingSoonPage() {
                 {user ? 'Open Secretariat' : 'Log in to get started'}
                 <Icon name="arrow_forward" className="text-primary" size={16} />
               </button>
-              {user && (
-                <p className="text-xs text-[#7a9abf] leading-snug">
-                  ⚠ Your browser may block the new tab. If nothing opens, look for a pop-up blocked icon in your address bar and select <strong>Always allow</strong>.
-                </p>
-              )}
             </div>
 
             {/* AI Personal Assistant */}
