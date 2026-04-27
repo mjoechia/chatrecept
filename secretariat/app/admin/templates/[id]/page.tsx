@@ -7,7 +7,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { redirectToLogin } from '@/lib/auth'
 import type { FormTemplate, FieldDef } from '@/lib/types'
-import { ExternalLink, FileText } from 'lucide-react'
+import { ExternalLink, FileText, Trash2 } from 'lucide-react'
 
 export default function EditTemplatePage() {
   const router = useRouter()
@@ -22,6 +22,7 @@ export default function EditTemplatePage() {
   const [saved, setSaved] = useState(false)
   const [testUrl, setTestUrl] = useState<string | null>(null)
   const [testing, setTesting] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -71,6 +72,28 @@ export default function EditTemplatePage() {
       body: JSON.stringify({ status: newStatus }),
     })
     fetchTemplate()
+  }
+
+  async function archiveTemplate() {
+    await fetch(`/api/admin/templates/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'archived' }),
+    })
+    fetchTemplate()
+  }
+
+  async function deleteTemplate() {
+    if (!window.confirm(`Permanently delete "${template?.name}"? This cannot be undone.`)) return
+    setDeleting(true)
+    const res = await fetch(`/api/admin/templates/${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const j = await res.json()
+      setError(j.error ?? 'Delete failed')
+      setDeleting(false)
+      return
+    }
+    router.push('/admin/templates')
   }
 
   const fields = template ? Object.entries(template.coord_map.fields ?? {}) : []
@@ -145,12 +168,12 @@ export default function EditTemplatePage() {
           )}
         </section>
 
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button
             onClick={() => router.push(`/admin/calibrate?template_id=${id}`)}
             className="flex-1 bg-blue-600 text-white rounded-lg py-3 text-sm font-medium hover:bg-blue-700"
           >
-            Calibrate Coordinates
+            Calibrate
           </button>
           <button
             onClick={runTestFill}
@@ -160,15 +183,31 @@ export default function EditTemplatePage() {
             <FileText className="w-4 h-4" />
             {testing ? 'Generating…' : 'Test Fill'}
           </button>
+          {template?.status !== 'archived' && (
+            <button
+              onClick={archiveTemplate}
+              className="px-5 rounded-lg py-3 text-sm font-medium border border-gray-300 text-gray-600 hover:bg-gray-50"
+            >
+              Archive
+            </button>
+          )}
           <button
             onClick={toggleStatus}
-            className={`px-6 rounded-lg py-3 text-sm font-medium border ${
+            className={`px-5 rounded-lg py-3 text-sm font-medium border ${
               template?.status === 'active'
                 ? 'border-yellow-300 text-yellow-700 hover:bg-yellow-50'
                 : 'border-green-300 text-green-700 hover:bg-green-50'
             }`}
           >
             {template?.status === 'active' ? 'Set to Draft' : 'Activate'}
+          </button>
+          <button
+            onClick={deleteTemplate}
+            disabled={deleting}
+            className="flex items-center gap-1.5 px-5 rounded-lg py-3 text-sm font-medium border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50"
+          >
+            <Trash2 className="w-4 h-4" />
+            {deleting ? 'Deleting…' : 'Delete'}
           </button>
         </div>
 

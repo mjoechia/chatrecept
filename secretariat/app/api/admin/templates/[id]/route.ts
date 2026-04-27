@@ -50,7 +50,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return NextResponse.json(data)
 }
 
-// DELETE /api/admin/templates/[id]
+// DELETE /api/admin/templates/[id] — permanent hard delete
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdminSession()
   if (auth.error) return auth.error
@@ -59,7 +59,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const supabase = createServiceClient()
   const { error } = await supabase
     .from('form_templates')
-    .update({ status: 'archived' })
+    .delete()
     .eq('id', id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
