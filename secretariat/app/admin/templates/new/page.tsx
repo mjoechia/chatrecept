@@ -47,13 +47,14 @@ export default function NewTemplatePage() {
 
     try {
       const pdfjs = await import('pdfjs-dist')
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`
+      pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
       const buf = await file.arrayBuffer()
       const pdf = await pdfjs.getDocument({ data: buf }).promise
       const n = pdf.numPages
       setPageCount(n)
       setSelectedPages(new Set(Array.from({ length: n }, (_, i) => i)))
-    } catch {
+    } catch (e) {
+      setError(`Could not read PDF page count: ${String(e)}`)
       setPageCount(1)
       setSelectedPages(new Set([0]))
     }
@@ -84,7 +85,7 @@ export default function NewTemplatePage() {
 
     try {
       const pdfjs = await import('pdfjs-dist')
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`
+      pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
       const arrayBuffer = await pdfFile.arrayBuffer()
       const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise
 
