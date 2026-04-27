@@ -504,14 +504,14 @@ export default function CalibratePage() {
                             </td>
                             <td
                               className="py-1.5 pl-1 pr-1"
-                              onClick={() => { setDynActive(f.key); goToPage(f.page) }}
+                              onClick={() => setDynActive(f.key)}
                             >
                               <div className={`font-medium truncate max-w-[100px] ${isHidden && !isActive ? 'opacity-40' : ''}`}>{f.label || f.key}</div>
                               <div className={`text-xs ${isActive ? 'opacity-70' : 'text-gray-500'}`}>{f.type}</div>
                             </td>
                             <td
                               className="py-1.5 pr-1 text-right"
-                              onClick={() => { setDynActive(f.key); goToPage(f.page) }}
+                              onClick={() => setDynActive(f.key)}
                             >
                               <span className={isPlaced ? (isActive ? 'text-green-300' : 'text-green-400') : (isActive ? 'text-yellow-300' : 'text-yellow-500')}>
                                 {f.page + 1}
