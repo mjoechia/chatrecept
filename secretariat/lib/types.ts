@@ -118,6 +118,7 @@ export interface FormTemplate {
   pdf_storage_path: string
   coord_map: TemplateCoordMap
   status: 'draft' | 'active' | 'archived'
+  user_visible: boolean
   version: number
   created_at: string
   updated_at: string

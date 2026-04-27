@@ -13,6 +13,7 @@ interface TemplateRow {
   name: string
   description: string | null
   status: 'draft' | 'active' | 'archived'
+  user_visible: boolean
   version: number
   created_at: string
 }
@@ -48,6 +49,15 @@ export default function TemplateListPage() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'archived' }),
+    })
+    fetchTemplates()
+  }
+
+  async function toggleUserVisible(id: string, current: boolean) {
+    await fetch(`/api/admin/templates/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_visible: !current }),
     })
     fetchTemplates()
   }
@@ -106,6 +116,15 @@ export default function TemplateListPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none px-2">
+                    <input
+                      type="checkbox"
+                      checked={t.user_visible}
+                      onChange={() => toggleUserVisible(t.id, t.user_visible)}
+                      className="rounded"
+                    />
+                    Visible to users
+                  </label>
                   <button
                     onClick={() => router.push(`/admin/calibrate?template_id=${t.id}`)}
                     className="text-sm text-blue-600 hover:underline px-3 py-1"

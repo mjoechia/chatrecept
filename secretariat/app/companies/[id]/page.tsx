@@ -7,7 +7,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { redirectToLogin } from '@/lib/auth'
 import type { Person, FormTemplate } from '@/lib/types'
-import { Building2, UserPlus, Trash2, Layers, ChevronDown } from 'lucide-react'
+import { Building2, UserPlus, Trash2, ChevronDown } from 'lucide-react'
 
 interface LinkedPerson extends Pick<Person, 'id' | 'full_name' | 'nric_masked' | 'nationality' | 'dob' | 'address'> {
   link_id: string
@@ -71,12 +71,11 @@ export default function CompanyDetailPage() {
   }
 
   async function loadTemplates() {
-    const res = await fetch('/api/admin/templates')
+    const res = await fetch('/api/templates')
     if (!res.ok) return
-    const all: FormTemplate[] = await res.json()
-    const active = all.filter(t => t.status === 'active')
-    setTemplates(active)
-    if (active.length > 0) setSelectedTplId(active[0].id)
+    const visible: FormTemplate[] = await res.json()
+    setTemplates(visible)
+    if (visible.length > 0) setSelectedTplId(visible[0].id)
   }
 
   async function handleSaveCompany() {
@@ -157,47 +156,6 @@ export default function CompanyDetailPage() {
     router.push(`/batch/${id}/progress`)
   }
 
-  async function handleBatchAll() {
-    const directors = company?.persons.filter(p => p.role === 'director') ?? []
-    if (directors.length === 0) return alert('No directors to generate forms for.')
-
-    // Hardcoded Form 45 template UUID from migration 016 seed
-    const FORM45_TEMPLATE_ID = 'e7f1a2b3-0000-4000-8000-000000000045'
-    const rows = directors.map(p => ({
-      company_name:  company!.name,
-      uen:           company!.uen,
-      director_name: p.full_name,
-      nric_display:  p.nric_masked ?? '',
-      nationality:   p.nationality ?? '',
-      dob:           p.dob ?? '',
-      address:       p.address ?? '',
-      consent_date:  new Date().toISOString().slice(0, 10),
-    }))
-    const columnMap: Record<string, string> = {
-      company_name:  'company_name',
-      uen:           'uen',
-      director_name: 'director_name',
-      nric_display:  'nric_display',
-      nationality:   'nationality',
-      dob:           'dob',
-      address:       'address',
-      consent_date:  'consent_date',
-    }
-    const res = await fetch('/api/batch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        template_id: FORM45_TEMPLATE_ID,
-        label: `Form 45 — ${company!.name} — all directors`,
-        column_map: columnMap,
-        rows,
-      }),
-    })
-    if (!res.ok) return alert('Failed to create batch job')
-    const { id } = await res.json()
-    router.push(`/batch/${id}/progress`)
-  }
-
   function resetAddForm() {
     setSelPerson('')
     setNewName('')
@@ -247,14 +205,6 @@ export default function CompanyDetailPage() {
           <div className="px-5 py-4 border-b flex items-center justify-between">
             <h2 className="font-semibold text-gray-800">Directors</h2>
             <div className="flex gap-2">
-              {directors.length > 0 && (
-                <button
-                  onClick={handleBatchAll}
-                  className="flex items-center gap-1.5 text-xs bg-green-50 text-green-700 border border-green-200 px-3 py-1.5 rounded-lg hover:bg-green-100"
-                >
-                  <Layers className="w-3.5 h-3.5" /> Generate Form 45 for all
-                </button>
-              )}
               <button
                 onClick={() => { setAddOpen(true); setError(null) }}
                 className="flex items-center gap-1.5 text-xs bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100"
