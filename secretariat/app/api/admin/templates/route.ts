@@ -44,6 +44,10 @@ export async function POST(req: NextRequest) {
   if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 })
   if (!pdfBytes) return NextResponse.json({ error: 'pdf file is required' }, { status: 400 })
 
+  if (!process.env.SUPABASE_SERVICE_KEY) {
+    return NextResponse.json({ error: 'Server misconfiguration: SUPABASE_SERVICE_KEY is not set' }, { status: 500 })
+  }
+
   const supabase = createServiceClient()
 
   // Insert template first to get the ID
@@ -62,7 +66,13 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (insertError || !tmpl) {
-    return NextResponse.json({ error: insertError?.message ?? 'Insert failed' }, { status: 500 })
+    return NextResponse.json({
+      error: insertError?.message ?? 'Insert failed',
+      code: insertError?.code,
+      hint: insertError?.code === 'PGRST106'
+        ? 'app_secretariat schema not exposed in Supabase → Settings → API → Exposed schemas. Then run: NOTIFY pgrst, \'reload config\';'
+        : undefined,
+    }, { status: 500 })
   }
 
   // Upload PDF and update path
