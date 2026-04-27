@@ -13,7 +13,6 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params
   const svc = createServiceClient()
   const { data, error } = await svc
-    .schema('app_secretariat')
     .from('persons')
     .select('id, full_name, nric_masked, nationality, dob, address, created_at, updated_at')
     .eq('id', id)
@@ -45,7 +44,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const svc = createServiceClient()
   const { data, error } = await svc
-    .schema('app_secretariat')
     .from('persons')
     .update(updates)
     .eq('id', id)
@@ -68,7 +66,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const svc = createServiceClient()
 
   const { error } = await svc
-    .schema('app_secretariat')
     .from('persons')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)

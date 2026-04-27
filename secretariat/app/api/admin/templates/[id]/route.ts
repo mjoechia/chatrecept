@@ -10,7 +10,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const supabase = createServiceClient()
   const { data, error } = await supabase
-    .schema('app_secretariat')
     .from('form_templates')
     .select('*')
     .eq('id', id)
@@ -41,7 +40,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const supabase = createServiceClient()
   const { data, error } = await supabase
-    .schema('app_secretariat')
     .from('form_templates')
     .update(updates)
     .eq('id', id)
@@ -60,7 +58,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
   const supabase = createServiceClient()
   const { error } = await supabase
-    .schema('app_secretariat')
     .from('form_templates')
     .update({ status: 'archived' })
     .eq('id', id)

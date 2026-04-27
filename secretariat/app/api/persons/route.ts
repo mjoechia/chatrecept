@@ -10,7 +10,6 @@ export async function GET() {
 
   const svc = createServiceClient()
   const { data, error } = await svc
-    .schema('app_secretariat')
     .from('persons')
     .select('id, full_name, nric_masked, nationality, dob, address, created_at, updated_at')
     .eq('user_id', user.id)
@@ -48,7 +47,6 @@ export async function POST(req: NextRequest) {
   let duplicate_warning = false
   if (body.dob) {
     const { data: existing } = await svc
-      .schema('app_secretariat')
       .from('persons')
       .select('id')
       .eq('user_id', user.id)
@@ -60,7 +58,6 @@ export async function POST(req: NextRequest) {
   }
 
   const { data, error } = await svc
-    .schema('app_secretariat')
     .from('persons')
     .insert({
       user_id:        user.id,

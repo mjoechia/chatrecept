@@ -11,7 +11,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const supabase = createServiceClient()
   const { data, error } = await supabase
-    .schema('app_secretariat')
     .from('form_templates')
     .select('pdf_storage_path')
     .eq('id', id)

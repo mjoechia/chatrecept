@@ -13,7 +13,6 @@ export async function GET() {
 
   const supabase = createServiceClient()
   const { data, error } = await supabase
-    .schema('app_secretariat')
     .from('api_keys')
     .select('id, name, scope, rate_limit_per_minute, created_at, last_used, revoked_at')
     .order('created_at', { ascending: false })
@@ -43,7 +42,6 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceClient()
   const { data, error } = await supabase
-    .schema('app_secretariat')
     .from('api_keys')
     .insert({
       name:     body.name.trim(),

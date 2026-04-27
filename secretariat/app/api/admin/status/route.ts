@@ -28,8 +28,7 @@ export async function GET() {
   let coordSource: 'db' | 'filesystem' | 'default' = 'default'
   try {
     const { data } = await supabase
-      .schema('app_secretariat')
-      .from('settings')
+      .from('secretariat_settings')
       .select('value')
       .eq('key', 'form45_coordinates')
       .single()

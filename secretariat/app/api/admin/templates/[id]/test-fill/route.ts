@@ -16,7 +16,6 @@ export async function POST(
   const svc = createServiceClient()
 
   const { data: template, error } = await svc
-    .schema('app_secretariat')
     .from('form_templates')
     .select('id, name, pdf_storage_path, coord_map')
     .eq('id', id)

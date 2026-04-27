@@ -23,15 +23,14 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   // Ownership validation: both company and person must belong to this user
   const [{ data: company }, { data: person }] = await Promise.all([
-    svc.schema('app_secretariat').from('companies').select('user_id').eq('id', companyId).eq('user_id', user.id).is('deleted_at', null).single(),
-    svc.schema('app_secretariat').from('persons').select('user_id').eq('id', person_id).eq('user_id', user.id).is('deleted_at', null).single(),
+    svc.from('companies').select('user_id').eq('id', companyId).eq('user_id', user.id).is('deleted_at', null).single(),
+    svc.from('persons').select('user_id').eq('id', person_id).eq('user_id', user.id).is('deleted_at', null).single(),
   ])
 
   if (!company) return NextResponse.json({ error: 'Company not found' }, { status: 404 })
   if (!person)  return NextResponse.json({ error: 'Person not found or does not belong to your account' }, { status: 403 })
 
   const { data, error } = await svc
-    .schema('app_secretariat')
     .from('company_persons')
     .insert({ company_id: companyId, person_id, role })
     .select('id, company_id, person_id, role')

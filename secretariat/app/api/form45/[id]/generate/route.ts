@@ -30,7 +30,6 @@ export async function POST(
     const pdfPath  = await uploadPdf(id, pdfBytes)
 
     await supabase
-      .schema('app_secretariat')
       .from('form45')
       .update({ status: 'generated', pdf_path: pdfPath, updated_at: new Date().toISOString() })
       .eq('id', id)
@@ -39,7 +38,6 @@ export async function POST(
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     await supabase
-      .schema('app_secretariat')
       .from('form45')
       .update({ status: 'failed', error_msg: msg, updated_at: new Date().toISOString() })
       .eq('id', id)

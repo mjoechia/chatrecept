@@ -16,7 +16,6 @@ export async function verifyApiKey(authHeader: string | null): Promise<boolean> 
   const supabase = createServiceClient()
 
   const { data, error } = await supabase
-    .schema('app_secretariat')
     .from('api_keys')
     .select('id, revoked_at')
     .eq('key_hash', hash)
@@ -26,7 +25,6 @@ export async function verifyApiKey(authHeader: string | null): Promise<boolean> 
 
   // Update last_used — fire and forget
   supabase
-    .schema('app_secretariat')
     .from('api_keys')
     .update({ last_used: new Date().toISOString() })
     .eq('key_hash', hash)

@@ -41,7 +41,6 @@ export async function POST(req: NextRequest) {
 
   // Insert form record
   const { data: form, error: insertErr } = await supabase
-    .schema('app_secretariat')
     .from('form45')
     .insert({
       company_name:  body.company_name,
@@ -69,7 +68,6 @@ export async function POST(req: NextRequest) {
     const pdfPath  = await uploadPdf(form.id, pdfBytes)
 
     await supabase
-      .schema('app_secretariat')
       .from('form45')
       .update({ status: 'generated', pdf_path: pdfPath, updated_at: new Date().toISOString() })
       .eq('id', form.id)
@@ -78,7 +76,6 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     await supabase
-      .schema('app_secretariat')
       .from('form45')
       .update({ status: 'failed', error_msg: msg })
       .eq('id', form.id)

@@ -15,8 +15,7 @@ export async function GET() {
 
   try {
     const { data } = await supabase
-      .schema('app_secretariat')
-      .from('settings')
+      .from('secretariat_settings')
       .select('value')
       .eq('key', 'form45_coordinates')
       .single()
@@ -56,8 +55,7 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceClient()
   const { error } = await supabase
-    .schema('app_secretariat')
-    .from('settings')
+    .from('secretariat_settings')
     .upsert({
       key:        'form45_coordinates',
       value:      { fields: body.fields, checkboxes: body.checkboxes },

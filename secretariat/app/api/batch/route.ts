@@ -33,7 +33,6 @@ export async function POST(req: NextRequest) {
 
   // Verify template exists and is active
   const { data: tmpl } = await supabase
-    .schema('app_secretariat')
     .from('form_templates')
     .select('id, status')
     .eq('id', body.template_id)
@@ -44,7 +43,6 @@ export async function POST(req: NextRequest) {
 
   // Create batch job
   const { data: batchJob, error: batchError } = await supabase
-    .schema('app_secretariat')
     .from('batch_jobs')
     .insert({
       template_id: body.template_id,
@@ -83,7 +81,6 @@ export async function POST(req: NextRequest) {
 
   // Insert all submissions (duplicates skipped by UNIQUE constraint on content_hash)
   const { error: subError } = await supabase
-    .schema('app_secretariat')
     .from('form_submissions')
     .insert(submissions)
 

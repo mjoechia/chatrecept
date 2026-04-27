@@ -14,7 +14,6 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const svc = createServiceClient()
 
   const { data: company, error } = await svc
-    .schema('app_secretariat')
     .from('companies')
     .select('id, name, uen, created_at, updated_at')
     .eq('id', id)
@@ -25,7 +24,6 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (error || !company) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const { data: links } = await svc
-    .schema('app_secretariat')
     .from('company_persons')
     .select(`
       id,
@@ -62,7 +60,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const svc = createServiceClient()
   const { data, error } = await svc
-    .schema('app_secretariat')
     .from('companies')
     .update(updates)
     .eq('id', id)
@@ -85,7 +82,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const svc = createServiceClient()
 
   const { error } = await svc
-    .schema('app_secretariat')
     .from('companies')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)

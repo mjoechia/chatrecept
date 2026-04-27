@@ -10,7 +10,6 @@ export async function GET() {
 
   const svc = createServiceClient()
   const { data, error } = await svc
-    .schema('app_secretariat')
     .from('form45')
     .select('*')
     .eq('user_id', user.id)

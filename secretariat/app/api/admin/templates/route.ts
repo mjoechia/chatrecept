@@ -11,7 +11,6 @@ export async function GET() {
 
   const supabase = createServiceClient()
   const { data, error } = await supabase
-    .schema('app_secretariat')
     .from('form_templates')
     .select('id, name, description, status, version, created_at, updated_at')
     .order('created_at', { ascending: false })
@@ -59,7 +58,6 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: tmpl, error: insertError } = await supabase
-    .schema('app_secretariat')
     .from('form_templates')
     .insert({ name, description, pdf_storage_path: 'pending', coord_map: emptyCoordMap })
     .select('id')
@@ -78,7 +76,6 @@ export async function POST(req: NextRequest) {
   // Upload PDF and update path
   const storagePath = await uploadTemplatePdf(tmpl.id, pdfBytes)
   await supabase
-    .schema('app_secretariat')
     .from('form_templates')
     .update({ pdf_storage_path: storagePath })
     .eq('id', tmpl.id)

@@ -16,7 +16,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   // Verify company belongs to this user
   const { data: company } = await svc
-    .schema('app_secretariat')
     .from('companies')
     .select('user_id')
     .eq('id', companyId)
@@ -26,7 +25,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   if (!company) return NextResponse.json({ error: 'Company not found' }, { status: 404 })
 
   const { error } = await svc
-    .schema('app_secretariat')
     .from('company_persons')
     .delete()
     .eq('id', linkId)

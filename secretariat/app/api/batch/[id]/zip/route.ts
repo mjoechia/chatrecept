@@ -16,7 +16,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   // Fetch all generated submissions in this batch
   const { data: submissions, error } = await supabase
-    .schema('app_secretariat')
     .from('form_submissions')
     .select('id, pdf_path, recipient_data')
     .eq('batch_job_id', id)

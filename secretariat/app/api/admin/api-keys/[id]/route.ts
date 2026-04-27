@@ -14,7 +14,6 @@ export async function DELETE(
   const supabase = createServiceClient()
 
   const { error } = await supabase
-    .schema('app_secretariat')
     .from('api_keys')
     .update({ revoked_at: new Date().toISOString() })
     .eq('id', id)

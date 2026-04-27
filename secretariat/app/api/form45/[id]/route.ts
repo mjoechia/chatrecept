@@ -12,7 +12,6 @@ export async function GET(
   const supabase = createServiceClient()
 
   const { data, error } = await supabase
-    .schema('app_secretariat')
     .from('form45')
     .select('*')
     .eq('id', id)
@@ -47,7 +46,6 @@ export async function DELETE(
   const svc = createServiceClient()
 
   const { error } = await svc
-    .schema('app_secretariat')
     .from('form45')
     .delete()
     .eq('id', id)

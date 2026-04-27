@@ -11,7 +11,6 @@ export async function GET() {
   const svc = createServiceClient()
 
   const { data, error } = await svc
-    .schema('app_secretariat')
     .from('batch_jobs')
     .select(`
       id,

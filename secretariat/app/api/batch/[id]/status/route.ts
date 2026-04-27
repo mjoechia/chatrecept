@@ -12,7 +12,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const supabase = createServiceClient()
 
   const { data, error } = await supabase
-    .schema('app_secretariat')
     .from('batch_jobs')
     .select('id, total, completed, failed_count, status, label, template_id, created_at')
     .eq('id', id)

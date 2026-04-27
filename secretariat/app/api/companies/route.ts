@@ -10,7 +10,6 @@ export async function GET() {
 
   const svc = createServiceClient()
   const { data, error } = await svc
-    .schema('app_secretariat')
     .from('companies')
     .select('id, name, uen, created_at, updated_at')
     .eq('user_id', user.id)
@@ -38,7 +37,6 @@ export async function POST(req: NextRequest) {
 
   const svc = createServiceClient()
   const { data, error } = await svc
-    .schema('app_secretariat')
     .from('companies')
     .insert({ user_id: user.id, name, uen })
     .select('id, name, uen, created_at, updated_at')

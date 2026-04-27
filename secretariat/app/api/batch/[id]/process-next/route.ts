@@ -18,7 +18,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   // Fetch batch job to get template info and current progress
   const { data: job } = await supabase
-    .schema('app_secretariat')
     .from('batch_jobs')
     .select('id, template_id, total, completed, failed_count, status')
     .eq('id', batchJobId)
@@ -29,7 +28,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   // Already done
   if (job.status === 'done' || job.completed + job.failed_count >= job.total) {
     await supabase
-      .schema('app_secretariat')
       .from('batch_jobs')
       .update({ status: 'done', updated_at: new Date().toISOString() })
       .eq('id', batchJobId)
@@ -39,7 +37,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   // Mark batch as running
   if (job.status === 'pending') {
     await supabase
-      .schema('app_secretariat')
       .from('batch_jobs')
       .update({ status: 'running', updated_at: new Date().toISOString() })
       .eq('id', batchJobId)
@@ -54,7 +51,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     // No more pending submissions
     const finalStatus = job.failed_count > 0 ? 'partial_fail' : 'done'
     await supabase
-      .schema('app_secretariat')
       .from('batch_jobs')
       .update({ status: finalStatus, updated_at: new Date().toISOString() })
       .eq('id', batchJobId)
@@ -63,13 +59,12 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   // Fetch the submission and template
   const [{ data: submission }, { data: template }] = await Promise.all([
-    supabase.schema('app_secretariat').from('form_submissions').select('*').eq('id', submissionId).single(),
-    supabase.schema('app_secretariat').from('form_templates').select('coord_map, pdf_storage_path').eq('id', job.template_id).single(),
+    supabase.from('form_submissions').select('*').eq('id', submissionId).single(),
+    supabase.from('form_templates').select('coord_map, pdf_storage_path').eq('id', job.template_id).single(),
   ])
 
   if (!submission || !template) {
     await supabase
-      .schema('app_secretariat')
       .from('form_submissions')
       .update({ status: 'failed', error_msg: 'Template or submission not found' })
       .eq('id', submissionId)
@@ -95,7 +90,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     const pdfPath = await uploadSubmissionPdf(submissionId, pdfBytes)
 
     await supabase
-      .schema('app_secretariat')
       .from('form_submissions')
       .update({
         status: 'generated',
@@ -110,7 +104,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     if (done) {
       const finalStatus = job.failed_count > 0 ? 'partial_fail' : 'done'
       await supabase
-        .schema('app_secretariat')
         .from('batch_jobs')
         .update({ status: finalStatus, updated_at: new Date().toISOString() })
         .eq('id', batchJobId)
@@ -119,7 +112,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ done, completed: newCompleted, total: job.total, failed_count: job.failed_count })
   } catch (err) {
     await supabase
-      .schema('app_secretariat')
       .from('form_submissions')
       .update({ status: 'failed', error_msg: String(err) })
       .eq('id', submissionId)
@@ -129,7 +121,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     const done = job.completed + newFailed >= job.total
     if (done) {
       await supabase
-        .schema('app_secretariat')
         .from('batch_jobs')
         .update({ status: 'partial_fail', updated_at: new Date().toISOString() })
         .eq('id', batchJobId)
