@@ -5,7 +5,6 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { redirectToLogin } from '@/lib/auth'
-import Script from 'next/script'
 import type { CoordMap, TemplateCoordMap, FieldDef } from '@/lib/types'
 import { CheckCircle2, Save, Crosshair } from 'lucide-react'
 
@@ -40,7 +39,6 @@ export default function CalibratePage() {
   const templateId = searchParams.get('template_id')
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [pdfjsReady,   setPdfjsReady]   = useState(false)
   const [pdfRendered,  setPdfRendered]  = useState(false)
   const [canvasH,      setCanvasH]      = useState(0)
   const [hover,        setHover]        = useState<{ x: number; y: number } | null>(null)
@@ -89,13 +87,7 @@ export default function CalibratePage() {
 
   const renderPdf = useCallback(async () => {
     if (!canvasRef.current) return
-    const pdfjs = (window as Window & { pdfjsLib?: unknown }).pdfjsLib as {
-      getDocument: (opts: { data: Uint8Array }) => { promise: Promise<{ getPage: (n: number) => Promise<{
-        getViewport: (opts: { scale: number }) => { width: number; height: number }
-        render: (opts: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }) => { promise: Promise<void> }
-      }> }> }
-      GlobalWorkerOptions: { workerSrc: string }
-    }
+    const pdfjs = await import('pdfjs-dist')
     pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
     try {
@@ -125,8 +117,8 @@ export default function CalibratePage() {
   }, [isTemplateMode, templateId])
 
   useEffect(() => {
-    if (pdfjsReady) renderPdf()
-  }, [pdfjsReady, renderPdf])
+    renderPdf()
+  }, [renderPdf])
 
   function pdfCoords(e: React.MouseEvent<HTMLCanvasElement>) {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -213,13 +205,7 @@ export default function CalibratePage() {
   const legacyCheckboxes = LEGACY_FIELD_LIST.filter(f => f.group === 'checkboxes')
 
   return (
-    <>
-      <Script
-        src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
-        onLoad={() => setPdfjsReady(true)}
-      />
-
-      <div className="min-h-screen bg-gray-900 flex flex-col">
+    <div className="min-h-screen bg-gray-900 flex flex-col">
         <header className="bg-gray-800 border-b border-gray-700 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
@@ -341,7 +327,7 @@ export default function CalibratePage() {
               </div>
             ) : !pdfRendered ? (
               <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-                {pdfjsReady ? 'Loading template…' : 'Loading pdf.js…'}
+                Loading template…
               </div>
             ) : null}
 
@@ -415,6 +401,5 @@ export default function CalibratePage() {
           </p>
         </div>
       </div>
-    </>
   )
 }
