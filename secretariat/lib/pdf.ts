@@ -183,6 +183,7 @@ export async function overlayTemplate(
   const checkChar = usingNoto ? '✓' : 'X'
 
   for (const [, field] of Object.entries(coordMap.fields)) {
+    if (field.hidden) continue
     const pages = doc.getPages()
     const pageIdx = field.page ?? 0
     if (pageIdx >= pages.length) continue

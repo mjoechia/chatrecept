@@ -34,6 +34,7 @@ export interface FieldDef {
     page: number
     position: { x: number; y: number }
   }>
+  hidden?: boolean                                 // admin-suppressed from PDF output
   // Set by AI detection, stripped before DB storage
   _detect_confidence?: number
   _detect_label?: string

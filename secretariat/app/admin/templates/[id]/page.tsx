@@ -149,7 +149,8 @@ export default function EditTemplatePage() {
                     <th className="pb-2 pr-4">Type</th>
                     <th className="pb-2 pr-4">Page</th>
                     <th className="pb-2 pr-4">x</th>
-                    <th className="pb-2">y</th>
+                    <th className="pb-2 pr-4">y</th>
+                    <th className="pb-2">Visible</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -159,7 +160,8 @@ export default function EditTemplatePage() {
                       <td className="py-2 pr-4 text-gray-500">{(def as FieldDef).type}</td>
                       <td className="py-2 pr-4 text-gray-500">{((def as FieldDef).page ?? 0) + 1}</td>
                       <td className="py-2 pr-4 text-gray-500">{(def as FieldDef).position.x}</td>
-                      <td className="py-2 text-gray-500">{(def as FieldDef).position.y}</td>
+                      <td className="py-2 pr-4 text-gray-500">{(def as FieldDef).position.y}</td>
+                      <td className="py-2 text-gray-500">{(def as FieldDef).hidden ? 'No' : 'Yes'}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -69,15 +69,30 @@ export default function CalibratePage() {
   const [newFieldName, setNewFieldName] = useState('')
   const [newFieldType, setNewFieldType] = useState<FieldDef['type']>('text')
 
-  // Show/hide field markers on canvas
-  const [hiddenFields, setHiddenFields] = useState<Set<string>>(new Set())
-
   function toggleFieldVisibility(key: string) {
-    setHiddenFields(prev => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
+    setTemplateCoords(prev => {
+      if (!prev?.fields[key]) return prev
+      return {
+        ...prev,
+        fields: {
+          ...prev.fields,
+          [key]: { ...prev.fields[key], hidden: !prev.fields[key].hidden },
+        },
+      }
+    })
+  }
+
+  function removeField(key: string) {
+    setTemplateCoords(prev => {
+      if (!prev) return prev
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { [key]: _removed, ...rest } = prev.fields
+      return { ...prev, fields: rest }
+    })
+    setDynFields(prev => {
+      const remaining = prev.filter(f => f.key !== key)
+      if (dynActive === key) setDynActive(remaining[0]?.key ?? '')
+      return remaining
     })
   }
 
@@ -511,7 +526,7 @@ export default function CalibratePage() {
                       const coord = templateCoords?.fields[f.key]
                       const isPlaced = coord && (coord.position.x !== 0 || coord.position.y !== 0)
                       const isActive = dynActive === f.key
-                      const isHidden = hiddenFields.has(f.key)
+                      const isHidden = templateCoords?.fields[f.key]?.hidden ?? false
                       return (
                         <div
                           key={f.key}
@@ -546,6 +561,13 @@ export default function CalibratePage() {
                               className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded hover:bg-black/20 text-gray-400 hover:text-gray-100"
                             >
                               <Copy className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => removeField(f.key)}
+                              title="Remove field"
+                              className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded hover:bg-black/20 text-gray-500 hover:text-red-400"
+                            >
+                              <X className="w-3 h-3" />
                             </button>
                           </div>
                           {/* Row 2: editable x/y coordinates */}
@@ -631,7 +653,7 @@ export default function CalibratePage() {
               >
                 {isTemplateMode ? (
                   Object.entries(templateCoords?.fields ?? {})
-                    .filter(([key, def]) => (def as FieldDef).page === currentPage && !hiddenFields.has(key))
+                    .filter(([, def]) => (def as FieldDef).page === currentPage && !(def as FieldDef).hidden)
                     .map(([key, def]) => {
                       const { sx, sy } = toScreen((def as FieldDef).position.x, (def as FieldDef).position.y)
                       const color = dotColor(key)
