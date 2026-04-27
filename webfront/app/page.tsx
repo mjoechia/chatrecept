@@ -269,23 +269,13 @@ export default function ComingSoonPage() {
                     </div>
                   ))}
                 </div>
-                {secretariatUrl ? (
-                  <a
-                    href={secretariatUrl}
-                    className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white transition-colors hover:opacity-90"
-                    style={{ background: "linear-gradient(135deg, #006092 0%, #4db0f7 100%)" }}
-                  >
-                    Open Secretariat →
-                  </a>
-                ) : (
-                  <button
-                    onClick={handleGoogleLogin}
-                    className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white transition-colors hover:opacity-90"
-                    style={{ background: "linear-gradient(135deg, #006092 0%, #4db0f7 100%)" }}
-                  >
-                    Log in to get started →
-                  </button>
-                )}
+                <button
+                  onClick={() => secretariatUrl ? window.location.assign(secretariatUrl) : handleGoogleLogin()}
+                  className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white transition-colors hover:opacity-90"
+                  style={{ background: "linear-gradient(135deg, #006092 0%, #4db0f7 100%)" }}
+                >
+                  {secretariatUrl ? 'Open Secretariat →' : 'Log in to get started →'}
+                </button>
               </div>
 
               {/* AI Personal Assistant — Coming Soon */}
@@ -692,23 +682,13 @@ export default function ComingSoonPage() {
                   Automate ACRA filings, Form 45 Consents to Act as Director, and corporate secretary work — from data entry to signed PDF in minutes.
                 </p>
               </div>
-              {secretariatUrl ? (
-                <a
-                  href={secretariatUrl}
-                  className="inline-flex items-center gap-2 font-bold text-sm text-primary hover:text-[#005080] transition-colors self-start"
-                >
-                  Open Secretariat
-                  <Icon name="arrow_forward" className="text-primary" size={16} />
-                </a>
-              ) : (
-                <button
-                  onClick={handleGoogleLogin}
-                  className="inline-flex items-center gap-2 font-bold text-sm text-primary hover:text-[#005080] transition-colors self-start"
-                >
-                  Log in to get started
-                  <Icon name="arrow_forward" className="text-primary" size={16} />
-                </button>
-              )}
+              <button
+                onClick={() => secretariatUrl ? window.location.assign(secretariatUrl) : handleGoogleLogin()}
+                className="inline-flex items-center gap-2 font-bold text-sm text-primary hover:text-[#005080] transition-colors self-start"
+              >
+                {secretariatUrl ? 'Open Secretariat' : 'Log in to get started'}
+                <Icon name="arrow_forward" className="text-primary" size={16} />
+              </button>
             </div>
 
             {/* AI Personal Assistant */}
