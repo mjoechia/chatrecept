@@ -106,12 +106,16 @@ export default function ComingSoonPage() {
       : `${location.origin}/auth/callback`
     supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: callbackUrl },
+      options: {
+        redirectTo: callbackUrl,
+        queryParams: { prompt: 'select_account' },
+      },
     })
   }
 
-  function handleLogout() {
-    supabase.auth.signOut()
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    setUser(null)
   }
 
   async function handleOpenSecretariat() {

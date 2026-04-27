@@ -10,7 +10,7 @@ import { DEFAULT_FIELDS, DEFAULT_CHECKBOXES } from '@/lib/pdf'
 import type { CoordMap, FieldCoord, CheckboxCoord } from '@/lib/types'
 import {
   Settings, Upload, CheckCircle2, XCircle, RefreshCw, FileText,
-  Key, Plus, Trash2, Eye, EyeOff, ArrowRight, AlertCircle, ExternalLink,
+  Key, Plus, Trash2, Eye, EyeOff, ArrowRight, AlertCircle, ExternalLink, LogOut,
 } from 'lucide-react'
 
 type StatusData = {
@@ -53,6 +53,12 @@ export default function AdminPage() {
     })
     loadAll()
   }, [])
+
+  async function handleLogout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    redirectToLogin()
+  }
 
   async function loadAll() {
     const [s, c, k, u, t] = await Promise.all([
@@ -195,12 +201,21 @@ export default function AdminPage() {
             <h1 className="text-lg font-semibold">Admin Setup</h1>
           </div>
         </div>
-        <button
-          onClick={loadAll}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50"
-        >
-          <RefreshCw className="w-3.5 h-3.5" /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={loadAll}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+          </button>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg text-gray-500 hover:bg-gray-50"
+            title="Sign out"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-8 space-y-6">

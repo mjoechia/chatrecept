@@ -5,9 +5,10 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { redirectToLogin } from '@/lib/auth'
+import { createClient } from '@/lib/supabase'
 import type { Form45Data, FormTemplate, Company } from '@/lib/types'
 import Image from 'next/image'
-import { Plus, Upload, Download, Trash2, Search, Settings, Layers, Building2, Users } from 'lucide-react'
+import { Plus, Upload, Download, Trash2, Search, Settings, Layers, Building2, Users, LogOut } from 'lucide-react'
 
 interface MyBatch {
   id: string
@@ -49,6 +50,12 @@ export default function DashboardPage() {
     loadBatches()
     loadCompanies()
   }, [])
+
+  async function handleLogout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    redirectToLogin()
+  }
 
   async function loadCompanies() {
     const res = await fetch('/api/companies')
@@ -164,6 +171,13 @@ export default function DashboardPage() {
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <Layers className="w-4 h-4" /> New Import
+          </button>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg text-gray-500 hover:bg-gray-50"
+            title="Sign out"
+          >
+            <LogOut className="w-4 h-4" />
           </button>
           <button
             onClick={() => router.push('/form45/new')}
