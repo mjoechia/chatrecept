@@ -12,7 +12,7 @@ export async function GET() {
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('form_templates')
-    .select('id, name, description, status, version, created_at, updated_at')
+    .select('id, name, description, status, user_visible, version, created_at, updated_at')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

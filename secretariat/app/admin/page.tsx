@@ -89,19 +89,9 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-[#f3f6ff]">
       <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <a
-            href="https://chatrecept.chat/"
-            className="flex items-center gap-2 text-sm text-[#94afd5] hover:text-[#12304f] transition-colors"
-          >
-            <img src="/chatrecept.png" alt="ChatRecept" className="h-5 w-5 object-contain" />
-            <span className="font-medium">Back to ChatRecept</span>
-          </a>
-          <span className="text-gray-300">/</span>
-          <div className="flex items-center gap-2">
-            <Settings className="w-4 h-4 text-[#006092]" />
-            <h1 className="text-lg font-semibold">Admin Setup</h1>
-          </div>
+        <div className="flex items-center gap-2">
+          <Settings className="w-4 h-4 text-[#006092]" />
+          <h1 className="text-lg font-semibold">Admin</h1>
         </div>
         <div className="flex items-center gap-2">
           <button
