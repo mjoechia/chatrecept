@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { redirectToLogin } from '@/lib/auth'
 import type { CoordMap, TemplateCoordMap, FieldDef, DetectedField } from '@/lib/types'
 import { CheckCircle2, Save, Crosshair, ChevronLeft, ChevronRight, Plus, Scan, PenLine, X, Eye, EyeOff, Copy } from 'lucide-react'
+import { getFieldCategory, FIELD_LABELS } from '@/lib/fields'
 
 const SCALE = 1.5
 
@@ -508,6 +509,21 @@ export default function CalibratePage() {
                           placeholder="field_name"
                           className="w-full bg-gray-700 text-gray-100 text-xs rounded px-2 py-1.5 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#006092]"
                         />
+                        {newFieldName.trim() && (() => {
+                          const key = newFieldName.trim().replace(/\s+/g, '_').toLowerCase()
+                          const cat = getFieldCategory(key)
+                          const label = FIELD_LABELS[key]
+                          const badge = cat === 'company'  ? { text: 'Company field',  cls: 'bg-blue-900 text-blue-300' }
+                                      : cat === 'director' ? { text: 'Director field', cls: 'bg-purple-900 text-purple-300' }
+                                      : cat === 'auto'     ? { text: 'Auto (date)',    cls: 'bg-yellow-900 text-yellow-300' }
+                                      : { text: 'Template-specific', cls: 'bg-gray-700 text-gray-400' }
+                          return (
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${badge.cls}`}>{badge.text}</span>
+                              {label && <span className="text-[10px] text-gray-400 truncate">{label}</span>}
+                            </div>
+                          )
+                        })()}
                         <select
                           value={newFieldType}
                           onChange={e => setNewFieldType(e.target.value as FieldDef['type'])}

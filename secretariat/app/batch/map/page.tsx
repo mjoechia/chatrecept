@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { redirectToLogin } from '@/lib/auth'
 import type { FormTemplate, ColumnMapping, ParseResult } from '@/lib/types'
+import { FIELD_ALIASES } from '@/lib/fields'
 
 interface BatchSession {
   templateId: string
@@ -14,17 +15,6 @@ interface BatchSession {
   parseResult: ParseResult
   allRows: Record<string, string>[]
   columnMap: ColumnMapping
-}
-
-const SYNONYMS: Record<string, string[]> = {
-  director_name: ['full_name', 'name', 'fullname', 'clientname', 'director'],
-  company_name:  ['company', 'corp', 'entity', 'companyname'],
-  uen:           ['uen', 'regnumber', 'registrationnumber', 'regno'],
-  dob:           ['dateofbirth', 'birthdate', 'birthdate', 'dob'],
-  nationality:   ['nationality', 'citizenship'],
-  address:       ['address', 'residentialaddress', 'homeaddress'],
-  nric_display:  ['nric', 'fin', 'passport', 'idnumber'],
-  consent_date:  ['consentdate', 'date', 'signaturedate'],
 }
 
 function autoMatch(templateFields: string[], sourceColumns: string[]): ColumnMapping {
@@ -43,7 +33,7 @@ function autoMatch(templateFields: string[], sourceColumns: string[]): ColumnMap
       if (normCol === normField) { best = col; break }
 
       // Synonym match
-      const synonyms = SYNONYMS[field] ?? []
+      const synonyms = (FIELD_ALIASES[field] ?? []).map(a => normalize(a))
       if (synonyms.includes(normCol)) { best = col; bestScore = 0.9; continue }
 
       // Substring overlap
