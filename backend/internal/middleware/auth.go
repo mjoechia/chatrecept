@@ -12,9 +12,8 @@ type contextKey string
 
 const ClaimsKey contextKey = "jwt_claims"
 
-// RequireAuth validates the Supabase JWT from the Authorization header.
-// Valid claims are stored in the request context under ClaimsKey.
-func RequireAuth(jwtSecret string) func(http.Handler) http.Handler {
+// RequireAuth validates the Supabase JWT using a JWKS keyfunc (supports P-256 and HS256).
+func RequireAuth(kf jwt.Keyfunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tokenStr := extractBearerToken(r)
@@ -24,12 +23,7 @@ func RequireAuth(jwtSecret string) func(http.Handler) http.Handler {
 			}
 
 			claims := jwt.MapClaims{}
-			token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
-				if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, jwt.ErrSignatureInvalid
-				}
-				return []byte(jwtSecret), nil
-			})
+			token, err := jwt.ParseWithClaims(tokenStr, claims, kf)
 			if err != nil || !token.Valid {
 				http.Error(w, "invalid token", http.StatusUnauthorized)
 				return

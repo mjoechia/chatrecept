@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/MicahParks/keyfunc/v3"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
@@ -54,6 +55,16 @@ func main() {
 	}
 	defer database.Close()
 	slog.Info("database connected")
+
+	// ── JWKS (Supabase P-256 JWT verification) ───────────────────────────────
+	jwksCtx, jwksCancel := context.WithCancel(context.Background())
+	defer jwksCancel()
+	jwksURL := cfg.SupabaseURL + "/auth/v1/.well-known/jwks.json"
+	jwks, err := keyfunc.NewDefaultCtx(jwksCtx, []string{jwksURL})
+	if err != nil {
+		slog.Error("failed to initialize JWKS", "err", err)
+		os.Exit(1)
+	}
 
 	// ── Services ──────────────────────────────────────────────────────────────
 	tenantSvc := tenants.NewService(database)
@@ -134,7 +145,7 @@ func main() {
 
 	// Protected API routes (require Supabase JWT)
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireAuth(cfg.JWTSecret))
+		r.Use(middleware.RequireAuth(jwks.Keyfunc))
 		r.Use(middleware.APIRateLimit())
 
 		// Dashboard summary
@@ -181,8 +192,8 @@ func main() {
 		r.Route("/webchat", func(r chi.Router) {
 			r.Use(webchatHandler.CORSMiddleware)
 			r.Options("/*", func(w http.ResponseWriter, r *http.Request) {})
-			r.With(middleware.RequireAuth(cfg.JWTSecret)).Post("/message", webchatHandler.Message)
-			r.With(middleware.RequireAuth(cfg.JWTSecret)).Get("/session", webchatHandler.Session)
+			r.With(middleware.RequireAuth(jwks.Keyfunc)).Post("/message", webchatHandler.Message)
+			r.With(middleware.RequireAuth(jwks.Keyfunc)).Get("/session", webchatHandler.Session)
 		})
 	}
 
