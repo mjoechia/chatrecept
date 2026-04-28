@@ -15,20 +15,23 @@ interface DashboardData {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     async function load() {
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { setLoading(false); return }
+      if (!session) { setError('Not logged in'); setLoading(false); return }
 
       const tenantId = (session.user.app_metadata as any)?.tenant_id
-      if (!tenantId) { setLoading(false); return }
+      if (!tenantId) { setError('No tenant associated with this account'); setLoading(false); return }
 
       try {
         const result = await getDashboard(tenantId, session.access_token)
         setData(result)
-      } catch (err) {
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Unknown error'
+        setError(`API error: ${msg}`)
         console.error('dashboard load error', err)
       } finally {
         setLoading(false)
@@ -42,7 +45,7 @@ export default function DashboardPage() {
   }
 
   if (!data) {
-    return <div className="p-8 text-red-500">Failed to load dashboard data.</div>
+    return <div className="p-8 text-red-500">{error || 'Failed to load dashboard data.'}</div>
   }
 
   return (
