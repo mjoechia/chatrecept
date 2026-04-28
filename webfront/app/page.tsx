@@ -272,6 +272,7 @@ export default function ComingSoonPage() {
                 {secretariatUrl ? (
                   <a
                     href={secretariatUrl}
+                    target="_self"
                     className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white transition-colors hover:opacity-90"
                     style={{ background: "linear-gradient(135deg, #006092 0%, #4db0f7 100%)" }}
                   >
@@ -695,6 +696,7 @@ export default function ComingSoonPage() {
               {secretariatUrl ? (
                 <a
                   href={secretariatUrl}
+                  target="_self"
                   className="inline-flex items-center gap-2 font-bold text-sm text-primary hover:text-[#005080] transition-colors self-start"
                 >
                   Open Secretariat
