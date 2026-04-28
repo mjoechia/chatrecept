@@ -90,7 +90,13 @@ export default function AdminPage() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.push('/')} className="text-sm text-gray-500 hover:text-gray-800">← Dashboard</button>
+          <a
+            href="https://chatrecept.chat/"
+            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+          >
+            <img src="/chatrecept.png" alt="ChatRecept" className="h-5 w-5 object-contain" />
+            <span className="font-medium">Back to ChatRecept</span>
+          </a>
           <span className="text-gray-300">/</span>
           <div className="flex items-center gap-2">
             <Settings className="w-4 h-4 text-blue-600" />
