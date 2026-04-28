@@ -270,14 +270,13 @@ export default function ComingSoonPage() {
                   ))}
                 </div>
                 {secretariatUrl ? (
-                  <a
-                    href={secretariatUrl}
-                    target="_self"
+                  <button
+                    onClick={() => { window.location.replace(secretariatUrl) }}
                     className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white transition-colors hover:opacity-90"
                     style={{ background: "linear-gradient(135deg, #006092 0%, #4db0f7 100%)" }}
                   >
                     Open Secretariat →
-                  </a>
+                  </button>
                 ) : (
                   <button
                     onClick={handleGoogleLogin}
@@ -694,14 +693,13 @@ export default function ComingSoonPage() {
                 </p>
               </div>
               {secretariatUrl ? (
-                <a
-                  href={secretariatUrl}
-                  target="_self"
+                <button
+                  onClick={() => { window.location.replace(secretariatUrl) }}
                   className="inline-flex items-center gap-2 font-bold text-sm text-primary hover:text-[#005080] transition-colors self-start"
                 >
                   Open Secretariat
                   <Icon name="arrow_forward" className="text-primary" size={16} />
-                </a>
+                </button>
               ) : (
                 <button
                   onClick={handleGoogleLogin}
