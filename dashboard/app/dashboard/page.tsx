@@ -20,10 +20,10 @@ export default function DashboardPage() {
     async function load() {
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
+      if (!session) { setLoading(false); return }
 
       const tenantId = (session.user.app_metadata as any)?.tenant_id
-      if (!tenantId) return
+      if (!tenantId) { setLoading(false); return }
 
       try {
         const result = await getDashboard(tenantId, session.access_token)
