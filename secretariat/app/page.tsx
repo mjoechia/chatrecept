@@ -284,17 +284,25 @@ export default function DashboardPage() {
             <h2 className="font-semibold text-gray-800 mb-3">Forms Ready for Filling</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {templates.map(t => (
-                <div key={t.id} className="bg-white border rounded-xl p-4 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{t.name}</p>
+                <div key={t.id} className="bg-white border rounded-xl p-4 space-y-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{t.name}</p>
                     <p className="text-xs text-green-600 mt-0.5">Ready</p>
                   </div>
-                  <button
-                    onClick={() => router.push(`/batch/new?template_id=${t.id}`)}
-                    className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 shrink-0"
-                  >
-                    Batch Import
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => router.push(`/formfill/new?template_id=${t.id}`)}
+                      className="flex-1 text-xs bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 font-medium"
+                    >
+                      Fill Form
+                    </button>
+                    <button
+                      onClick={() => router.push(`/batch/new?template_id=${t.id}`)}
+                      className="flex-1 text-xs border border-gray-200 text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-50 font-medium"
+                    >
+                      Import Data
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
