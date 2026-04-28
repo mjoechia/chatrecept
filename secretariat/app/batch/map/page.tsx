@@ -126,13 +126,13 @@ export default function BatchMapPage() {
   const fieldKeys = Object.keys(template?.coord_map?.fields ?? {})
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f3f6ff]">
       <header className="bg-white border-b px-6 py-4">
-        <button onClick={() => router.push('/batch/new')} className="text-sm text-gray-500 hover:text-gray-800">
+        <button onClick={() => router.push('/batch/new')} className="text-sm text-[#94afd5] hover:text-[#12304f]">
           ← Back
         </button>
         <h1 className="text-lg font-semibold mt-1">Map Columns</h1>
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-[#94afd5]">
           Match your data columns to the form fields · {session?.allRows.length ?? 0} rows
         </p>
       </header>
@@ -141,8 +141,8 @@ export default function BatchMapPage() {
         {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>}
 
         <section className="bg-white rounded-xl border p-6">
-          <h2 className="font-semibold text-gray-800 mb-4">Column Mapping</h2>
-          <p className="text-sm text-gray-500 mb-4">
+          <h2 className="font-semibold text-[#12304f] mb-4">Column Mapping</h2>
+          <p className="text-sm text-[#94afd5] mb-4">
             For each form field, select which column from your file it should read.
             Auto-matched fields are pre-filled.
           </p>
@@ -152,13 +152,13 @@ export default function BatchMapPage() {
               return (
                 <div key={key} className="flex items-center gap-4">
                   <div className="w-48 shrink-0">
-                    <p className="text-sm font-medium text-gray-700">{key}</p>
-                    <p className="text-xs text-gray-400">{fieldDef?.type}</p>
+                    <p className="text-sm font-medium text-[#425d7f]">{key}</p>
+                    <p className="text-xs text-[#94afd5]">{fieldDef?.type}</p>
                   </div>
                   <select
                     value={columnMap[key] ?? ''}
                     onChange={e => setColumnMap(m => ({ ...m, [key]: e.target.value }))}
-                    className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
                   >
                     <option value="">— Not mapped —</option>
                     {session?.parseResult.headers.map(h => (
@@ -178,12 +178,12 @@ export default function BatchMapPage() {
 
         {Object.keys(previewMapped).length > 0 && (
           <section className="bg-white rounded-xl border p-6">
-            <h2 className="font-semibold text-gray-800 mb-3">Preview — Row 1</h2>
+            <h2 className="font-semibold text-[#12304f] mb-3">Preview — Row 1</h2>
             <div className="space-y-1">
               {Object.entries(previewMapped).map(([k, v]) => (
                 <div key={k} className="flex gap-3 text-sm">
-                  <span className="text-gray-500 w-40 shrink-0">{k}</span>
-                  <span className="text-gray-900 truncate">{String(v)}</span>
+                  <span className="text-[#94afd5] w-40 shrink-0">{k}</span>
+                  <span className="text-[#12304f] truncate">{String(v)}</span>
                 </div>
               ))}
             </div>

@@ -18,8 +18,8 @@ interface Profile {
 }
 
 const ROLE_BADGE: Record<UserRole, string> = {
-  admin: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
-  user:  'bg-gray-500/20 text-gray-300 border border-gray-500/30',
+  admin: 'bg-[#eaf1ff]0/20 text-[#4db0f7] border border-blue-500/30',
+  user:  'bg-[#f3f6ff]0/20 text-gray-300 border border-gray-500/30',
 }
 
 const STATUS_BADGE: Record<UserStatus, string> = {

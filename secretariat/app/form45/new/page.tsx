@@ -134,26 +134,26 @@ export default function NewFormPage() {
     router.push(`/form45/${json.id}/review`)
   }
 
-  const inputClass = 'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
-  const labelClass = 'block text-sm font-medium text-gray-700 mb-1'
+  const inputClass = 'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]'
+  const labelClass = 'block text-sm font-medium text-[#425d7f] mb-1'
 
   if (!prefillReady) {
-    return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading stored data…</div>
+    return <div className="min-h-screen flex items-center justify-center text-[#94afd5]">Loading stored data…</div>
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f3f6ff]">
       <header className="bg-white border-b px-6 py-4">
-        <button onClick={() => router.push('/')} className="text-sm text-gray-500 hover:text-gray-800">
+        <button onClick={() => router.push('/')} className="text-sm text-[#94afd5] hover:text-[#12304f]">
           ← Back to dashboard
         </button>
         <h1 className="text-lg font-semibold mt-1">New Form 45</h1>
-        <p className="text-xs text-gray-400">Consent to Act as Director — ACRA</p>
+        <p className="text-xs text-[#94afd5]">Consent to Act as Director — ACRA</p>
       </header>
 
       <main className="max-w-2xl mx-auto px-6 py-8">
         {isPreFill && (
-          <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-6 text-sm text-blue-800">
+          <div className="flex items-start gap-2 bg-[#eaf1ff] border border-[#dde8f5] rounded-xl px-4 py-3 mb-6 text-sm text-blue-800">
             <Info className="w-4 h-4 mt-0.5 shrink-0" />
             Pre-filled from stored company and director data — all fields are editable.
           </div>
@@ -163,7 +163,7 @@ export default function NewFormPage() {
 
           {/* Company section */}
           <section className="bg-white rounded-xl border p-6 space-y-4">
-            <h2 className="font-semibold text-gray-800">Company Details</h2>
+            <h2 className="font-semibold text-[#12304f]">Company Details</h2>
             <div>
               <label className={labelClass}>Company Name *</label>
               <input required value={form.company_name} onChange={e => set('company_name', e.target.value)} className={inputClass} placeholder="Acme Pte Ltd" />
@@ -176,7 +176,7 @@ export default function NewFormPage() {
 
           {/* Director section */}
           <section className="bg-white rounded-xl border p-6 space-y-4">
-            <h2 className="font-semibold text-gray-800">Director Details</h2>
+            <h2 className="font-semibold text-[#12304f]">Director Details</h2>
             <div>
               <label className={labelClass}>Full Name (as in NRIC/Passport) *</label>
               <input required value={form.director_name} onChange={e => set('director_name', e.target.value)} className={inputClass} placeholder="John Tan Wei Ming" />
@@ -188,12 +188,12 @@ export default function NewFormPage() {
                   <input
                     value={maskedNricFromStore}
                     readOnly
-                    className={`${inputClass} bg-gray-50 text-gray-500`}
+                    className={`${inputClass} bg-[#f3f6ff] text-[#94afd5]`}
                   />
                   <button
                     type="button"
                     onClick={() => setMaskedNricFromStore(null)}
-                    className="text-xs text-blue-600 hover:underline whitespace-nowrap"
+                    className="text-xs text-[#006092] hover:underline whitespace-nowrap"
                   >
                     Enter new
                   </button>
@@ -209,7 +209,7 @@ export default function NewFormPage() {
                   />
                   {nricError && <p className="text-red-500 text-xs mt-1">{nricError}</p>}
                   {!nricError && nricRaw && validateNric(nricRaw) && (
-                    <p className="text-gray-400 text-xs mt-1">Will be stored as: {maskNric(nricRaw)}</p>
+                    <p className="text-[#94afd5] text-xs mt-1">Will be stored as: {maskNric(nricRaw)}</p>
                   )}
                 </>
               )}
@@ -232,17 +232,17 @@ export default function NewFormPage() {
 
           {/* Declarations */}
           <section className="bg-white rounded-xl border p-6 space-y-3">
-            <h2 className="font-semibold text-gray-800">Declarations</h2>
-            <p className="text-sm text-gray-500">Check boxes where the director IS disqualified (leave unchecked to confirm they are NOT disqualified).</p>
+            <h2 className="font-semibold text-[#12304f]">Declarations</h2>
+            <p className="text-sm text-[#94afd5]">Check boxes where the director IS disqualified (leave unchecked to confirm they are NOT disqualified).</p>
             {DECLARATIONS.map(d => (
               <label key={d.key} className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={!!form.declarations[d.key]}
                   onChange={e => setDecl(d.key, e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-gray-300"
+                  className="mt-0.5 w-4 h-4 rounded border-[#dde8f5]"
                 />
-                <span className="text-sm text-gray-700">{d.label}</span>
+                <span className="text-sm text-[#425d7f]">{d.label}</span>
               </label>
             ))}
           </section>
@@ -256,7 +256,7 @@ export default function NewFormPage() {
           <button
             type="submit"
             disabled={saving}
-            className="w-full bg-blue-600 text-white rounded-lg py-3 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="w-full bg-[#006092] text-white rounded-lg py-3 text-sm font-medium hover:bg-[#004d75] disabled:opacity-50"
           >
             {saving ? 'Saving…' : 'Save & Review →'}
           </button>

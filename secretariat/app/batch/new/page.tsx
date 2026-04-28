@@ -104,24 +104,24 @@ export default function NewBatchPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f3f6ff]">
       <header className="bg-white border-b px-6 py-4">
-        <button onClick={() => router.push('/')} className="text-sm text-gray-500 hover:text-gray-800">
+        <button onClick={() => router.push('/')} className="text-sm text-[#94afd5] hover:text-[#12304f]">
           ← Dashboard
         </button>
         <h1 className="text-lg font-semibold mt-1">New Batch</h1>
-        <p className="text-xs text-gray-400">Generate PDFs for multiple recipients from a spreadsheet</p>
+        <p className="text-xs text-[#94afd5]">Generate PDFs for multiple recipients from a spreadsheet</p>
       </header>
 
       <main className="max-w-2xl mx-auto px-6 py-8 space-y-6">
         {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>}
 
         <section className="bg-white rounded-xl border p-6 space-y-4">
-          <h2 className="font-semibold text-gray-800">1. Select Template</h2>
+          <h2 className="font-semibold text-[#12304f]">1. Select Template</h2>
           {templates.length === 0 ? (
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-[#94afd5]">
               No active templates.{' '}
-              <button onClick={() => router.push('/admin/templates/new')} className="text-blue-600 hover:underline">
+              <button onClick={() => router.push('/admin/templates/new')} className="text-[#006092] hover:underline">
                 Create one
               </button>
             </p>
@@ -129,7 +129,7 @@ export default function NewBatchPage() {
             <select
               value={selectedTemplateId}
               onChange={e => { setSelectedTemplateId(e.target.value); setParseResult(null) }}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
             >
               <option value="">— Choose template —</option>
               {templates.map(t => (
@@ -140,29 +140,29 @@ export default function NewBatchPage() {
         </section>
 
         <section className="bg-white rounded-xl border p-6 space-y-4">
-          <h2 className="font-semibold text-gray-800">2. Upload Recipient Data</h2>
-          <p className="text-sm text-gray-500">One row per person. Accepts .xlsx or .csv files.</p>
+          <h2 className="font-semibold text-[#12304f]">2. Upload Recipient Data</h2>
+          <p className="text-sm text-[#94afd5]">One row per person. Accepts .xlsx or .csv files.</p>
           <input
             ref={fileRef} type="file" accept=".csv,.xlsx,.xls"
             onChange={handleFileChange}
             disabled={!selectedTemplateId}
-            className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 file:font-medium hover:file:bg-blue-100 disabled:opacity-50"
+            className="block w-full text-sm text-[#425d7f] file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#eaf1ff] file:text-[#006092] file:font-medium hover:file:bg-[#dde8f5] disabled:opacity-50"
           />
           {parsing && <p className="text-xs text-blue-500">Parsing file…</p>}
           {parseResult && (
-            <div className="text-sm text-gray-700 space-y-1">
+            <div className="text-sm text-[#425d7f] space-y-1">
               <p className="text-green-600 font-medium">✓ {parseResult.row_count} rows detected ({parseResult.source_type.toUpperCase()})</p>
-              <p className="text-gray-500 text-xs">Columns: {parseResult.headers.join(', ')}</p>
+              <p className="text-[#94afd5] text-xs">Columns: {parseResult.headers.join(', ')}</p>
             </div>
           )}
         </section>
 
         {parseResult && (
           <section className="bg-white rounded-xl border p-6 space-y-4">
-            <h2 className="font-semibold text-gray-800">3. Batch Label (optional)</h2>
+            <h2 className="font-semibold text-[#12304f]">3. Batch Label (optional)</h2>
             <input
               value={label} onChange={e => setLabel(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
               placeholder="e.g. April 2026 Director Appointments"
             />
           </section>
@@ -171,7 +171,7 @@ export default function NewBatchPage() {
         <button
           onClick={handleNext}
           disabled={!parseResult || !selectedTemplateId || creating}
-          className="w-full bg-blue-600 text-white rounded-lg py-3 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          className="w-full bg-[#006092] text-white rounded-lg py-3 text-sm font-medium hover:bg-[#004d75] disabled:opacity-50"
         >
           {creating ? 'Preparing…' : 'Map Columns →'}
         </button>

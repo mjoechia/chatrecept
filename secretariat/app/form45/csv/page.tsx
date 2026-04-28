@@ -89,11 +89,11 @@ export default function CsvUploadPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f3f6ff]">
       <header className="bg-white border-b px-6 py-4">
-        <button onClick={() => router.push('/')} className="text-sm text-gray-500 hover:text-gray-800">← Back</button>
+        <button onClick={() => router.push('/')} className="text-sm text-[#94afd5] hover:text-[#12304f]">← Back</button>
         <h1 className="text-lg font-semibold mt-1">CSV Upload</h1>
-        <p className="text-xs text-gray-400">Generate Form 45 PDFs in batch from a CSV file</p>
+        <p className="text-xs text-[#94afd5]">Generate Form 45 PDFs in batch from a CSV file</p>
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-8 space-y-6">
@@ -105,16 +105,16 @@ export default function CsvUploadPage() {
           onDragLeave={() => setDragOver(false)}
           onClick={() => fileRef.current?.click()}
           className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors ${
-            dragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-gray-300 bg-white'
+            dragOver ? 'border-blue-400 bg-[#eaf1ff]' : 'border-[#dde8f5] hover:border-[#dde8f5] bg-white'
           }`}
         >
-          <Upload className="w-8 h-8 text-gray-400 mx-auto mb-3" />
-          <p className="text-sm font-medium text-gray-700">Drop your CSV here or click to browse</p>
-          <p className="text-xs text-gray-400 mt-1">Supports UTF-8 and Excel (UTF-16) exports</p>
+          <Upload className="w-8 h-8 text-[#94afd5] mx-auto mb-3" />
+          <p className="text-sm font-medium text-[#425d7f]">Drop your CSV here or click to browse</p>
+          <p className="text-xs text-[#94afd5] mt-1">Supports UTF-8 and Excel (UTF-16) exports</p>
           <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
         </div>
 
-        {loading && <p className="text-center text-sm text-gray-400">Parsing CSV…</p>}
+        {loading && <p className="text-center text-sm text-[#94afd5]">Parsing CSV…</p>}
 
         {parsed && (
           <>
@@ -128,20 +128,20 @@ export default function CsvUploadPage() {
                   <AlertCircle className="w-4 h-4" /> {parsed.error_count} with errors
                 </span>
               )}
-              <span className="text-gray-400">{parsed.rows.length} total rows</span>
+              <span className="text-[#94afd5]">{parsed.rows.length} total rows</span>
             </div>
 
             {/* Column mapping */}
             <div className="bg-white rounded-xl border p-6 space-y-3">
-              <h2 className="font-semibold text-gray-800">Column Mapping</h2>
-              <p className="text-xs text-gray-500">Map your CSV headers to Form 45 fields</p>
+              <h2 className="font-semibold text-[#12304f]">Column Mapping</h2>
+              <p className="text-xs text-[#94afd5]">Map your CSV headers to Form 45 fields</p>
               {FORM_FIELDS.map(field => (
                 <div key={field} className="flex items-center gap-4">
-                  <span className="w-40 text-sm text-gray-600 shrink-0">{FIELD_LABELS[field]}</span>
+                  <span className="w-40 text-sm text-[#425d7f] shrink-0">{FIELD_LABELS[field]}</span>
                   <select
                     value={mapping[field] ?? ''}
                     onChange={e => setMapping(m => ({ ...m, [field]: e.target.value }))}
-                    className="flex-1 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
                   >
                     <option value="">— skip —</option>
                     {parsed.headers.map(h => <option key={h} value={h}>{h}</option>)}
@@ -153,7 +153,7 @@ export default function CsvUploadPage() {
             {/* Preview table */}
             <div className="bg-white rounded-xl border overflow-x-auto">
               <table className="w-full text-xs">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-[#f3f6ff] border-b">
                   <tr>
                     <th className="px-3 py-2 text-left">Row</th>
                     <th className="px-3 py-2 text-left">Status</th>
@@ -163,7 +163,7 @@ export default function CsvUploadPage() {
                 <tbody className="divide-y">
                   {parsed.rows.map(row => (
                     <tr key={row.row} className={row.status === 'error' ? 'bg-red-50' : ''}>
-                      <td className="px-3 py-2 text-gray-500">{row.row}</td>
+                      <td className="px-3 py-2 text-[#94afd5]">{row.row}</td>
                       <td className="px-3 py-2">
                         {row.status === 'ok'
                           ? <span className="text-green-600">✓</span>
@@ -171,7 +171,7 @@ export default function CsvUploadPage() {
                         }
                       </td>
                       {parsed.headers.slice(0, 5).map(h => (
-                        <td key={h} className="px-3 py-2 text-gray-700 max-w-[120px] truncate">{row.preview[h]}</td>
+                        <td key={h} className="px-3 py-2 text-[#425d7f] max-w-[120px] truncate">{row.preview[h]}</td>
                       ))}
                     </tr>
                   ))}
@@ -185,7 +185,7 @@ export default function CsvUploadPage() {
                 <button
                   onClick={() => handleGenerate(true)}
                   disabled={generating || parsed.valid_count === 0}
-                  className="flex-1 border rounded-lg py-3 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+                  className="flex-1 border rounded-lg py-3 text-sm font-medium hover:bg-[#f3f6ff] disabled:opacity-50"
                 >
                   Generate valid rows only ({parsed.valid_count})
                 </button>
@@ -193,7 +193,7 @@ export default function CsvUploadPage() {
               <button
                 onClick={() => handleGenerate(false)}
                 disabled={generating || parsed.valid_count === 0}
-                className="flex-1 bg-blue-600 text-white rounded-lg py-3 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                className="flex-1 bg-[#006092] text-white rounded-lg py-3 text-sm font-medium hover:bg-[#004d75] disabled:opacity-50"
               >
                 {generating ? 'Generating…' : `Generate all valid (${parsed.valid_count})`}
               </button>

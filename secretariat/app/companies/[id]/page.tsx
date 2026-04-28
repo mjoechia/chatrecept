@@ -167,35 +167,35 @@ export default function CompanyDetailPage() {
     setError(null)
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading…</div>
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-[#94afd5]">Loading…</div>
   if (!company) return null
 
   const directors = company.persons.filter(p => p.role === 'director')
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f3f6ff]">
       <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Building2 className="w-5 h-5 text-blue-600" />
+          <Building2 className="w-5 h-5 text-[#006092]" />
           {editing ? (
             <div className="flex items-center gap-2">
-              <input value={eName} onChange={e => setEName(e.target.value)} className="border rounded px-2 py-1 text-sm font-semibold w-48 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <input value={eUen} onChange={e => setEUen(e.target.value)} className="border rounded px-2 py-1 text-sm w-32 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="UEN" />
-              <button onClick={handleSaveCompany} disabled={saving} className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 disabled:opacity-50">{saving ? 'Saving…' : 'Save'}</button>
-              <button onClick={() => { setEditing(false); setEName(company.name); setEUen(company.uen) }} className="text-xs text-gray-500 hover:underline">Cancel</button>
+              <input value={eName} onChange={e => setEName(e.target.value)} className="border rounded px-2 py-1 text-sm font-semibold w-48 focus:outline-none focus:ring-2 focus:ring-[#006092]" />
+              <input value={eUen} onChange={e => setEUen(e.target.value)} className="border rounded px-2 py-1 text-sm w-32 focus:outline-none focus:ring-2 focus:ring-[#006092]" placeholder="UEN" />
+              <button onClick={handleSaveCompany} disabled={saving} className="text-xs bg-[#006092] text-white px-2 py-1 rounded hover:bg-[#004d75] disabled:opacity-50">{saving ? 'Saving…' : 'Save'}</button>
+              <button onClick={() => { setEditing(false); setEName(company.name); setEUen(company.uen) }} className="text-xs text-[#94afd5] hover:underline">Cancel</button>
             </div>
           ) : (
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-semibold">{company.name}</h1>
-              <span className="text-sm text-gray-400">{company.uen}</span>
-              <button onClick={() => setEditing(true)} className="text-xs text-blue-600 hover:underline ml-1">Edit</button>
+              <span className="text-sm text-[#94afd5]">{company.uen}</span>
+              <button onClick={() => setEditing(true)} className="text-xs text-[#006092] hover:underline ml-1">Edit</button>
             </div>
           )}
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => router.push('/')} className="text-sm text-gray-500 hover:text-gray-800">← Dashboard</button>
+          <button onClick={() => router.push('/')} className="text-sm text-[#94afd5] hover:text-[#12304f]">← Dashboard</button>
           <span className="text-gray-300">/</span>
-          <button onClick={() => router.push('/companies')} className="text-sm text-gray-500 hover:text-gray-800">Companies</button>
+          <button onClick={() => router.push('/companies')} className="text-sm text-[#94afd5] hover:text-[#12304f]">Companies</button>
         </div>
       </header>
 
@@ -203,11 +203,11 @@ export default function CompanyDetailPage() {
         {/* Directors section */}
         <section className="bg-white rounded-xl border overflow-hidden">
           <div className="px-5 py-4 border-b flex items-center justify-between">
-            <h2 className="font-semibold text-gray-800">Directors</h2>
+            <h2 className="font-semibold text-[#12304f]">Directors</h2>
             <div className="flex gap-2">
               <button
                 onClick={() => { setAddOpen(true); setError(null) }}
-                className="flex items-center gap-1.5 text-xs bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100"
+                className="flex items-center gap-1.5 text-xs bg-[#eaf1ff] text-[#006092] border border-[#dde8f5] px-3 py-1.5 rounded-lg hover:bg-[#dde8f5]"
               >
                 <UserPlus className="w-3.5 h-3.5" /> Add Director
               </button>
@@ -215,23 +215,23 @@ export default function CompanyDetailPage() {
           </div>
 
           {directors.length === 0 ? (
-            <div className="px-5 py-8 text-center text-gray-400 text-sm">No directors yet. Add one to start generating forms.</div>
+            <div className="px-5 py-8 text-center text-[#94afd5] text-sm">No directors yet. Add one to start generating forms.</div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-[#f3f6ff] border-b">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Name</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">NRIC</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Nationality</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-600">Actions</th>
+                  <th className="px-4 py-3 text-left font-medium text-[#425d7f]">Name</th>
+                  <th className="px-4 py-3 text-left font-medium text-[#425d7f]">NRIC</th>
+                  <th className="px-4 py-3 text-left font-medium text-[#425d7f]">Nationality</th>
+                  <th className="px-4 py-3 text-right font-medium text-[#425d7f]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {directors.map(p => (
-                  <tr key={p.link_id} className="hover:bg-gray-50">
+                  <tr key={p.link_id} className="hover:bg-[#f3f6ff]">
                     <td className="px-4 py-3 font-medium">{p.full_name}</td>
-                    <td className="px-4 py-3 text-gray-500">{p.nric_masked ?? '—'}</td>
-                    <td className="px-4 py-3 text-gray-500">{p.nationality ?? '—'}</td>
+                    <td className="px-4 py-3 text-[#94afd5]">{p.nric_masked ?? '—'}</td>
+                    <td className="px-4 py-3 text-[#94afd5]">{p.nationality ?? '—'}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
                         <div className="flex items-center gap-1">
@@ -239,7 +239,7 @@ export default function CompanyDetailPage() {
                             value={selectedTplId}
                             onChange={e => setSelectedTplId(e.target.value)}
                             onClick={e => e.stopPropagation()}
-                            className="text-xs border rounded-lg px-2 py-1 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[120px]"
+                            className="text-xs border rounded-lg px-2 py-1 text-[#425d7f] focus:outline-none focus:ring-1 focus:ring-[#006092] max-w-[120px]"
                           >
                             {templates.length === 0
                               ? <option value="">No templates</option>
@@ -249,12 +249,12 @@ export default function CompanyDetailPage() {
                           <button
                             onClick={() => handleSingleBatch(p)}
                             disabled={!selectedTplId}
-                            className="flex items-center gap-1 text-xs bg-blue-600 text-white px-2 py-1 rounded-lg hover:bg-blue-700 disabled:opacity-40"
+                            className="flex items-center gap-1 text-xs bg-[#006092] text-white px-2 py-1 rounded-lg hover:bg-[#004d75] disabled:opacity-40"
                           >
                             <ChevronDown className="w-3 h-3 rotate-[-90deg]" /> Generate
                           </button>
                         </div>
-                        <button onClick={() => handleUnlink(p.link_id)} className="text-gray-400 hover:text-red-500">
+                        <button onClick={() => handleUnlink(p.link_id)} className="text-[#94afd5] hover:text-red-500">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -269,24 +269,24 @@ export default function CompanyDetailPage() {
         {/* Add director panel */}
         {addOpen && (
           <form onSubmit={handleAddDirector} className="bg-white rounded-xl border p-5 space-y-4">
-            <h3 className="font-medium text-gray-800">Add Director</h3>
+            <h3 className="font-medium text-[#12304f]">Add Director</h3>
             {error && <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded px-3 py-2">{error}</p>}
 
             <div className="flex gap-3">
-              <button type="button" onClick={() => setAddMode('existing')} className={`text-sm px-3 py-1.5 rounded-lg border ${addMode === 'existing' ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-gray-50'}`}>
+              <button type="button" onClick={() => setAddMode('existing')} className={`text-sm px-3 py-1.5 rounded-lg border ${addMode === 'existing' ? 'bg-[#006092] text-white border-[#006092]' : 'hover:bg-[#f3f6ff]'}`}>
                 Existing person
               </button>
-              <button type="button" onClick={() => setAddMode('new')} className={`text-sm px-3 py-1.5 rounded-lg border ${addMode === 'new' ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-gray-50'}`}>
+              <button type="button" onClick={() => setAddMode('new')} className={`text-sm px-3 py-1.5 rounded-lg border ${addMode === 'new' ? 'bg-[#006092] text-white border-[#006092]' : 'hover:bg-[#f3f6ff]'}`}>
                 New person
               </button>
             </div>
 
             {addMode === 'existing' ? (
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Select person</label>
+                <label className="block text-xs text-[#94afd5] mb-1">Select person</label>
                 <select
                   required value={selPerson} onChange={e => setSelPerson(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
                 >
                   <option value="">— choose —</option>
                   {persons.map(p => (
@@ -294,41 +294,41 @@ export default function CompanyDetailPage() {
                   ))}
                 </select>
                 {persons.length === 0 && (
-                  <p className="text-xs text-gray-400 mt-1">No persons in your contacts yet. Switch to "New person" to create one.</p>
+                  <p className="text-xs text-[#94afd5] mt-1">No persons in your contacts yet. Switch to "New person" to create one.</p>
                 )}
               </div>
             ) : (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Full Name *</label>
-                    <input required value={newName} onChange={e => setNewName(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="John Tan Wei Ming" />
+                    <label className="block text-xs text-[#94afd5] mb-1">Full Name *</label>
+                    <input required value={newName} onChange={e => setNewName(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]" placeholder="John Tan Wei Ming" />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">NRIC (masked)</label>
-                    <input value={newNric} onChange={e => setNewNric(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="SXXXXX67A" />
+                    <label className="block text-xs text-[#94afd5] mb-1">NRIC (masked)</label>
+                    <input value={newNric} onChange={e => setNewNric(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]" placeholder="SXXXXX67A" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Nationality</label>
-                    <input value={newNat} onChange={e => setNewNat(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Singaporean" />
+                    <label className="block text-xs text-[#94afd5] mb-1">Nationality</label>
+                    <input value={newNat} onChange={e => setNewNat(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]" placeholder="Singaporean" />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Date of Birth</label>
-                    <input type="date" value={newDob} onChange={e => setNewDob(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <label className="block text-xs text-[#94afd5] mb-1">Date of Birth</label>
+                    <input type="date" value={newDob} onChange={e => setNewDob(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]" />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Address</label>
-                  <input value={newAddr} onChange={e => setNewAddr(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="123 Orchard Rd, #01-01, Singapore 238895" />
+                  <label className="block text-xs text-[#94afd5] mb-1">Address</label>
+                  <input value={newAddr} onChange={e => setNewAddr(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]" placeholder="123 Orchard Rd, #01-01, Singapore 238895" />
                 </div>
               </div>
             )}
 
             <div className="flex gap-2 justify-end">
-              <button type="button" onClick={() => { setAddOpen(false); resetAddForm() }} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
-              <button type="submit" disabled={saving} className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              <button type="button" onClick={() => { setAddOpen(false); resetAddForm() }} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-[#f3f6ff]">Cancel</button>
+              <button type="submit" disabled={saving} className="px-4 py-1.5 text-sm bg-[#006092] text-white rounded-lg hover:bg-[#004d75] disabled:opacity-50">
                 {saving ? 'Adding…' : 'Add Director'}
               </button>
             </div>

@@ -234,21 +234,21 @@ export default function NewTemplatePage() {
     router.push(`/admin/templates/${templateId}`)
   }
 
-  const inputClass = 'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
-  const labelClass = 'block text-sm font-medium text-gray-700 mb-1'
+  const inputClass = 'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]'
+  const labelClass = 'block text-sm font-medium text-[#425d7f] mb-1'
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f3f6ff]">
       <header className="bg-white border-b px-6 py-4">
-        <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-          <button onClick={() => router.push('/')} className="hover:text-gray-800">← Dashboard</button>
+        <div className="flex items-center gap-2 text-sm text-[#94afd5] mb-1">
+          <button onClick={() => router.push('/')} className="hover:text-[#12304f]">← Dashboard</button>
           <span className="text-gray-300">/</span>
-          <button onClick={() => router.push('/admin')} className="hover:text-gray-800">Admin</button>
+          <button onClick={() => router.push('/admin')} className="hover:text-[#12304f]">Admin</button>
           <span className="text-gray-300">/</span>
-          <button onClick={() => router.push('/admin/templates')} className="hover:text-gray-800">Templates</button>
+          <button onClick={() => router.push('/admin/templates')} className="hover:text-[#12304f]">Templates</button>
         </div>
         <h1 className="text-lg font-semibold">New Template</h1>
-        <p className="text-xs text-gray-400">Upload a PDF, detect fields with AI, then calibrate coordinates</p>
+        <p className="text-xs text-[#94afd5]">Upload a PDF, detect fields with AI, then calibrate coordinates</p>
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-8 space-y-6">
@@ -259,7 +259,7 @@ export default function NewTemplatePage() {
         {step === 'upload' && (
           <>
             <section className="bg-white rounded-xl border p-6 space-y-4">
-              <h2 className="font-semibold text-gray-800">Template Details</h2>
+              <h2 className="font-semibold text-[#12304f]">Template Details</h2>
               <div>
                 <label className={labelClass}>Template Name *</label>
                 <input
@@ -277,25 +277,25 @@ export default function NewTemplatePage() {
             </section>
 
             <section className="bg-white rounded-xl border p-6 space-y-4">
-              <h2 className="font-semibold text-gray-800">Upload PDF</h2>
-              <p className="text-sm text-gray-500">
+              <h2 className="font-semibold text-[#12304f]">Upload PDF</h2>
+              <p className="text-sm text-[#94afd5]">
                 Upload the blank PDF form. AI will analyze each selected page and suggest fillable field locations.
               </p>
               <input
                 ref={fileRef} type="file" accept=".pdf"
                 onChange={handleFileChange}
-                className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 file:font-medium hover:file:bg-blue-100"
+                className="block w-full text-sm text-[#425d7f] file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#eaf1ff] file:text-[#006092] file:font-medium hover:file:bg-[#dde8f5]"
               />
-              {pdfFile && <p className="text-xs text-gray-500">Selected: {pdfFile.name}</p>}
+              {pdfFile && <p className="text-xs text-[#94afd5]">Selected: {pdfFile.name}</p>}
 
               {pageCount > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-gray-700">
+                    <p className="text-sm font-medium text-[#425d7f]">
                       {pageCount} page{pageCount !== 1 ? 's' : ''} detected — select pages to analyze:
                     </p>
                     {selectedPages.size < pageCount && (
-                      <button onClick={selectAll} className="text-xs text-blue-600 hover:underline">Select all</button>
+                      <button onClick={selectAll} className="text-xs text-[#006092] hover:underline">Select all</button>
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -305,15 +305,15 @@ export default function NewTemplatePage() {
                         onClick={() => togglePage(i)}
                         className={`px-3 py-1.5 text-sm rounded-lg border font-medium transition-colors ${
                           selectedPages.has(i)
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                            ? 'bg-[#006092] text-white border-[#006092]'
+                            : 'bg-white text-[#94afd5] border-[#dde8f5] hover:border-gray-400'
                         }`}
                       >
                         Page {i + 1}
                       </button>
                     ))}
                   </div>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-[#94afd5]">
                     {selectedPages.size} of {pageCount} page{pageCount !== 1 ? 's' : ''} selected.
                     Pages with no fillable fields will be skipped automatically.
                   </p>
@@ -324,7 +324,7 @@ export default function NewTemplatePage() {
             <button
               onClick={handleDetect}
               disabled={!pdfFile || !name.trim() || detecting || selectedPages.size === 0}
-              className="w-full bg-blue-600 text-white rounded-lg py-3 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              className="w-full bg-[#006092] text-white rounded-lg py-3 text-sm font-medium hover:bg-[#004d75] disabled:opacity-50"
             >
               {detecting
                 ? detectProgress
@@ -346,15 +346,15 @@ export default function NewTemplatePage() {
             <section className="bg-white rounded-xl border p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="font-semibold text-gray-800">Detected Fields</h2>
-                  <p className="text-sm text-gray-500 mt-0.5">
+                  <h2 className="font-semibold text-[#12304f]">Detected Fields</h2>
+                  <p className="text-sm text-[#94afd5] mt-0.5">
                     {editedFields.length} fields detected across {selectedPages.size - emptyPages.length} page{selectedPages.size - emptyPages.length !== 1 ? 's' : ''}.
                     Review column names, then save. Coordinates can be fine-tuned later via Calibrate.
                   </p>
                 </div>
                 <button
                   onClick={() => { setStep('upload'); setEditedFields([]) }}
-                  className="text-sm text-gray-500 hover:underline"
+                  className="text-sm text-[#94afd5] hover:underline"
                 >
                   ← Re-detect
                 </button>
@@ -362,30 +362,30 @@ export default function NewTemplatePage() {
 
               <div className="space-y-3">
                 {editedFields.map((f, idx) => (
-                  <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 border">
+                  <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-[#f3f6ff] border">
                     <div className="flex-1 grid grid-cols-3 gap-2">
                       <div>
-                        <p className="text-xs text-gray-400 mb-1">Column name (snake_case)</p>
+                        <p className="text-xs text-[#94afd5] mb-1">Column name (snake_case)</p>
                         <input
                           value={f.suggested_column_name}
                           onChange={e => updateField(idx, 'suggested_column_name', e.target.value)}
-                          className="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#006092]"
                         />
                       </div>
                       <div>
-                        <p className="text-xs text-gray-400 mb-1">Label (from form)</p>
+                        <p className="text-xs text-[#94afd5] mb-1">Label (from form)</p>
                         <input
                           value={f.label}
                           onChange={e => updateField(idx, 'label', e.target.value)}
-                          className="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#006092]"
                         />
                       </div>
                       <div>
-                        <p className="text-xs text-gray-400 mb-1">Type</p>
+                        <p className="text-xs text-[#94afd5] mb-1">Type</p>
                         <select
                           value={f.type}
                           onChange={e => updateField(idx, 'type', e.target.value)}
-                          className="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#006092]"
                         >
                           <option value="text">text</option>
                           <option value="checkbox">checkbox</option>
@@ -394,7 +394,7 @@ export default function NewTemplatePage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 mt-4">
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#eaf1ff] text-[#94afd5]">
                         p{f.page + 1}
                       </span>
                       <span className={`text-xs px-2 py-0.5 rounded-full ${f.confidence >= 0.8 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>

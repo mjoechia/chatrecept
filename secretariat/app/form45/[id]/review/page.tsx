@@ -56,38 +56,38 @@ export default function ReviewPage() {
     router.push(`/form45/${id}/output`)
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading…</div>
-  if (!form)   return <div className="min-h-screen flex items-center justify-center text-gray-400">Form not found.</div>
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-[#94afd5]">Loading…</div>
+  if (!form)   return <div className="min-h-screen flex items-center justify-center text-[#94afd5]">Form not found.</div>
 
   const Row = ({ label, value }: { label: string; value: string | null | undefined }) => (
     <div className="flex gap-4 py-2.5 border-b last:border-0">
-      <span className="w-40 text-sm text-gray-500 shrink-0">{label}</span>
-      <span className="text-sm font-medium text-gray-900">{value || <span className="text-gray-300 italic">—</span>}</span>
+      <span className="w-40 text-sm text-[#94afd5] shrink-0">{label}</span>
+      <span className="text-sm font-medium text-[#12304f]">{value || <span className="text-gray-300 italic">—</span>}</span>
     </div>
   )
 
   const disqualified = Object.entries(form.declarations ?? {}).filter(([, v]) => v === true)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f3f6ff]">
       <header className="bg-white border-b px-6 py-4">
-        <button onClick={() => router.push('/')} className="text-sm text-gray-500 hover:text-gray-800">
+        <button onClick={() => router.push('/')} className="text-sm text-[#94afd5] hover:text-[#12304f]">
           ← Back to dashboard
         </button>
         <h1 className="text-lg font-semibold mt-1">Review Form 45</h1>
-        <p className="text-xs text-gray-400">Check all details before generating the PDF</p>
+        <p className="text-xs text-[#94afd5]">Check all details before generating the PDF</p>
       </header>
 
       <main className="max-w-2xl mx-auto px-6 py-8 space-y-6">
 
         <section className="bg-white rounded-xl border p-6">
-          <h2 className="font-semibold text-gray-800 mb-4">Company</h2>
+          <h2 className="font-semibold text-[#12304f] mb-4">Company</h2>
           <Row label="Company Name"   value={form.company_name} />
           <Row label="UEN"            value={form.uen} />
         </section>
 
         <section className="bg-white rounded-xl border p-6">
-          <h2 className="font-semibold text-gray-800 mb-4">Director</h2>
+          <h2 className="font-semibold text-[#12304f] mb-4">Director</h2>
           <Row label="Name"           value={form.director_name} />
           <Row label="NRIC / FIN"     value={form.nric_display} />
           <Row label="Nationality"    value={form.nationality} />
@@ -96,7 +96,7 @@ export default function ReviewPage() {
         </section>
 
         <section className="bg-white rounded-xl border p-6">
-          <h2 className="font-semibold text-gray-800 mb-4">Declarations</h2>
+          <h2 className="font-semibold text-[#12304f] mb-4">Declarations</h2>
           {disqualified.length === 0 ? (
             <p className="text-sm text-green-600">✓ Director confirmed not disqualified on any ground</p>
           ) : (
@@ -121,14 +121,14 @@ export default function ReviewPage() {
         <div className="flex gap-3">
           <button
             onClick={() => router.push('/form45/new')}
-            className="flex-1 border rounded-lg py-3 text-sm font-medium hover:bg-gray-50"
+            className="flex-1 border rounded-lg py-3 text-sm font-medium hover:bg-[#f3f6ff]"
           >
             ← Edit
           </button>
           <button
             onClick={handleGenerate}
             disabled={generating || form.status === 'generating'}
-            className="flex-1 bg-blue-600 text-white rounded-lg py-3 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="flex-1 bg-[#006092] text-white rounded-lg py-3 text-sm font-medium hover:bg-[#004d75] disabled:opacity-50"
           >
             {generating ? 'Generating PDF…' : 'Generate PDF →'}
           </button>

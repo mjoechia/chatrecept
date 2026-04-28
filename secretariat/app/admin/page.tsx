@@ -73,46 +73,46 @@ export default function AdminPage() {
 
   const sourceBadge = (src: string) => {
     const styles: Record<string, string> = {
-      filesystem: 'bg-blue-100 text-blue-700',
+      filesystem: 'bg-[#dde8f5] text-[#006092]',
       storage:    'bg-purple-100 text-purple-700',
       db:         'bg-green-100 text-green-700',
       missing:    'bg-red-100 text-red-600',
-      default:    'bg-gray-100 text-gray-600',
+      default:    'bg-[#eaf1ff] text-[#425d7f]',
     }
     return (
-      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${styles[src] ?? 'bg-gray-100'}`}>
+      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${styles[src] ?? 'bg-[#eaf1ff]'}`}>
         {src}
       </span>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f3f6ff]">
       <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <a
             href="https://chatrecept.chat/"
-            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+            className="flex items-center gap-2 text-sm text-[#94afd5] hover:text-[#12304f] transition-colors"
           >
             <img src="/chatrecept.png" alt="ChatRecept" className="h-5 w-5 object-contain" />
             <span className="font-medium">Back to ChatRecept</span>
           </a>
           <span className="text-gray-300">/</span>
           <div className="flex items-center gap-2">
-            <Settings className="w-4 h-4 text-blue-600" />
+            <Settings className="w-4 h-4 text-[#006092]" />
             <h1 className="text-lg font-semibold">Admin Setup</h1>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={loadAll}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-[#f3f6ff]"
           >
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
           </button>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg text-gray-500 hover:bg-gray-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg text-[#94afd5] hover:bg-[#f3f6ff]"
             title="Sign out"
           >
             <LogOut className="w-4 h-4" />
@@ -125,8 +125,8 @@ export default function AdminPage() {
         {/* ── Users ───────────────────────────────────────────────────── */}
         <section className="bg-white rounded-xl border p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-800">Users</h2>
-            <a href="/admin/users" className="flex items-center gap-1 text-sm text-blue-600 hover:underline">
+            <h2 className="font-semibold text-[#12304f]">Users</h2>
+            <a href="/admin/users" className="flex items-center gap-1 text-sm text-[#006092] hover:underline">
               Manage Users <ArrowRight className="w-3.5 h-3.5" />
             </a>
           </div>
@@ -136,9 +136,9 @@ export default function AdminPage() {
               { label: 'Invited',   value: userCounts?.invited   ?? '—', colour: 'text-yellow-600' },
               { label: 'Suspended', value: userCounts?.suspended ?? '—', colour: 'text-red-500' },
             ].map(({ label, value, colour }) => (
-              <div key={label} className="bg-gray-50 rounded-lg p-4 text-center">
+              <div key={label} className="bg-[#f3f6ff] rounded-lg p-4 text-center">
                 <p className={`text-2xl font-bold ${colour}`}>{value}</p>
-                <p className="text-xs text-gray-500 mt-1">{label}</p>
+                <p className="text-xs text-[#94afd5] mt-1">{label}</p>
               </div>
             ))}
           </div>
@@ -147,8 +147,8 @@ export default function AdminPage() {
         {/* ── Templates ───────────────────────────────────────────────── */}
         <section className="bg-white rounded-xl border p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-800">Templates</h2>
-            <a href="/admin/templates" className="flex items-center gap-1 text-sm text-blue-600 hover:underline">
+            <h2 className="font-semibold text-[#12304f]">Templates</h2>
+            <a href="/admin/templates" className="flex items-center gap-1 text-sm text-[#006092] hover:underline">
               Manage Templates <ArrowRight className="w-3.5 h-3.5" />
             </a>
           </div>
@@ -156,11 +156,11 @@ export default function AdminPage() {
             {[
               { label: 'Active',   value: templateCounts?.active   ?? '—', colour: 'text-green-600' },
               { label: 'Draft',    value: templateCounts?.draft    ?? '—', colour: 'text-yellow-600' },
-              { label: 'Archived', value: templateCounts?.archived ?? '—', colour: 'text-gray-400' },
+              { label: 'Archived', value: templateCounts?.archived ?? '—', colour: 'text-[#94afd5]' },
             ].map(({ label, value, colour }) => (
-              <div key={label} className="bg-gray-50 rounded-lg p-4 text-center">
+              <div key={label} className="bg-[#f3f6ff] rounded-lg p-4 text-center">
                 <p className={`text-2xl font-bold ${colour}`}>{value}</p>
-                <p className="text-xs text-gray-500 mt-1">{label}</p>
+                <p className="text-xs text-[#94afd5] mt-1">{label}</p>
               </div>
             ))}
           </div>
@@ -169,17 +169,17 @@ export default function AdminPage() {
         {/* ── Status Overview ─────────────────────────────────────────── */}
         {status && (
           <section className="bg-white rounded-xl border p-6">
-            <h2 className="font-semibold text-gray-800 mb-4">Setup Status</h2>
+            <h2 className="font-semibold text-[#12304f] mb-4">Setup Status</h2>
             <div className="grid grid-cols-3 gap-4">
               {[
                 { label: 'Template PDF',  icon: statusIcon(status.template.exists),  src: status.template.source },
                 { label: 'Unicode Font',  icon: statusIcon(status.font.exists),      src: status.font.source },
                 { label: 'Coordinates',   icon: <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />, src: status.coordinates.source },
               ].map(({ label, icon, src }) => (
-                <div key={label} className="flex items-center gap-3 bg-gray-50 rounded-lg p-3">
+                <div key={label} className="flex items-center gap-3 bg-[#f3f6ff] rounded-lg p-3">
                   {icon}
                   <div>
-                    <p className="text-sm font-medium text-gray-700">{label}</p>
+                    <p className="text-sm font-medium text-[#425d7f]">{label}</p>
                     {sourceBadge(src)}
                   </div>
                 </div>

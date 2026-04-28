@@ -54,17 +54,17 @@ export default function CompaniesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f3f6ff]">
       <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Building2 className="w-5 h-5 text-blue-600" />
+          <Building2 className="w-5 h-5 text-[#006092]" />
           <h1 className="text-lg font-semibold">My Companies</h1>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => router.push('/')} className="text-sm text-gray-500 hover:underline">← Dashboard</button>
+          <button onClick={() => router.push('/')} className="text-sm text-[#94afd5] hover:underline">← Dashboard</button>
           <button
             onClick={() => setAdding(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-[#006092] text-white rounded-lg hover:bg-[#004d75]"
           >
             <Plus className="w-4 h-4" /> Add Company
           </button>
@@ -75,29 +75,29 @@ export default function CompaniesPage() {
         {/* Add company form */}
         {adding && (
           <form onSubmit={handleAdd} className="bg-white border rounded-xl p-5 mb-6 space-y-3">
-            <h2 className="font-medium text-gray-800">New Company</h2>
+            <h2 className="font-medium text-[#12304f]">New Company</h2>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Company Name</label>
+                <label className="block text-xs text-[#94afd5] mb-1">Company Name</label>
                 <input
                   required value={name} onChange={e => setName(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
                   placeholder="Acme Pte. Ltd."
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">UEN</label>
+                <label className="block text-xs text-[#94afd5] mb-1">UEN</label>
                 <input
                   required value={uen} onChange={e => setUen(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
                   placeholder="201912345A"
                 />
               </div>
             </div>
             <div className="flex gap-2 justify-end">
-              <button type="button" onClick={() => { setAdding(false); setError(null) }} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
-              <button type="submit" disabled={saving} className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              <button type="button" onClick={() => { setAdding(false); setError(null) }} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-[#f3f6ff]">Cancel</button>
+              <button type="submit" disabled={saving} className="px-4 py-1.5 text-sm bg-[#006092] text-white rounded-lg hover:bg-[#004d75] disabled:opacity-50">
                 {saving ? 'Saving…' : 'Save'}
               </button>
             </div>
@@ -105,9 +105,9 @@ export default function CompaniesPage() {
         )}
 
         {loading ? (
-          <div className="text-center py-16 text-gray-400">Loading…</div>
+          <div className="text-center py-16 text-[#94afd5]">Loading…</div>
         ) : companies.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
+          <div className="text-center py-16 text-[#94afd5]">
             No companies yet. Add your first one to get started.
           </div>
         ) : (
@@ -119,10 +119,10 @@ export default function CompaniesPage() {
                 className="w-full bg-white border rounded-xl px-5 py-4 flex items-center justify-between hover:border-blue-300 hover:shadow-sm transition-all text-left"
               >
                 <div>
-                  <p className="font-medium text-gray-800">{c.name}</p>
-                  <p className="text-sm text-gray-500 mt-0.5">UEN: {c.uen}</p>
+                  <p className="font-medium text-[#12304f]">{c.name}</p>
+                  <p className="text-sm text-[#94afd5] mt-0.5">UEN: {c.uen}</p>
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
+                <ChevronRight className="w-4 h-4 text-[#94afd5]" />
               </button>
             ))}
           </div>

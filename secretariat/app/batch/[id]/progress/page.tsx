@@ -114,15 +114,15 @@ export default function BatchProgressPage() {
   const generated = submissions.filter(s => s.status === 'generated')
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f3f6ff]">
       <header className="bg-white border-b px-6 py-4">
-        <button onClick={() => router.push('/')} className="text-sm text-gray-500 hover:text-gray-800">
+        <button onClick={() => router.push('/')} className="text-sm text-[#94afd5] hover:text-[#12304f]">
           ← Dashboard
         </button>
         <h1 className="text-lg font-semibold mt-1">
           {jobStatus?.label ?? 'Batch Generation'}
         </h1>
-        <p className="text-xs text-gray-400">Generating PDFs for each recipient</p>
+        <p className="text-xs text-[#94afd5]">Generating PDFs for each recipient</p>
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-8 space-y-6">
@@ -131,15 +131,15 @@ export default function BatchProgressPage() {
         {/* Progress card */}
         <div className="bg-white rounded-xl border p-6 space-y-5">
           <div>
-            <div className="flex justify-between text-sm text-gray-600 mb-2">
+            <div className="flex justify-between text-sm text-[#425d7f] mb-2">
               <span>{running ? 'Generating…' : isDone ? 'Complete' : 'Pending'}</span>
               <span>{pct}%</span>
             </div>
-            <div className="w-full bg-gray-100 rounded-full h-3">
+            <div className="w-full bg-[#eaf1ff] rounded-full h-3">
               <div
                 className={`h-3 rounded-full transition-all duration-300 ${
                   isDone && jobStatus!.failed_count === 0 ? 'bg-green-500' :
-                  isDone ? 'bg-yellow-500' : 'bg-blue-500'
+                  isDone ? 'bg-yellow-500' : 'bg-[#eaf1ff]0'
                 }`}
                 style={{ width: `${pct}%` }}
               />
@@ -149,18 +149,18 @@ export default function BatchProgressPage() {
           {jobStatus && (
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
-                <p className="text-2xl font-bold text-gray-900">{jobStatus.total}</p>
-                <p className="text-xs text-gray-400 mt-1">Total</p>
+                <p className="text-2xl font-bold text-[#12304f]">{jobStatus.total}</p>
+                <p className="text-xs text-[#94afd5] mt-1">Total</p>
               </div>
               <div>
                 <p className="text-2xl font-bold text-green-600">{jobStatus.completed}</p>
-                <p className="text-xs text-gray-400 mt-1">Generated</p>
+                <p className="text-xs text-[#94afd5] mt-1">Generated</p>
               </div>
               <div>
                 <p className={`text-2xl font-bold ${jobStatus.failed_count > 0 ? 'text-red-500' : 'text-gray-300'}`}>
                   {jobStatus.failed_count}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">Failed</p>
+                <p className="text-xs text-[#94afd5] mt-1">Failed</p>
               </div>
             </div>
           )}
@@ -180,7 +180,7 @@ export default function BatchProgressPage() {
               {jobStatus!.completed > 0 && (
                 <a
                   href={`/api/batch/${id}/zip`}
-                  className="flex items-center justify-center gap-2 w-full bg-blue-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-blue-700"
+                  className="flex items-center justify-center gap-2 w-full bg-[#006092] text-white rounded-lg py-2.5 text-sm font-medium hover:bg-[#004d75]"
                 >
                   <Download className="w-4 h-4" />
                   Download all as ZIP ({jobStatus!.completed} PDFs)
@@ -189,7 +189,7 @@ export default function BatchProgressPage() {
 
               <button
                 onClick={() => router.push('/batch/new')}
-                className="w-full border border-gray-200 text-gray-600 rounded-lg py-2.5 text-sm font-medium hover:bg-gray-50"
+                className="w-full border border-[#dde8f5] text-[#425d7f] rounded-lg py-2.5 text-sm font-medium hover:bg-[#f3f6ff]"
               >
                 New Batch
               </button>
@@ -197,7 +197,7 @@ export default function BatchProgressPage() {
           )}
 
           {running && !isDone && (
-            <p className="text-center text-xs text-gray-400">
+            <p className="text-center text-xs text-[#94afd5]">
               Do not close this tab — generation is in progress.
             </p>
           )}
@@ -206,8 +206,8 @@ export default function BatchProgressPage() {
         {/* Per-submission list */}
         {submissions.length > 0 && (
           <section className="bg-white rounded-xl border overflow-hidden">
-            <div className="px-5 py-3 border-b bg-gray-50">
-              <h2 className="text-sm font-semibold text-gray-700">
+            <div className="px-5 py-3 border-b bg-[#f3f6ff]">
+              <h2 className="text-sm font-semibold text-[#425d7f]">
                 Generated Forms ({generated.length} / {submissions.length})
               </h2>
             </div>
@@ -215,7 +215,7 @@ export default function BatchProgressPage() {
               {submissions.map(sub => (
                 <li key={sub.id} className="flex items-center gap-3 px-5 py-3">
                   <FileText className={`w-4 h-4 shrink-0 ${sub.status === 'generated' ? 'text-green-500' : sub.status === 'failed' ? 'text-red-400' : 'text-gray-300'}`} />
-                  <span className="flex-1 text-sm text-gray-800 truncate">
+                  <span className="flex-1 text-sm text-[#12304f] truncate">
                     {recipientLabel(sub.recipient_data)}
                   </span>
                   {sub.status === 'failed' && (
@@ -224,14 +224,14 @@ export default function BatchProgressPage() {
                     </span>
                   )}
                   {sub.status !== 'failed' && sub.status !== 'generated' && (
-                    <span className="text-xs text-gray-400">{sub.status}</span>
+                    <span className="text-xs text-[#94afd5]">{sub.status}</span>
                   )}
                   {sub.url && (
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         onClick={() => setPreview(sub)}
                         title="Preview PDF"
-                        className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                        className="flex items-center gap-1 text-xs text-[#006092] hover:underline"
                       >
                         <Eye className="w-3.5 h-3.5" /> Preview
                       </button>
@@ -258,7 +258,7 @@ export default function BatchProgressPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col" style={{ height: '85vh' }}>
             <div className="flex items-center justify-between px-5 py-3 border-b">
-              <h3 className="font-semibold text-gray-800 truncate">
+              <h3 className="font-semibold text-[#12304f] truncate">
                 {recipientLabel(preview.recipient_data)}
               </h3>
               <div className="flex items-center gap-3">
@@ -266,11 +266,11 @@ export default function BatchProgressPage() {
                   href={preview.url!}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline"
+                  className="flex items-center gap-1.5 text-sm text-[#006092] hover:underline"
                 >
                   <Download className="w-3.5 h-3.5" /> Download
                 </a>
-                <button onClick={() => setPreview(null)} className="text-gray-400 hover:text-gray-700">
+                <button onClick={() => setPreview(null)} className="text-[#94afd5] hover:text-[#425d7f]">
                   <X className="w-5 h-5" />
                 </button>
               </div>

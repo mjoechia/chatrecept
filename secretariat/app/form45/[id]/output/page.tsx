@@ -50,16 +50,16 @@ export default function OutputPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  if (!form) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading…</div>
+  if (!form) return <div className="min-h-screen flex items-center justify-center text-[#94afd5]">Loading…</div>
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f3f6ff]">
       <header className="bg-white border-b px-6 py-4">
-        <button onClick={() => router.push('/')} className="text-sm text-gray-500 hover:text-gray-800">
+        <button onClick={() => router.push('/')} className="text-sm text-[#94afd5] hover:text-[#12304f]">
           ← Back to dashboard
         </button>
         <h1 className="text-lg font-semibold mt-1">Form 45 — Output</h1>
-        <p className="text-xs text-gray-400">{form.company_name} / {form.director_name}</p>
+        <p className="text-xs text-[#94afd5]">{form.company_name} / {form.director_name}</p>
       </header>
 
       <main className="max-w-2xl mx-auto px-6 py-8 space-y-6">
@@ -100,13 +100,13 @@ export default function OutputPage() {
               <a
                 href={pdfUrl}
                 download={`form45-${form.uen}-${form.director_name}.pdf`}
-                className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white rounded-lg py-3 text-sm font-medium hover:bg-blue-700"
+                className="flex-1 flex items-center justify-center gap-2 bg-[#006092] text-white rounded-lg py-3 text-sm font-medium hover:bg-[#004d75]"
               >
                 <Download className="w-4 h-4" /> Download PDF
               </a>
               <button
                 onClick={copyLink}
-                className="flex-1 flex items-center justify-center gap-2 border rounded-lg py-3 text-sm font-medium hover:bg-gray-50"
+                className="flex-1 flex items-center justify-center gap-2 border rounded-lg py-3 text-sm font-medium hover:bg-[#f3f6ff]"
               >
                 {copied
                   ? <><CheckCheck className="w-4 h-4 text-green-600" /> Copied!</>
@@ -115,13 +115,13 @@ export default function OutputPage() {
               </button>
             </div>
 
-            <p className="text-xs text-gray-400 text-center">Download link expires in 1 hour. Revisit this page to get a fresh link.</p>
+            <p className="text-xs text-[#94afd5] text-center">Download link expires in 1 hour. Revisit this page to get a fresh link.</p>
           </>
         )}
 
         <button
           onClick={() => router.push('/form45/new')}
-          className="w-full flex items-center justify-center gap-2 border rounded-lg py-3 text-sm font-medium hover:bg-gray-50"
+          className="w-full flex items-center justify-center gap-2 border rounded-lg py-3 text-sm font-medium hover:bg-[#f3f6ff]"
         >
           <Plus className="w-4 h-4" /> New Form 45
         </button>

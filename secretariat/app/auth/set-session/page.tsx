@@ -29,7 +29,7 @@ export default function SetSessionPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <p className="text-sm text-gray-400">Signing you in…</p>
+      <p className="text-sm text-[#94afd5]">Signing you in…</p>
     </div>
   )
 }

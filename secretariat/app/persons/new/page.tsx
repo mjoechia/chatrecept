@@ -43,16 +43,16 @@ export default function NewPersonPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f3f6ff]">
       <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Users className="w-5 h-5 text-blue-600" />
+          <Users className="w-5 h-5 text-[#006092]" />
           <h1 className="text-lg font-semibold">Add Person</h1>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => router.push('/')} className="text-sm text-gray-500 hover:text-gray-800">← Dashboard</button>
+          <button onClick={() => router.push('/')} className="text-sm text-[#94afd5] hover:text-[#12304f]">← Dashboard</button>
           <span className="text-gray-300">/</span>
-          <button onClick={() => router.push('/persons')} className="text-sm text-gray-500 hover:text-gray-800">Persons</button>
+          <button onClick={() => router.push('/persons')} className="text-sm text-[#94afd5] hover:text-[#12304f]">Persons</button>
         </div>
       </header>
 
@@ -66,53 +66,53 @@ export default function NewPersonPage() {
           )}
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Full Name *</label>
+            <label className="block text-xs text-[#94afd5] mb-1">Full Name *</label>
             <input
               required value={fullName} onChange={e => setFullName(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
               placeholder="John Tan Wei Ming"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">NRIC (masked)</label>
+              <label className="block text-xs text-[#94afd5] mb-1">NRIC (masked)</label>
               <input
                 value={nricMasked} onChange={e => setNricMasked(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
                 placeholder="SXXXXX67A"
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Nationality</label>
+              <label className="block text-xs text-[#94afd5] mb-1">Nationality</label>
               <input
                 value={nationality} onChange={e => setNationality(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
                 placeholder="Singaporean"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Date of Birth</label>
+            <label className="block text-xs text-[#94afd5] mb-1">Date of Birth</label>
             <input
               type="date" value={dob} onChange={e => setDob(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
             />
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Address</label>
+            <label className="block text-xs text-[#94afd5] mb-1">Address</label>
             <textarea
               value={address} onChange={e => setAddress(e.target.value)} rows={2}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092] resize-none"
               placeholder="123 Orchard Rd, #01-01, Singapore 238895"
             />
           </div>
 
           <div className="flex gap-2 justify-end pt-2">
-            <button type="button" onClick={() => router.push('/persons')} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            <button type="button" onClick={() => router.push('/persons')} className="px-3 py-1.5 text-sm border rounded-lg hover:bg-[#f3f6ff]">Cancel</button>
+            <button type="submit" disabled={saving} className="px-4 py-1.5 text-sm bg-[#006092] text-white rounded-lg hover:bg-[#004d75] disabled:opacity-50">
               {saving ? 'Saving…' : 'Save Person'}
             </button>
           </div>

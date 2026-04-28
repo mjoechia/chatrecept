@@ -180,7 +180,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f3f6ff]">
       {/* Header */}
       <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -190,33 +190,33 @@ export default function DashboardPage() {
         <div className="flex gap-2">
           <button
             onClick={() => router.push('/persons')}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-[#f3f6ff]"
           >
             <Users className="w-4 h-4" /> Persons
           </button>
           <button
             onClick={() => router.push('/companies')}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-[#f3f6ff]"
           >
             <Building2 className="w-4 h-4" /> Companies
           </button>
           {userRole === 'admin' && (
             <button
               onClick={() => router.push('/admin')}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-[#f3f6ff]"
             >
               <Settings className="w-4 h-4" /> Admin
             </button>
           )}
           <button
             onClick={() => router.push('/batch/new')}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-[#006092] text-white rounded-lg hover:bg-[#004d75]"
           >
             <Layers className="w-4 h-4" /> New Import
           </button>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg text-gray-500 hover:bg-gray-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg text-[#94afd5] hover:bg-[#f3f6ff]"
             title="Sign out"
           >
             <LogOut className="w-4 h-4" />
@@ -228,14 +228,14 @@ export default function DashboardPage() {
 
         {/* Contacts */}
         <section>
-          <h2 className="font-semibold text-gray-800 mb-3">Contacts</h2>
+          <h2 className="font-semibold text-[#12304f] mb-3">Contacts</h2>
           {contacts.length === 0 ? (
             <div className="bg-white border rounded-xl p-6 text-center">
               <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">No contacts yet.</p>
+              <p className="text-sm text-[#94afd5]">No contacts yet.</p>
               <button
                 onClick={() => router.push('/persons')}
-                className="mt-3 text-sm text-blue-600 hover:underline"
+                className="mt-3 text-sm text-[#006092] hover:underline"
               >
                 Add your first person →
               </button>
@@ -243,28 +243,28 @@ export default function DashboardPage() {
           ) : (
             <div className="bg-white rounded-xl border overflow-hidden">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-[#f3f6ff] border-b">
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Name</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Company</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">NRIC</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600">Nationality</th>
-                    <th className="px-4 py-3 text-right font-medium text-gray-600">Actions</th>
+                    <th className="px-4 py-3 text-left font-medium text-[#425d7f]">Name</th>
+                    <th className="px-4 py-3 text-left font-medium text-[#425d7f]">Company</th>
+                    <th className="px-4 py-3 text-left font-medium text-[#425d7f]">NRIC</th>
+                    <th className="px-4 py-3 text-left font-medium text-[#425d7f]">Nationality</th>
+                    <th className="px-4 py-3 text-right font-medium text-[#425d7f]">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {contacts.map(c => {
                     const company = c.company_persons?.[0]?.companies ?? null
                     return (
-                      <tr key={c.id} className="hover:bg-gray-50">
+                      <tr key={c.id} className="hover:bg-[#f3f6ff]">
                         <td className="px-4 py-3 font-medium">{c.full_name}</td>
-                        <td className="px-4 py-3 text-gray-500">{company?.name ?? '—'}</td>
-                        <td className="px-4 py-3 text-gray-500">{c.nric_masked ?? '—'}</td>
-                        <td className="px-4 py-3 text-gray-500">{c.nationality ?? '—'}</td>
+                        <td className="px-4 py-3 text-[#94afd5]">{company?.name ?? '—'}</td>
+                        <td className="px-4 py-3 text-[#94afd5]">{c.nric_masked ?? '—'}</td>
+                        <td className="px-4 py-3 text-[#94afd5]">{c.nationality ?? '—'}</td>
                         <td className="px-4 py-3 text-right">
                           <button
                             onClick={() => openEdit(c)}
-                            className="text-xs text-blue-600 hover:underline"
+                            className="text-xs text-[#006092] hover:underline"
                           >
                             Edit Company Info
                           </button>
@@ -281,24 +281,24 @@ export default function DashboardPage() {
         {/* Forms Ready for Filling */}
         {templates.length > 0 && (
           <section>
-            <h2 className="font-semibold text-gray-800 mb-3">Forms Ready for Filling</h2>
+            <h2 className="font-semibold text-[#12304f] mb-3">Forms Ready for Filling</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {templates.map(t => (
                 <div key={t.id} className="bg-white border rounded-xl p-4 space-y-3">
                   <div>
-                    <p className="text-sm font-medium text-gray-800">{t.name}</p>
+                    <p className="text-sm font-medium text-[#12304f]">{t.name}</p>
                     <p className="text-xs text-green-600 mt-0.5">Ready</p>
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => router.push(`/formfill/new?template_id=${t.id}`)}
-                      className="flex-1 text-xs bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 font-medium"
+                      className="flex-1 text-xs bg-[#006092] text-white px-3 py-2 rounded-lg hover:bg-[#004d75] font-medium"
                     >
                       Fill Form
                     </button>
                     <button
                       onClick={() => router.push(`/batch/new?template_id=${t.id}`)}
-                      className="flex-1 text-xs border border-gray-200 text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-50 font-medium"
+                      className="flex-1 text-xs border border-[#dde8f5] text-[#425d7f] px-3 py-2 rounded-lg hover:bg-[#f3f6ff] font-medium"
                     >
                       Import Data
                     </button>
@@ -317,10 +317,10 @@ export default function DashboardPage() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <div>
-                <h3 className="font-semibold text-gray-900">Edit Company Info</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{editContact.full_name}</p>
+                <h3 className="font-semibold text-[#12304f]">Edit Company Info</h3>
+                <p className="text-xs text-[#94afd5] mt-0.5">{editContact.full_name}</p>
               </div>
-              <button onClick={() => setEditContact(null)} className="text-gray-400 hover:text-gray-700">
+              <button onClick={() => setEditContact(null)} className="text-[#94afd5] hover:text-[#425d7f]">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -335,17 +335,17 @@ export default function DashboardPage() {
               {/* Company fields — only shown if contact is linked to a company */}
               {companyFields.length > 0 && editContact.company_persons?.[0]?.companies && (
                 <div className="space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Company</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[#94afd5]">Company</p>
                   {companyFields.map(key => (
                     <div key={key}>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                      <label className="block text-xs font-medium text-[#425d7f] mb-1">
                         {FIELD_LABELS[key] ?? key}
                       </label>
                       <input
                         type="text"
                         value={editValues[key] ?? ''}
                         onChange={e => setEditValues(prev => ({ ...prev, [key]: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
                       />
                     </div>
                   ))}
@@ -355,10 +355,10 @@ export default function DashboardPage() {
               {/* Person fields */}
               {personFields.length > 0 && (
                 <div className="space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Director / Person</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[#94afd5]">Director / Person</p>
                   {personFields.map(key => (
                     <div key={key}>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                      <label className="block text-xs font-medium text-[#425d7f] mb-1">
                         {FIELD_LABELS[key] ?? key}
                       </label>
                       {key === 'address' ? (
@@ -366,14 +366,14 @@ export default function DashboardPage() {
                           value={editValues[key] ?? ''}
                           onChange={e => setEditValues(prev => ({ ...prev, [key]: e.target.value }))}
                           rows={2}
-                          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092] resize-none"
                         />
                       ) : (
                         <input
                           type={key === 'dob' ? 'date' : 'text'}
                           value={editValues[key] ?? ''}
                           onChange={e => setEditValues(prev => ({ ...prev, [key]: e.target.value }))}
-                          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
                         />
                       )}
                     </div>
@@ -385,14 +385,14 @@ export default function DashboardPage() {
             <div className="flex gap-2 justify-end px-6 py-4 border-t">
               <button
                 onClick={() => setEditContact(null)}
-                className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 text-sm border rounded-lg hover:bg-[#f3f6ff]"
               >
                 Cancel
               </button>
               <button
                 onClick={saveEdit}
                 disabled={editSaving}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="px-4 py-2 text-sm bg-[#006092] text-white rounded-lg hover:bg-[#004d75] disabled:opacity-50"
               >
                 {editSaving ? 'Saving…' : 'Save Changes'}
               </button>

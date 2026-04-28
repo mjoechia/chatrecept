@@ -116,7 +116,7 @@ function FormFillContent() {
   }
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-sm text-gray-400">Loading…</div>
+    return <div className="min-h-screen flex items-center justify-center text-sm text-[#94afd5]">Loading…</div>
   }
 
   if (!template) {
@@ -124,7 +124,7 @@ function FormFillContent() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-3">
           <p className="text-sm text-red-500">{error || 'Template not found'}</p>
-          <button onClick={() => router.push('/')} className="text-sm text-blue-600 hover:underline">← Dashboard</button>
+          <button onClick={() => router.push('/')} className="text-sm text-[#006092] hover:underline">← Dashboard</button>
         </div>
       </div>
     )
@@ -142,13 +142,13 @@ function FormFillContent() {
   const personKeys  = sortedKeys.filter(k => !COMPANY_KEYS.has(k))
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f3f6ff]">
       <header className="bg-white border-b px-6 py-4">
-        <button onClick={() => router.push('/')} className="text-sm text-gray-500 hover:text-gray-800">
+        <button onClick={() => router.push('/')} className="text-sm text-[#94afd5] hover:text-[#12304f]">
           ← Dashboard
         </button>
         <h1 className="text-lg font-semibold mt-1">{template.name}</h1>
-        <p className="text-xs text-gray-400">Fill in the details below to generate your PDF</p>
+        <p className="text-xs text-[#94afd5]">Fill in the details below to generate your PDF</p>
       </header>
 
       <main className="max-w-xl mx-auto px-6 py-8">
@@ -161,17 +161,17 @@ function FormFillContent() {
 
           {companyKeys.length > 0 && (
             <div className="bg-white rounded-xl border p-5 space-y-4">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Company</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-[#94afd5]">Company</h2>
               {companyKeys.map(key => (
                 <div key={key}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-[#425d7f] mb-1">
                     {FIELD_LABELS[key] ?? key.replace(/_/g, ' ')}
                   </label>
                   <input
                     type="text"
                     value={values[key] ?? ''}
                     onChange={e => setValues(prev => ({ ...prev, [key]: e.target.value }))}
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
                     placeholder={FIELD_LABELS[key] ?? key}
                   />
                 </div>
@@ -181,10 +181,10 @@ function FormFillContent() {
 
           {personKeys.length > 0 && (
             <div className="bg-white rounded-xl border p-5 space-y-4">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Director / Person</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-[#94afd5]">Director / Person</h2>
               {personKeys.map(key => (
                 <div key={key}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-[#425d7f] mb-1">
                     {FIELD_LABELS[key] ?? key.replace(/_/g, ' ')}
                   </label>
                   {key === 'address' ? (
@@ -192,7 +192,7 @@ function FormFillContent() {
                       value={values[key] ?? ''}
                       onChange={e => setValues(prev => ({ ...prev, [key]: e.target.value }))}
                       rows={2}
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092] resize-none"
                       placeholder="123 Orchard Rd, #01-01, Singapore 238895"
                     />
                   ) : (
@@ -200,7 +200,7 @@ function FormFillContent() {
                       type={key === 'dob' ? 'date' : 'text'}
                       value={values[key] ?? ''}
                       onChange={e => setValues(prev => ({ ...prev, [key]: e.target.value }))}
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
                       placeholder={FIELD_LABELS[key] ?? key}
                     />
                   )}
@@ -212,7 +212,7 @@ function FormFillContent() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+            className="w-full bg-[#006092] text-white rounded-xl py-3 text-sm font-semibold hover:bg-[#004d75] disabled:opacity-50"
           >
             {submitting ? 'Generating…' : 'Generate PDF →'}
           </button>
@@ -224,7 +224,7 @@ function FormFillContent() {
 
 export default function FormFillPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm text-gray-400">Loading…</div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm text-[#94afd5]">Loading…</div>}>
       <FormFillContent />
     </Suspense>
   )

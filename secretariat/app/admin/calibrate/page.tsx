@@ -389,11 +389,11 @@ export default function CalibratePage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push(isTemplateMode ? `/admin/templates/${templateId}` : '/admin')}
-            className="text-sm text-gray-400 hover:text-gray-100"
+            className="text-sm text-[#94afd5] hover:text-gray-100"
           >
             ← {isTemplateMode ? 'Template' : 'Admin'}
           </button>
-          <span className="text-gray-600">/</span>
+          <span className="text-[#425d7f]">/</span>
           <div className="flex items-center gap-2">
             <Crosshair className="w-4 h-4 text-blue-400" />
             <h1 className="text-sm font-semibold text-gray-100">Coordinate Calibration</h1>
@@ -401,21 +401,21 @@ export default function CalibratePage() {
         </div>
         <div className="flex items-center gap-3">
           {hover && (
-            <span className="text-xs text-gray-400 font-mono">
+            <span className="text-xs text-[#94afd5] font-mono">
               x: {hover.x.toFixed(1)}  y: {hover.y.toFixed(1)}
             </span>
           )}
           {isTemplateMode && totalPages > 1 && (
             <div className="flex items-center gap-1.5 bg-gray-700 rounded-lg px-2 py-1">
               <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 0}
-                className="text-gray-400 hover:text-gray-100 disabled:opacity-30">
+                className="text-[#94afd5] hover:text-gray-100 disabled:opacity-30">
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <span className="text-xs text-gray-300 font-mono min-w-[5rem] text-center">
                 Page {currentPage + 1} / {totalPages}
               </span>
               <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages - 1}
-                className="text-gray-400 hover:text-gray-100 disabled:opacity-30">
+                className="text-[#94afd5] hover:text-gray-100 disabled:opacity-30">
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -423,7 +423,7 @@ export default function CalibratePage() {
           <button
             onClick={handleSave}
             disabled={saving || (!legacyCoords && !templateCoords)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-[#006092] text-white rounded-lg hover:bg-[#004d75] disabled:opacity-50"
           >
             {saved
               ? <><CheckCircle2 className="w-4 h-4" /> Saved</>
@@ -441,13 +441,13 @@ export default function CalibratePage() {
               <div className="p-3">
                 {/* Header row */}
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  <p className="text-xs font-semibold text-[#94afd5] uppercase tracking-wide">
                     Fields ({dynFields.length})
                   </p>
                   <div className="relative">
                     <button
                       onClick={() => setAddMode(m => m === 'none' ? 'detect' : 'none')}
-                      className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 px-1.5 py-0.5 rounded hover:bg-gray-700"
+                      className="flex items-center gap-1 text-xs text-blue-400 hover:text-[#4db0f7] px-1.5 py-0.5 rounded hover:bg-gray-700"
                     >
                       <Plus className="w-3 h-3" /> Add
                     </button>
@@ -460,13 +460,13 @@ export default function CalibratePage() {
                     <div className="flex gap-1.5">
                       <button
                         onClick={() => setAddMode('detect')}
-                        className={`flex-1 flex items-center justify-center gap-1 text-xs py-1.5 rounded ${addMode === 'detect' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                        className={`flex-1 flex items-center justify-center gap-1 text-xs py-1.5 rounded ${addMode === 'detect' ? 'bg-[#006092] text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
                       >
                         <Scan className="w-3 h-3" /> Detect
                       </button>
                       <button
                         onClick={() => setAddMode('manual')}
-                        className={`flex-1 flex items-center justify-center gap-1 text-xs py-1.5 rounded ${addMode === 'manual' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                        className={`flex-1 flex items-center justify-center gap-1 text-xs py-1.5 rounded ${addMode === 'manual' ? 'bg-[#006092] text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
                       >
                         <PenLine className="w-3 h-3" /> Manual
                       </button>
@@ -477,13 +477,13 @@ export default function CalibratePage() {
                         <button
                           onClick={detectOnPage}
                           disabled={detecting}
-                          className="w-full text-xs bg-blue-600 text-white py-1.5 rounded hover:bg-blue-700 disabled:opacity-50"
+                          className="w-full text-xs bg-[#006092] text-white py-1.5 rounded hover:bg-[#004d75] disabled:opacity-50"
                         >
                           {detecting ? 'Detecting…' : `Detect on Page ${currentPage + 1}`}
                         </button>
                         {suggestions.length > 0 && (
                           <div className="space-y-1">
-                            <p className="text-xs text-gray-400">{suggestions.length} new field{suggestions.length !== 1 ? 's' : ''} found:</p>
+                            <p className="text-xs text-[#94afd5]">{suggestions.length} new field{suggestions.length !== 1 ? 's' : ''} found:</p>
                             {suggestions.map(s => (
                               <button
                                 key={s.suggested_column_name}
@@ -491,7 +491,7 @@ export default function CalibratePage() {
                                 className="w-full text-left text-xs bg-gray-700 hover:bg-gray-600 rounded px-2 py-1.5"
                               >
                                 <span className="text-gray-200">{s.label}</span>
-                                <span className="text-gray-500 ml-1">({s.type})</span>
+                                <span className="text-[#94afd5] ml-1">({s.type})</span>
                               </button>
                             ))}
                           </div>
@@ -506,7 +506,7 @@ export default function CalibratePage() {
                           onChange={e => setNewFieldName(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && addManualField()}
                           placeholder="field_name"
-                          className="w-full bg-gray-700 text-gray-100 text-xs rounded px-2 py-1.5 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full bg-gray-700 text-gray-100 text-xs rounded px-2 py-1.5 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#006092]"
                         />
                         <select
                           value={newFieldType}
@@ -520,11 +520,11 @@ export default function CalibratePage() {
                         </select>
                         <div className="flex gap-1.5">
                           <button onClick={addManualField}
-                            className="flex-1 text-xs bg-blue-600 text-white py-1.5 rounded hover:bg-blue-700">
+                            className="flex-1 text-xs bg-[#006092] text-white py-1.5 rounded hover:bg-[#004d75]">
                             Add to Page {currentPage + 1}
                           </button>
                           <button onClick={() => setAddMode('none')}
-                            className="text-xs text-gray-400 hover:text-gray-200 px-2">
+                            className="text-xs text-[#94afd5] hover:text-gray-200 px-2">
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -535,7 +535,7 @@ export default function CalibratePage() {
 
                 {/* Field list */}
                 {dynFields.length === 0 ? (
-                  <p className="text-xs text-gray-500">No fields. Use Add → Detect or Manual.</p>
+                  <p className="text-xs text-[#94afd5]">No fields. Use Add → Detect or Manual.</p>
                 ) : (
                   <div className="space-y-0.5">
                     {[...dynFields].sort((a, b) => a.key.localeCompare(b.key)).map(f => {
@@ -546,14 +546,14 @@ export default function CalibratePage() {
                       return (
                         <div
                           key={f.key}
-                          className={`rounded text-xs ${isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                          className={`rounded text-xs ${isActive ? 'bg-[#006092] text-white' : 'text-gray-300 hover:bg-gray-700'}`}
                         >
                           {/* Row 1: eye, name, page badge, dup */}
                           <div className="flex items-center gap-0.5 px-1 pt-1.5 pb-0.5">
                             <button
                               onClick={() => toggleFieldVisibility(f.key)}
                               title={isHidden ? 'Show on canvas' : 'Hide from canvas'}
-                              className={`flex-shrink-0 flex items-center justify-center w-5 h-5 rounded hover:bg-black/20 ${isHidden ? 'text-gray-500' : 'text-blue-300'}`}
+                              className={`flex-shrink-0 flex items-center justify-center w-5 h-5 rounded hover:bg-black/20 ${isHidden ? 'text-[#94afd5]' : 'text-[#4db0f7]'}`}
                             >
                               {isHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                             </button>
@@ -569,7 +569,7 @@ export default function CalibratePage() {
                                 onClick={e => { e.stopPropagation(); setDynActive(f.key) }}
                                 className={`w-full font-medium text-xs bg-transparent focus:outline-none focus:ring-1 focus:ring-white/40 rounded px-0.5 truncate ${isActive ? 'text-white placeholder-blue-200' : 'text-gray-200'}`}
                               />
-                              <div className={`text-[10px] ${isActive ? 'opacity-70' : 'text-gray-500'}`}>{f.type}</div>
+                              <div className={`text-[10px] ${isActive ? 'opacity-70' : 'text-[#94afd5]'}`}>{f.type}</div>
                             </div>
                             <span
                               className={`text-[10px] flex-shrink-0 px-1 cursor-pointer ${isPlaced ? (isActive ? 'text-green-300' : 'text-green-400') : (isActive ? 'text-yellow-300' : 'text-yellow-500')}`}
@@ -581,21 +581,21 @@ export default function CalibratePage() {
                             <button
                               onClick={() => duplicateField(f.key)}
                               title="Duplicate field (same source_key, new position)"
-                              className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded hover:bg-black/20 text-gray-400 hover:text-gray-100"
+                              className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded hover:bg-black/20 text-[#94afd5] hover:text-gray-100"
                             >
                               <Copy className="w-3 h-3" />
                             </button>
                             <button
                               onClick={() => removeField(f.key)}
                               title="Remove field"
-                              className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded hover:bg-black/20 text-gray-500 hover:text-red-400"
+                              className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded hover:bg-black/20 text-[#94afd5] hover:text-red-400"
                             >
                               <X className="w-3 h-3" />
                             </button>
                           </div>
                           {/* Row 2: editable x/y coordinates */}
                           <div className="flex items-center gap-1 pl-6 pr-1 pb-1.5">
-                            <span className={`text-[10px] ${isActive ? 'text-blue-200' : 'text-gray-500'}`}>x</span>
+                            <span className={`text-[10px] ${isActive ? 'text-blue-200' : 'text-[#94afd5]'}`}>x</span>
                             <input
                               key={`${f.key}-x-${coord?.position.x ?? 0}`}
                               type="number"
@@ -603,9 +603,9 @@ export default function CalibratePage() {
                               onBlur={e => updateCoord(f.key, 'x', e.target.value)}
                               onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                               onClick={e => e.stopPropagation()}
-                              className="w-14 bg-gray-700 text-gray-100 text-[10px] rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield]"
+                              className="w-14 bg-gray-700 text-gray-100 text-[10px] rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-[#006092] [appearance:textfield]"
                             />
-                            <span className={`text-[10px] ${isActive ? 'text-blue-200' : 'text-gray-500'}`}>y</span>
+                            <span className={`text-[10px] ${isActive ? 'text-blue-200' : 'text-[#94afd5]'}`}>y</span>
                             <input
                               key={`${f.key}-y-${coord?.position.y ?? 0}`}
                               type="number"
@@ -613,7 +613,7 @@ export default function CalibratePage() {
                               onBlur={e => updateCoord(f.key, 'y', e.target.value)}
                               onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                               onClick={e => e.stopPropagation()}
-                              className="w-14 bg-gray-700 text-gray-100 text-[10px] rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield]"
+                              className="w-14 bg-gray-700 text-gray-100 text-[10px] rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-[#006092] [appearance:textfield]"
                             />
                           </div>
                         </div>
@@ -624,23 +624,23 @@ export default function CalibratePage() {
               </div>
             ) : (
               <div className="p-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Text Fields</p>
+                <p className="text-xs font-semibold text-[#94afd5] uppercase tracking-wide mb-2">Text Fields</p>
                 {legacyTextFields.map(f => {
                   const coord = legacyCoords?.fields[f.key]
                   return (
                     <button key={f.key} onClick={() => setLegacyActive(f.key)}
-                      className={`w-full text-left px-2 py-2 rounded text-sm mb-0.5 ${legacyActive === f.key ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}>
+                      className={`w-full text-left px-2 py-2 rounded text-sm mb-0.5 ${legacyActive === f.key ? 'bg-[#006092] text-white' : 'text-gray-300 hover:bg-gray-700'}`}>
                       <div className="font-medium">{f.label}</div>
                       {coord && <div className="text-xs opacity-60 font-mono">{coord.x}, {coord.y}</div>}
                     </button>
                   )
                 })}
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mt-3 mb-2">Checkboxes</p>
+                <p className="text-xs font-semibold text-[#94afd5] uppercase tracking-wide mt-3 mb-2">Checkboxes</p>
                 {legacyCheckboxes.map(f => {
                   const coord = legacyCoords?.checkboxes[f.key]
                   return (
                     <button key={f.key} onClick={() => setLegacyActive(f.key)}
-                      className={`w-full text-left px-2 py-2 rounded text-sm mb-0.5 ${legacyActive === f.key ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}>
+                      className={`w-full text-left px-2 py-2 rounded text-sm mb-0.5 ${legacyActive === f.key ? 'bg-[#006092] text-white' : 'text-gray-300 hover:bg-gray-700'}`}>
                       <div className="font-medium">{f.label}</div>
                       {coord && <div className="text-xs opacity-60 font-mono">{coord.x}, {coord.y}</div>}
                     </button>
@@ -658,7 +658,7 @@ export default function CalibratePage() {
               <div className="bg-red-900 text-red-200 rounded-xl p-6 max-w-sm text-center text-sm">{loadError}</div>
             </div>
           ) : !pdfRendered ? (
-            <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+            <div className="flex items-center justify-center h-full text-[#94afd5] text-sm">
               Loading template…
             </div>
           ) : null}
@@ -727,7 +727,7 @@ export default function CalibratePage() {
       </div>
 
       <div className="bg-gray-800 border-t border-gray-700 px-4 py-2">
-        <p className="text-xs text-gray-400 text-center">
+        <p className="text-xs text-[#94afd5] text-center">
           Select a field → click on the PDF where the text should start →
           click <strong className="text-gray-200">Save All</strong> when done.
           Blue = active field. Green = placed. Yellow page number = not yet placed.
