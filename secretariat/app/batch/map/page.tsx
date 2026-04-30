@@ -15,6 +15,7 @@ interface BatchSession {
   parseResult: ParseResult
   allRows: Record<string, string>[]
   columnMap: ColumnMapping
+  columnMeta?: Record<string, { locked: boolean; source?: string }>
 }
 
 function autoMatch(templateFields: string[], sourceColumns: string[]): ColumnMapping {
@@ -48,6 +49,9 @@ function autoMatch(templateFields: string[], sourceColumns: string[]): ColumnMap
   return result
 }
 
+// Fields that are critical for ACRA forms — warn if unmapped
+const CRITICAL_FIELDS = new Set(['nric_display', 'nric_masked', 'uen'])
+
 export default function BatchMapPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -56,8 +60,10 @@ export default function BatchMapPage() {
   const [session, setSession] = useState<BatchSession | null>(null)
   const [template, setTemplate] = useState<FormTemplate | null>(null)
   const [columnMap, setColumnMap] = useState<ColumnMapping>({})
+  const [columnMeta, setColumnMeta] = useState<Record<string, { locked: boolean; source?: string }>>({})
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
+  const [unlockedFields, setUnlockedFields] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -71,23 +77,45 @@ export default function BatchMapPage() {
     if (!raw) { router.push('/batch/new'); return }
     const sess: BatchSession = JSON.parse(raw)
     setSession(sess)
+    setColumnMeta(sess.columnMeta ?? {})
 
-    // Fetch template to get field list
     fetch(`/api/admin/templates/${sess.templateId}`)
       .then(r => r.json())
       .then((t: FormTemplate) => {
         setTemplate(t)
         const fieldKeys = Object.keys(t.coord_map?.fields ?? {})
-        const autoMatched = autoMatch(fieldKeys, sess.parseResult.headers)
-        // Merge with any pre-mapped values from /batch/new
-        setColumnMap({ ...autoMatched, ...sess.columnMap })
+
+        let mapped: ColumnMapping
+        if (sess.parseResult.source_type === 'google_contacts') {
+          // Google Contacts: columns are canonical — use pre-filled map directly, skip autoMatch
+          mapped = { ...sess.columnMap }
+        } else {
+          // CSV/XLSX: run full autoMatch, merge with any pre-matched values
+          const autoMatched = autoMatch(fieldKeys, sess.parseResult.headers)
+          mapped = { ...autoMatched, ...sess.columnMap }
+        }
+        setColumnMap(mapped)
       })
   }
 
-  // Preview: apply column_map to first data row
-  const previewRow = session?.allRows[0] ?? {}
+  // Count blank values for a template field across all rows
+  function missingCount(field: string): number {
+    if (!session || !columnMap[field]) return session?.allRows.length ?? 0
+    const col = columnMap[field]
+    return session.allRows.filter(r => !r[col]?.trim()).length
+  }
+
+  const previewRow   = session?.allRows[0] ?? {}
   const previewMapped = Object.fromEntries(
     Object.entries(columnMap).map(([sourceKey, csvCol]) => [sourceKey, previewRow[csvCol] ?? '—'])
+  )
+
+  const fieldKeys = Object.keys(template?.coord_map?.fields ?? {})
+  const isGoogle  = session?.parseResult.source_type === 'google_contacts'
+
+  // Critical fields that are present in this template but missing values
+  const criticalMissing = fieldKeys.filter(k =>
+    CRITICAL_FIELDS.has(k) && missingCount(k) > 0
   )
 
   async function handleGenerate() {
@@ -113,7 +141,13 @@ export default function BatchMapPage() {
     router.push(`/batch/${json.id}/progress`)
   }
 
-  const fieldKeys = Object.keys(template?.coord_map?.fields ?? {})
+  function isLocked(field: string): boolean {
+    return !!(columnMeta[field]?.locked) && !unlockedFields.has(field)
+  }
+
+  function unlockField(field: string) {
+    setUnlockedFields(prev => new Set([...prev, field]))
+  }
 
   return (
     <div className="min-h-screen bg-[#f3f6ff]">
@@ -124,37 +158,100 @@ export default function BatchMapPage() {
         <h1 className="text-lg font-semibold mt-1">Map Columns</h1>
         <p className="text-xs text-[#94afd5]">
           Match your data columns to the form fields · {session?.allRows.length ?? 0} rows
+          {isGoogle && (
+            <span className="ml-2 bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full text-[10px] font-medium">
+              Google Contacts
+            </span>
+          )}
         </p>
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-8 space-y-6">
         {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>}
 
+        {/* Google Contacts review notice */}
+        {isGoogle && (
+          <div className="bg-blue-50 border border-blue-200 text-blue-700 rounded-lg px-4 py-3 text-sm">
+            Pre-filled from Google Contacts — please review the mapping below before generating.
+          </div>
+        )}
+
+        {/* Critical field warnings */}
+        {criticalMissing.length > 0 && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 space-y-1">
+            {criticalMissing.map(field => (
+              <p key={field} className="text-sm text-yellow-800">
+                ⚠ {missingCount(field)} contact{missingCount(field) !== 1 ? 's are' : ' is'} missing{' '}
+                <span className="font-medium">{field.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>.
+                {isGoogle && ' Update your Google Contacts or fill manually below.'}
+              </p>
+            ))}
+          </div>
+        )}
+
         <section className="bg-white rounded-xl border p-6">
           <h2 className="font-semibold text-[#12304f] mb-4">Column Mapping</h2>
-          <p className="text-sm text-[#94afd5] mb-4">
-            For each form field, select which column from your file it should read.
-            Auto-matched fields are pre-filled.
-          </p>
+          {isGoogle ? (
+            <p className="text-sm text-[#94afd5] mb-4">
+              Fields auto-mapped from Google Contacts. Click <span className="font-medium">Override</span> to change a mapping.
+            </p>
+          ) : (
+            <p className="text-sm text-[#94afd5] mb-4">
+              For each form field, select which column from your file it should read.
+              Auto-matched fields are pre-filled.
+            </p>
+          )}
           <div className="space-y-3">
             {fieldKeys.map(key => {
               const fieldDef = template?.coord_map.fields[key]
+              const locked   = isLocked(key)
+              const missing  = missingCount(key)
+              const isCrit   = CRITICAL_FIELDS.has(key) && missing > 0
+
               return (
-                <div key={key} className="flex items-center gap-4">
+                <div key={key} className="flex items-center gap-3">
                   <div className="w-48 shrink-0">
-                    <p className="text-sm font-medium text-[#425d7f]">{key}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium text-[#425d7f]">{key}</p>
+                      {locked && (
+                        <span className="text-[10px] bg-blue-50 text-blue-600 px-1 py-0.5 rounded font-medium">
+                          {columnMeta[key]?.source ?? 'auto'}
+                        </span>
+                      )}
+                      {isCrit && (
+                        <span className="text-[10px] bg-yellow-50 text-yellow-700 px-1 py-0.5 rounded font-medium">
+                          {missing} missing
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-[#94afd5]">{fieldDef?.type}</p>
                   </div>
-                  <select
-                    value={columnMap[key] ?? ''}
-                    onChange={e => setColumnMap(m => ({ ...m, [key]: e.target.value }))}
-                    className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
-                  >
-                    <option value="">— Not mapped —</option>
-                    {session?.parseResult.headers.map(h => (
-                      <option key={h} value={h}>{h}</option>
-                    ))}
-                  </select>
+
+                  {locked ? (
+                    <div className="flex-1 flex items-center gap-2">
+                      <span className="flex-1 border border-[#dde8f5] rounded-lg px-3 py-2 text-sm bg-[#f3f6ff] text-[#425d7f]">
+                        {columnMap[key] || '—'}
+                      </span>
+                      <button
+                        onClick={() => unlockField(key)}
+                        className="text-xs text-[#94afd5] hover:text-[#425d7f] shrink-0"
+                      >
+                        Override
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      value={columnMap[key] ?? ''}
+                      onChange={e => setColumnMap(m => ({ ...m, [key]: e.target.value }))}
+                      className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
+                    >
+                      <option value="">— Not mapped —</option>
+                      {session?.parseResult.headers.map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  )}
+
                   {columnMap[key] && (
                     <span className="text-xs text-green-600 shrink-0 w-20 truncate">
                       e.g. {previewRow[columnMap[key]] || '—'}

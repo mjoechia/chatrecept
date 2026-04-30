@@ -169,7 +169,9 @@ export interface ParseResult {
   headers: string[]
   rows: Record<string, string>[]
   row_count: number
-  source_type: 'csv' | 'xlsx'
+  source_type: 'csv' | 'xlsx' | 'google_contacts'
+  // Per-column metadata: locked = pre-mapped with high confidence (Google Contacts)
+  columnMeta?: Record<string, { locked: boolean; source?: string }>
 }
 
 // Response from /api/admin/templates/[id]/detect
