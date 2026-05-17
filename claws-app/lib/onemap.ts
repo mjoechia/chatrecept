@@ -24,10 +24,16 @@ export async function postalToLatLng(postalCode: string): Promise<GeocodeResult 
 
   const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${normalized}+Singapore&region=sg&components=country:SG&key=${key}`
   const res = await fetch(url)
-  if (!res.ok) return null
+  if (!res.ok) {
+    console.error(`[geocode ${normalized}] HTTP ${res.status}`, await res.text())
+    return null
+  }
 
   const json = await res.json()
-  if (json.status !== 'OK' || !json.results?.length) return null
+  if (json.status !== 'OK' || !json.results?.length) {
+    console.error(`[geocode ${normalized}] status=${json.status} error=${json.error_message ?? 'none'} results=${json.results?.length ?? 0}`)
+    return null
+  }
 
   const first = json.results[0]
   return {

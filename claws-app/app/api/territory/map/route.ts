@@ -79,12 +79,23 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Live pipeline ───────────────────────────────────────────────────────
+  const t0 = Date.now()
+  const stage = (name: string, started: number) =>
+    console.log(`[map ${postalCode}] ${name} took ${Date.now() - started}ms`)
+
+  const tGeo = Date.now()
   const location = await postalToLatLng(postalCode)
+  stage('geocode', tGeo)
   if (!location) {
+    console.warn(`[map ${postalCode}] geocode returned null`)
     return NextResponse.json({ error: 'Postal code not found in Singapore' }, { status: 404 })
   }
+  console.log(`[map ${postalCode}] geocoded -> ${location.latitude},${location.longitude} (${location.address})`)
 
+  const tSearch = Date.now()
   const places = await searchNearby(location.latitude, location.longitude, 500)
+  stage('nearby_search', tSearch)
+  console.log(`[map ${postalCode}] nearby returned ${places.length} places`)
   if (places.length === 0) {
     return NextResponse.json({
       error: 'No businesses found in this zone. Try a different postal code.',
@@ -92,6 +103,7 @@ export async function POST(req: NextRequest) {
   }
 
   const subset = places.slice(0, 20)
+  const tEnrich = Date.now()
   const enriched = await Promise.all(subset.map(async p => {
     const details = await getPlaceDetails(p.place_id)
     if (!details) return null
@@ -99,19 +111,24 @@ export async function POST(req: NextRequest) {
     const sector = inferSector(details.types)
     return scoreBusiness(details, site, sector)
   }))
+  stage('enrich (parallel x20)', tEnrich)
 
   const businesses = enriched.filter(b => b !== null)
+  console.log(`[map ${postalCode}] enriched ${businesses.length}/${subset.length}`)
   if (businesses.length === 0) {
     return NextResponse.json({ error: 'Could not gather details for businesses in this zone' }, { status: 500 })
   }
 
-  const zone = aggregateZone(businesses)
+  const tReport = Date.now()
+  const zone   = aggregateZone(businesses)
   const report = await generateReport(postalCode, location.address, businesses, zone)
+  stage('claude_report', tReport)
 
   await cacheSet(cacheKey, report, TTL.TERRITORY)
   recordLookupSpend()
   logLookup({ postalCode, ip, cached: false, utm: body.utm })
 
+  console.log(`[map ${postalCode}] TOTAL ${Date.now() - t0}ms`)
   return NextResponse.json(report)
 }
 

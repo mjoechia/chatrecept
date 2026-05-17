@@ -19,6 +19,7 @@ interface UtmTags {
 export default function HomePage() {
   const [postalCode, setPostalCode] = useState('')
   const [loading, setLoading]       = useState(false)
+  const [stage, setStage]           = useState('')
   const [error, setError]           = useState('')
   const [report, setReport]         = useState<TerritoryReport | null>(null)
 
@@ -51,6 +52,20 @@ export default function HomePage() {
   async function runLookup(postal: string, opts: { cacheOnly?: boolean } = {}) {
     setError(''); setReport(null); setPreview(null)
     setLoading(true)
+    setStage(opts.cacheOnly ? 'Loading your zone…' : 'Locating zone…')
+
+    // Auto-advance stage labels so the user sees progress even though the
+    // backend response is one shot. Timings tuned to the typical pipeline:
+    // geocode ~0.3s · nearby ~2s · enrich (parallel 20) ~5s · claude ~2s
+    const timers: NodeJS.Timeout[] = []
+    if (!opts.cacheOnly) {
+      timers.push(setTimeout(() => setStage('Searching nearby businesses…'),       1500))
+      timers.push(setTimeout(() => setStage('Enriching contact channels…'),         4000))
+      timers.push(setTimeout(() => setStage('Scoring WhatsApp readiness…'),         7500))
+      timers.push(setTimeout(() => setStage('Drafting sample outreach…'),          10000))
+      timers.push(setTimeout(() => setStage('Almost there…'),                      14000))
+    }
+
     try {
       const res = await fetch('/api/territory/map', {
         method: 'POST',
@@ -67,7 +82,9 @@ export default function HomePage() {
     } catch (e) {
       setError(String(e))
     } finally {
+      timers.forEach(clearTimeout)
       setLoading(false)
+      setStage('')
     }
   }
 
@@ -137,6 +154,12 @@ export default function HomePage() {
             {loading ? 'Mapping…' : 'Map this zone →'}
           </button>
         </div>
+        {loading && stage && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-[#425d7f]">
+            <span className="inline-block h-3 w-3 rounded-full bg-[#006092] animate-pulse" />
+            <span>{stage}</span>
+          </div>
+        )}
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
       </form>
 

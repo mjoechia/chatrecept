@@ -61,11 +61,14 @@ export async function searchNearby(
   })
 
   if (!res.ok) {
-    console.error('Google Places searchNearby failed', res.status, await res.text())
+    console.error(`[places.searchNearby] HTTP ${res.status}`, await res.text())
     return []
   }
 
   const json = await res.json()
+  if (!json.places) {
+    console.warn(`[places.searchNearby] returned no "places" key. Body keys: ${Object.keys(json).join(',')}`)
+  }
   const places: PlaceSummary[] = (json.places ?? []).map((p: {
     id: string
     displayName?: { text: string }
