@@ -38,7 +38,15 @@ export interface ZoneScores {
   likelihood:               Likelihood
 }
 
-const SG_MOBILE_RE = /(?:\+?65)?[\s-]?[89]\d{7}/
+// Singapore mobile = 8 digits starting with 8 or 9. Google's
+// internationalPhoneNumber is formatted with spaces ("+65 8123 4567") so we
+// strip non-digits before matching to avoid false negatives.
+function isSgMobile(phone: string): boolean {
+  const digits = phone.replace(/\D/g, '')
+  if (digits.length === 8  && /^[89]/.test(digits))  return true   // local format
+  if (digits.length === 10 && /^65[89]/.test(digits)) return true  // international
+  return false
+}
 
 export function scoreBusiness(
   details: PlaceDetails,
@@ -46,10 +54,12 @@ export function scoreBusiness(
   sector: string,
 ): ScoredBusiness {
   const has_phone     = !!details.phone
-  const has_mobile    = has_phone && SG_MOBILE_RE.test(details.phone!)
+  const has_mobile    = has_phone && isSgMobile(details.phone!)
   const has_email     = !!site?.primary_email
   const has_website   = !!details.website
-  const has_whatsapp  = !!site?.has_whatsapp_business
+  // SG context: a mobile number IS a WhatsApp number 95% of the time. An
+  // explicit wa.me link on the website is bonus confidence, not a requirement.
+  const has_whatsapp  = has_mobile || !!site?.has_whatsapp_business
   const has_instagram = !!site?.instagram_handle
   const has_facebook  = !!site?.facebook_page
 
@@ -73,9 +83,12 @@ export function scoreBusiness(
     : score >= 40 ? 'Moderate'
     : 'Low'
 
+  // Has wa.me link OR mobile -> High (you can WhatsApp them)
+  // Landline only -> Moderate (might still be on WA Business but uncertain)
+  // No phone -> Low
   const whatsapp_readiness: Level =
     has_whatsapp ? 'High'
-    : has_mobile ? 'Moderate'
+    : has_phone  ? 'Moderate'
     : 'Low'
 
   // Likelihood — cold start defaults to Medium; refined later from sector_benchmarks
