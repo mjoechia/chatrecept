@@ -525,9 +525,8 @@ function SampleFollowUpReport({ report }: FollowUpProps) {
           })}
         </div>
 
-        <div className="mt-3 pt-3 border-t border-[#cfe5d4] text-[10px] text-[#425d7f] flex justify-between">
-          <span>Spend so far: SGD 12 of 600</span>
-          <span className="text-[#006092] font-semibold">View dashboard →</span>
+        <div className="mt-3 pt-3 border-t border-[#cfe5d4] text-[10px] text-[#006092] font-semibold text-center">
+          View dashboard →
         </div>
       </div>
 
