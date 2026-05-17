@@ -2,11 +2,19 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { EXAMPLE_ZONES } from '@/lib/example-zones'
 import type { TerritoryReport } from '@/lib/demo-report'
 
 type Preview = { sector: string; channels: string; whatsapp_readiness: string; activity_signal: string }
 type PreviewResponse = { postal_code: string; address_label: string; total_count: number; preview: Preview[] }
+
+interface UtmTags {
+  src?:      string
+  medium?:   string
+  campaign?: string
+  prospect?: string
+}
 
 export default function HomePage() {
   const [postalCode, setPostalCode] = useState('')
@@ -19,15 +27,39 @@ export default function HomePage() {
   const [previewError, setPreviewError]     = useState('')
   const [preview, setPreview]               = useState<PreviewResponse | null>(null)
 
-  async function handleMap(e: React.FormEvent) {
-    e.preventDefault()
+  const utmRef    = useRef<UtmTags>({})
+  const didAutoRun = useRef(false)
+
+  // Capture URL params on mount: ?p=238802 auto-submits; utm_* stored for attribution
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    utmRef.current = {
+      src:      params.get('utm_src')      ?? params.get('utm_source') ?? undefined,
+      medium:   params.get('utm_medium')   ?? undefined,
+      campaign: params.get('utm_campaign') ?? undefined,
+      prospect: params.get('prospect')     ?? undefined,
+    }
+    const pre = params.get('p')
+    if (pre && /^\d{6}$/.test(pre) && !didAutoRun.current) {
+      didAutoRun.current = true
+      setPostalCode(pre)
+      runLookup(pre, { cacheOnly: true })
+    }
+  }, [])
+
+  async function runLookup(postal: string, opts: { cacheOnly?: boolean } = {}) {
     setError(''); setReport(null); setPreview(null)
     setLoading(true)
     try {
       const res = await fetch('/api/territory/map', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ postal_code: postalCode }),
+        body: JSON.stringify({
+          postal_code: postal,
+          cache_only:  opts.cacheOnly === true,
+          utm:         utmRef.current,
+        }),
       })
       const json = await res.json()
       if (!res.ok) { setError(json.error ?? 'Lookup failed'); return }
@@ -37,6 +69,17 @@ export default function HomePage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleMap(e: React.FormEvent) {
+    e.preventDefault()
+    await runLookup(postalCode)
+  }
+
+  async function handleExampleZone(postal: string) {
+    setPostalCode(postal)
+    // Example zones are pre-warmed → always hit cache, never spend budget
+    await runLookup(postal, { cacheOnly: true })
   }
 
   async function handlePreview(e: React.FormEvent) {
@@ -73,7 +116,7 @@ export default function HomePage() {
       </section>
 
       {/* Input form */}
-      <form onSubmit={handleMap} className="bg-white rounded-xl border border-[#dde8f5] p-6 mb-6 shadow-sm">
+      <form onSubmit={handleMap} className="bg-white rounded-xl border border-[#dde8f5] p-6 mb-4 shadow-sm">
         <label className="block text-xs font-semibold uppercase tracking-wider text-[#94afd5] mb-2">
           Singapore Postal Code
         </label>
@@ -96,6 +139,28 @@ export default function HomePage() {
         </div>
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
       </form>
+
+      {/* Example zones */}
+      {!report && (
+        <div className="bg-white rounded-xl border border-[#dde8f5] p-4 mb-6 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[#94afd5] mb-2">
+            Or try a sample zone (instant — no API call)
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {EXAMPLE_ZONES.map(z => (
+              <button
+                key={z.postal}
+                onClick={() => handleExampleZone(z.postal)}
+                disabled={loading}
+                className="text-xs px-3 py-1.5 border border-[#dde8f5] rounded-full bg-[#f3f6ff] hover:bg-[#dde8f5] text-[#425d7f] hover:text-[#12304f] disabled:opacity-50 transition-colors"
+                title={z.hint}
+              >
+                {z.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Report */}
       {report && (
