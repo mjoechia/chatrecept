@@ -5,10 +5,12 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { ScoredBusiness, ZoneScores } from './signal-scoring'
 
 export interface TerritoryReport {
-  postal_code:   string
-  address_label: string
-  total_count:   number
-  zone_scores:   ZoneScores
+  postal_code:    string
+  address_label:  string
+  total_count:    number   // unique businesses we discovered (post-dedupe)
+  total_saturated: boolean // true when Google API hit its cap — there are more in this zone than we fetched
+  enriched_count: number   // subset of total_count that we deep-enriched (capped at 20)
+  zone_scores:    ZoneScores
   composition: {
     sectors: { sector: string; count: number }[]
     has_mobile_count: number
@@ -45,6 +47,7 @@ export async function generateReport(
   addressLabel: string,
   businesses: ScoredBusiness[],
   zone: ZoneScores,
+  opts: { totalCount: number; saturated: boolean },
 ): Promise<TerritoryReport> {
   const topSector = mostCommon(businesses.map(b => b.sector))
   const district  = simplifyArea(addressLabel)
@@ -71,10 +74,12 @@ export async function generateReport(
   const preview = pickPreview(businesses)
 
   return {
-    postal_code:   postalCode,
-    address_label: addressLabel,
-    total_count:   businesses.length,
-    zone_scores:   zone,
+    postal_code:     postalCode,
+    address_label:   addressLabel,
+    total_count:     opts.totalCount,
+    total_saturated: opts.saturated,
+    enriched_count:  businesses.length,
+    zone_scores:     zone,
     composition: {
       sectors,
       has_mobile_count:   businesses.filter(b => b.has_mobile).length,

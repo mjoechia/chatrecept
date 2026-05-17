@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { postalToLatLng } from '@/lib/onemap'
-import { searchNearby, getPlaceDetails, inferSector } from '@/lib/google-places'
+import { discoverNearby, getPlaceDetails, inferSector } from '@/lib/google-places'
 import { scrapeSite } from '@/lib/web-scrape'
 import { scoreBusiness, aggregateZone } from '@/lib/signal-scoring'
 import { generateReport } from '@/lib/demo-report'
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   const location = await postalToLatLng(postalCode)
   if (!location) return NextResponse.json({ error: 'Postal code not found' }, { status: 404 })
 
-  const places = await searchNearby(location.latitude, location.longitude, 500)
+  const { places, saturated } = await discoverNearby(location.latitude, location.longitude, 500)
   if (places.length === 0) return NextResponse.json({ error: 'No businesses found in zone' }, { status: 404 })
 
   const subset = places.slice(0, 20)
@@ -62,7 +62,10 @@ export async function POST(req: NextRequest) {
   }
 
   const zone   = aggregateZone(businesses)
-  const report = await generateReport(postalCode, location.address, businesses, zone)
+  const report = await generateReport(postalCode, location.address, businesses, zone, {
+    totalCount: places.length,
+    saturated,
+  })
   await cacheSet(cacheKey, report, TTL.TERRITORY)
 
   return NextResponse.json({
@@ -70,5 +73,7 @@ export async function POST(req: NextRequest) {
     postal_code:  postalCode,
     address:      location.address,
     total_count:  report.total_count,
+    saturated:    report.total_saturated,
+    enriched:     report.enriched_count,
   })
 }

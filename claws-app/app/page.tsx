@@ -194,8 +194,22 @@ export default function HomePage() {
           </div>
 
           <div className="bg-[#f3f6ff] rounded-lg p-4">
-            <p className="text-3xl font-bold text-[#006092]">{report.total_count}</p>
-            <p className="text-sm text-[#425d7f] mt-0.5">reachable businesses mapped</p>
+            <p className="text-3xl font-bold text-[#006092]">
+              {report.total_count}{report.total_saturated ? '+' : ''}
+            </p>
+            <p className="text-sm text-[#425d7f] mt-0.5">
+              reachable businesses mapped
+              {report.total_saturated && (
+                <span className="text-xs text-[#94afd5] ml-1">
+                  (Google API cap — more exist in this zone)
+                </span>
+              )}
+            </p>
+            {report.enriched_count < report.total_count && (
+              <p className="text-[11px] text-[#94afd5] mt-1">
+                Top {report.enriched_count} enriched for signal scoring below.
+              </p>
+            )}
           </div>
 
           {/* Signal scores */}
@@ -214,7 +228,7 @@ export default function HomePage() {
               />
               <ScoreRow
                 label="WhatsApp Readiness"
-                value={`${report.zone_scores.whatsapp_readiness} (${report.zone_scores.whatsapp_readiness_count.high} of ${report.total_count})`}
+                value={`${report.zone_scores.whatsapp_readiness} (${report.zone_scores.whatsapp_readiness_count.high} of ${report.enriched_count})`}
                 hint="Share with a mobile number or wa.me link — directly reachable on WhatsApp."
               />
               <ScoreRow
@@ -231,11 +245,12 @@ export default function HomePage() {
             <div className="text-sm text-[#425d7f] space-y-1">
               <p>Top sectors: {report.composition.sectors.slice(0, 3).map(s => `${s.sector} (${s.count})`).join(' · ')}</p>
               <p>
-                {Math.round(100 * report.composition.has_mobile_count   / report.total_count)}% mobile ·{' '}
-                {Math.round(100 * report.composition.has_whatsapp_count / report.total_count)}% WhatsApp ·{' '}
-                {Math.round(100 * report.composition.has_email_count    / report.total_count)}% email ·{' '}
-                {Math.round(100 * report.composition.has_social_count   / report.total_count)}% IG/FB
+                {Math.round(100 * report.composition.has_mobile_count   / report.enriched_count)}% mobile ·{' '}
+                {Math.round(100 * report.composition.has_whatsapp_count / report.enriched_count)}% WhatsApp ·{' '}
+                {Math.round(100 * report.composition.has_email_count    / report.enriched_count)}% email ·{' '}
+                {Math.round(100 * report.composition.has_social_count   / report.enriched_count)}% IG/FB
               </p>
+              <p className="text-[11px] text-[#94afd5]">Based on the top {report.enriched_count} enriched businesses.</p>
             </div>
           </div>
 

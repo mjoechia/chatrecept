@@ -28,8 +28,9 @@ export async function searchNearby(
   lat: number,
   lng: number,
   radiusMeters = 500,
+  rankPreference: 'POPULARITY' | 'DISTANCE' = 'POPULARITY',
 ): Promise<PlaceSummary[]> {
-  const cacheKey = `places:nearby:${lat.toFixed(4)},${lng.toFixed(4)}:${radiusMeters}`
+  const cacheKey = `places:nearby:${lat.toFixed(4)},${lng.toFixed(4)}:${radiusMeters}:${rankPreference}`
   const cached = await cacheGet<PlaceSummary[]>(cacheKey)
   if (cached) return cached
 
@@ -50,6 +51,7 @@ export async function searchNearby(
       'parking', 'atm',
     ],
     maxResultCount: 20,
+    rankPreference,
     locationRestriction: {
       circle: { center: { latitude: lat, longitude: lng }, radius: radiusMeters },
     },
@@ -88,6 +90,37 @@ export async function searchNearby(
 
   await cacheSet(cacheKey, places, TTL.PLACE)
   return places
+}
+
+// Run Nearby twice (popularity-ranked + distance-ranked) and dedupe.
+// Google caps each call at 20 results; the two ranking strategies typically
+// return overlapping but non-identical sets, so the union gives ~25-40 unique
+// businesses for a dense zone like CBD. `saturated` is true when BOTH calls
+// returned exactly 20 — that signals "there are more than this in the area"
+// so the UI can show "40+".
+export async function discoverNearby(
+  lat: number,
+  lng: number,
+  radiusMeters = 500,
+): Promise<{ places: PlaceSummary[]; saturated: boolean }> {
+  const [popular, nearest] = await Promise.all([
+    searchNearby(lat, lng, radiusMeters, 'POPULARITY'),
+    searchNearby(lat, lng, radiusMeters, 'DISTANCE'),
+  ])
+
+  // Interleave preferring popularity (better signals for enrichment top-N)
+  const seen   = new Set<string>()
+  const merged: PlaceSummary[] = []
+  const maxLen = Math.max(popular.length, nearest.length)
+  for (let i = 0; i < maxLen; i++) {
+    const p = popular[i]
+    if (p && !seen.has(p.place_id)) { seen.add(p.place_id); merged.push(p) }
+    const n = nearest[i]
+    if (n && !seen.has(n.place_id)) { seen.add(n.place_id); merged.push(n) }
+  }
+
+  const saturated = popular.length >= 20 && nearest.length >= 20
+  return { places: merged, saturated }
 }
 
 // Place Details — phone, website, ratings
