@@ -201,11 +201,27 @@ export default function HomePage() {
           {/* Signal scores */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-[#94afd5] mb-2">Signal Scores</p>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <ScoreRow label="Reachability"        value={`${report.zone_scores.reachability_score}/100`} />
-              <ScoreRow label="Digital Presence"    value={report.zone_scores.digital_presence} />
-              <ScoreRow label="WhatsApp Readiness"  value={`${report.zone_scores.whatsapp_readiness} (${report.zone_scores.whatsapp_readiness_count.high} of ${report.total_count})`} />
-              <ScoreRow label="Likelihood of Response" value={report.zone_scores.likelihood} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <ScoreRow
+                label="Reachability"
+                value={`${report.zone_scores.reachability_score}/100`}
+                hint="How easily you can contact businesses here — combines phone, email, web, and review activity into a single score."
+              />
+              <ScoreRow
+                label="Digital Presence"
+                value={report.zone_scores.digital_presence}
+                hint="How visible the businesses are online — website, review volume, IG/FB activity."
+              />
+              <ScoreRow
+                label="WhatsApp Readiness"
+                value={`${report.zone_scores.whatsapp_readiness} (${report.zone_scores.whatsapp_readiness_count.high} of ${report.total_count})`}
+                hint="Share with a mobile number or wa.me link — directly reachable on WhatsApp."
+              />
+              <ScoreRow
+                label="Likelihood of Response"
+                value={report.zone_scores.likelihood}
+                hint="Estimated reply rate for outreach in this sector + district. Refines as more campaigns run."
+              />
             </div>
           </div>
 
@@ -231,6 +247,30 @@ export default function HomePage() {
               <p>Possibly-dormant (weak signals): <span className="font-semibold text-[#12304f]">{report.opportunity.possibly_dormant}</span></p>
             </div>
           </div>
+
+          {/* WhatsApp numbers list */}
+          {report.whatsapp_contacts && report.whatsapp_contacts.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#94afd5] mb-2">
+                WhatsApp Numbers Found ({report.whatsapp_contacts.length})
+              </p>
+              <p className="text-[11px] text-[#94afd5] mb-2 leading-snug">
+                Business names are hidden until you activate your outreach zone. Numbers shown for transparency.
+              </p>
+              <div className="border border-[#dde8f5] rounded-lg divide-y divide-[#dde8f5] overflow-hidden">
+                {report.whatsapp_contacts.map((c, i) => (
+                  <div key={i} className="flex items-center justify-between gap-3 px-3 py-2 text-sm bg-white">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[#94afd5] text-xs w-5 shrink-0">{i + 1}.</span>
+                      <span className="capitalize text-[#425d7f] shrink-0">{c.sector}</span>
+                      <span className="text-[10px] text-[#94afd5] truncate hidden sm:inline">· {c.activity_signal}</span>
+                    </div>
+                    <span className="font-mono text-[#12304f] text-xs whitespace-nowrap">{c.phone}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Sample hook */}
           <div>
@@ -309,11 +349,14 @@ export default function HomePage() {
   )
 }
 
-function ScoreRow({ label, value }: { label: string; value: string }) {
+function ScoreRow({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="flex items-center justify-between bg-[#f3f6ff] rounded-lg px-3 py-2">
-      <span className="text-xs text-[#94afd5]">{label}</span>
-      <span className="text-sm font-semibold text-[#12304f]">{value}</span>
+    <div className="bg-[#f3f6ff] rounded-lg px-3 py-2">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs text-[#94afd5]">{label}</span>
+        <span className="text-sm font-semibold text-[#12304f]">{value}</span>
+      </div>
+      {hint && <p className="text-[11px] text-[#94afd5] mt-1 leading-snug">{hint}</p>}
     </div>
   )
 }

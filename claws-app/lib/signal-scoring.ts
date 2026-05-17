@@ -16,6 +16,7 @@ export interface ScoredBusiness {
   place_id:           string
   name:               string
   sector:             string
+  phone:              string | null   // full number, formatted (e.g. "+65 8123 4567")
   has_phone:          boolean
   has_mobile:         boolean
   has_email:          boolean
@@ -104,6 +105,7 @@ export function scoreBusiness(
     place_id: details.place_id,
     name:     details.name,
     sector,
+    phone:    details.phone ?? null,
     has_phone,
     has_mobile,
     has_email,

@@ -21,6 +21,12 @@ export interface TerritoryReport {
     possibly_dormant: number
   }
   sample_hook: string
+  // WhatsApp-reachable contacts (anonymised — sector + phone + activity, name hidden)
+  whatsapp_contacts: Array<{
+    sector:          string
+    phone:           string
+    activity_signal: string
+  }>
   // Anonymised preview (no business names)
   preview: Array<{
     sector:          string
@@ -52,6 +58,15 @@ export async function generateReport(
     .map(([sector, count]) => ({ sector, count }))
     .sort((a, b) => b.count - a.count)
 
+  // WhatsApp-reachable contacts — anonymised list (no business name)
+  const whatsapp_contacts = businesses
+    .filter(b => b.has_whatsapp && b.phone)
+    .map(b => ({
+      sector:          b.sector,
+      phone:           b.phone!,
+      activity_signal: b.activity_signal,
+    }))
+
   // Preview = 3 anonymised samples (mix of sectors, mix of signals)
   const preview = pickPreview(businesses)
 
@@ -72,6 +87,7 @@ export async function generateReport(
       possibly_dormant: businesses.filter(b => b.activity_signal === 'Possibly Dormant').length,
     },
     sample_hook,
+    whatsapp_contacts,
     preview,
   }
 }
