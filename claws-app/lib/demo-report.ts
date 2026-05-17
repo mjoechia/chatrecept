@@ -23,19 +23,20 @@ export interface TerritoryReport {
     possibly_dormant: number
   }
   sample_hook: string
-  // WhatsApp-reachable contacts (anonymised — sector + phone + activity, name hidden)
-  whatsapp_contacts: Array<{
-    sector:          string
-    phone:           string
-    activity_signal: string
-  }>
-  // Anonymised preview (no business names)
-  preview: Array<{
-    sector:          string
-    area_label:      string
-    channels:        string  // e.g. "phone + email + website"
-    whatsapp_readiness: string
-    activity_signal: string
+  // Top enriched businesses with full contact details — what prospects see in
+  // the free demo. Caps at 10 (the rest stay behind the paywall as part of
+  // the activation value prop).
+  enriched_businesses: Array<{
+    name:             string
+    sector:           string
+    phone:            string | null
+    website:          string | null
+    email:            string | null
+    instagram_handle: string | null
+    facebook_page:    string | null
+    whatsapp_link:    string | null
+    activity_signal:  string
+    reachability_score: number
   }>
 }
 
@@ -61,17 +62,25 @@ export async function generateReport(
     .map(([sector, count]) => ({ sector, count }))
     .sort((a, b) => b.count - a.count)
 
-  // WhatsApp-reachable contacts — anonymised list (no business name)
-  const whatsapp_contacts = businesses
-    .filter(b => b.has_whatsapp && b.phone)
+  // Top 10 enriched businesses with names + full contact details for the demo.
+  // Ordered by reachability score (best first), filtered to those with at
+  // least a phone number (otherwise there's nothing to act on).
+  const enriched_businesses = [...businesses]
+    .filter(b => b.has_phone)
+    .sort((a, b) => b.reachability_score - a.reachability_score)
+    .slice(0, 10)
     .map(b => ({
-      sector:          b.sector,
-      phone:           b.phone!,
-      activity_signal: b.activity_signal,
+      name:               b.name,
+      sector:             b.sector,
+      phone:              b.phone,
+      website:            b.website,
+      email:              b.email,
+      instagram_handle:   b.instagram_handle,
+      facebook_page:      b.facebook_page,
+      whatsapp_link:      b.whatsapp_link,
+      activity_signal:    b.activity_signal,
+      reachability_score: b.reachability_score,
     }))
-
-  // Preview = 3 anonymised samples (mix of sectors, mix of signals)
-  const preview = pickPreview(businesses)
 
   return {
     postal_code:     postalCode,
@@ -92,8 +101,7 @@ export async function generateReport(
       possibly_dormant: businesses.filter(b => b.activity_signal === 'Possibly Dormant').length,
     },
     sample_hook,
-    whatsapp_contacts,
-    preview,
+    enriched_businesses,
   }
 }
 
@@ -157,38 +165,3 @@ function simplifyArea(address: string): string {
   return 'your area'
 }
 
-function pickPreview(businesses: ScoredBusiness[]): TerritoryReport['preview'] {
-  // Pick up to 3, prefer sector diversity + signal mix
-  const sorted = [...businesses].sort((a, b) => b.reachability_score - a.reachability_score)
-  const picked: ScoredBusiness[] = []
-  const seenSectors = new Set<string>()
-
-  for (const b of sorted) {
-    if (picked.length >= 3) break
-    if (seenSectors.has(b.sector) && picked.length < businesses.length - 1) continue
-    picked.push(b)
-    seenSectors.add(b.sector)
-  }
-  // Top up if we couldn't fill diversity
-  for (const b of sorted) {
-    if (picked.length >= 3) break
-    if (!picked.includes(b)) picked.push(b)
-  }
-
-  return picked.map(b => {
-    const channels = [
-      b.has_mobile && 'mobile',
-      b.has_whatsapp && 'WA',
-      b.has_email && 'email',
-      b.has_instagram && 'IG',
-      b.has_facebook && 'FB',
-    ].filter(Boolean).join(' + ') || 'limited'
-    return {
-      sector:             b.sector,
-      area_label:         'this zone',
-      channels,
-      whatsapp_readiness: b.whatsapp_readiness,
-      activity_signal:    b.activity_signal,
-    }
-  })
-}

@@ -5,7 +5,8 @@ import type { TerritoryReport } from '@/lib/demo-report'
 export const dynamic = 'force-dynamic'
 
 // POST /api/territory/preview { postal_code, email }
-// Captures email, returns the 3 anonymised previews (no business names)
+// Captures the lead email for retargeting. The free report already shows the
+// top 10 named businesses, so we just log + acknowledge (no extra data).
 export async function POST(req: NextRequest) {
   let body: { postal_code?: string; email?: string }
   try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
@@ -20,7 +21,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Please enter a valid email address' }, { status: 400 })
   }
 
-  // Pull the cached report — must exist if user just ran the map
   const cached = await cacheGet<TerritoryReport>(`territory:${postalCode}`)
   if (!cached) {
     return NextResponse.json({
@@ -29,13 +29,12 @@ export async function POST(req: NextRequest) {
   }
 
   // TODO Phase 1: persist { ip, postal_code, email, captured_at } to Supabase demo_lookups
-  // For MVP just log it
   console.log('[demo email capture]', { postalCode, email, ts: new Date().toISOString() })
 
   return NextResponse.json({
-    postal_code: postalCode,
+    ok: true,
+    postal_code:   postalCode,
     address_label: cached.address_label,
-    total_count: cached.total_count,
-    preview: cached.preview,
+    total_count:   cached.total_count,
   })
 }

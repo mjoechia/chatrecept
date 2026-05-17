@@ -92,34 +92,101 @@ export async function searchNearby(
   return places
 }
 
-// Run Nearby twice (popularity-ranked + distance-ranked) and dedupe.
-// Google caps each call at 20 results; the two ranking strategies typically
-// return overlapping but non-identical sets, so the union gives ~25-40 unique
-// businesses for a dense zone like CBD. `saturated` is true when BOTH calls
-// returned exactly 20 — that signals "there are more than this in the area"
-// so the UI can show "40+".
+// Text Search (New) — paginated up to 3 pages × 20 = 60 results.
+// Complements Nearby Search by surfacing places that match a broad query
+// rather than just sitting in a radius. Cheap, useful for dense zones where
+// Nearby's 20 cap is binding.
+export async function searchByText(
+  lat: number,
+  lng: number,
+  query: string,
+  radiusMeters = 500,
+): Promise<PlaceSummary[]> {
+  const cacheKey = `places:text:${lat.toFixed(4)},${lng.toFixed(4)}:${radiusMeters}:${query.slice(0, 60)}`
+  const cached = await cacheGet<PlaceSummary[]>(cacheKey)
+  if (cached) return cached
+
+  const all: PlaceSummary[] = []
+  let pageToken: string | undefined
+
+  for (let page = 0; page < 3; page++) {
+    const body: Record<string, unknown> = {
+      textQuery: query,
+      pageSize: 20,
+      locationBias: {
+        circle: { center: { latitude: lat, longitude: lng }, radius: radiusMeters },
+      },
+    }
+    if (pageToken) body.pageToken = pageToken
+
+    const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': KEY(),
+        'X-Goog-FieldMask': 'places.id,places.displayName,places.types,places.businessStatus,nextPageToken',
+      },
+      body: JSON.stringify(body),
+    })
+
+    if (!res.ok) {
+      console.error(`[places.searchText] HTTP ${res.status}`, await res.text())
+      break
+    }
+
+    const json = await res.json()
+    const places: PlaceSummary[] = (json.places ?? []).map((p: {
+      id: string
+      displayName?: { text: string }
+      types?: string[]
+      businessStatus?: string
+    }) => ({
+      place_id:       p.id,
+      name:           p.displayName?.text ?? 'Unknown',
+      types:          p.types ?? [],
+      business_status: p.businessStatus,
+    }))
+    all.push(...places)
+
+    pageToken = json.nextPageToken
+    if (!pageToken) break
+  }
+
+  await cacheSet(cacheKey, all, TTL.PLACE)
+  return all
+}
+
+// Run multiple discovery strategies in parallel and dedupe.
+//  - Nearby ranked by POPULARITY: top 20 most-popular
+//  - Nearby ranked by DISTANCE:   top 20 closest
+//  - Text Search "businesses":    up to 60 broadly-matching
+// Union gives 60-100 unique places for dense zones.
+//
+// `saturated` is true when all three sources hit their caps — signal that
+// "there are still more in this zone that we didn't fetch".
 export async function discoverNearby(
   lat: number,
   lng: number,
   radiusMeters = 500,
 ): Promise<{ places: PlaceSummary[]; saturated: boolean }> {
-  const [popular, nearest] = await Promise.all([
+  const [popular, nearest, textHits] = await Promise.all([
     searchNearby(lat, lng, radiusMeters, 'POPULARITY'),
     searchNearby(lat, lng, radiusMeters, 'DISTANCE'),
+    searchByText(lat, lng, 'shops restaurants services offices businesses', radiusMeters),
   ])
 
-  // Interleave preferring popularity (better signals for enrichment top-N)
+  // Interleave preferring popularity > nearest > text relevance
   const seen   = new Set<string>()
   const merged: PlaceSummary[] = []
-  const maxLen = Math.max(popular.length, nearest.length)
+  const maxLen = Math.max(popular.length, nearest.length, textHits.length)
   for (let i = 0; i < maxLen; i++) {
-    const p = popular[i]
-    if (p && !seen.has(p.place_id)) { seen.add(p.place_id); merged.push(p) }
-    const n = nearest[i]
-    if (n && !seen.has(n.place_id)) { seen.add(n.place_id); merged.push(n) }
+    for (const arr of [popular, nearest, textHits]) {
+      const p = arr[i]
+      if (p && !seen.has(p.place_id)) { seen.add(p.place_id); merged.push(p) }
+    }
   }
 
-  const saturated = popular.length >= 20 && nearest.length >= 20
+  const saturated = popular.length >= 20 && nearest.length >= 20 && textHits.length >= 60
   return { places: merged, saturated }
 }
 

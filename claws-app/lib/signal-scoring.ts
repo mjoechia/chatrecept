@@ -16,7 +16,12 @@ export interface ScoredBusiness {
   place_id:           string
   name:               string
   sector:             string
-  phone:              string | null   // full number, formatted (e.g. "+65 8123 4567")
+  phone:              string | null   // formatted, e.g. "+65 8123 4567"
+  website:            string | null
+  email:              string | null   // scraped from website
+  instagram_handle:   string | null   // e.g. "acme_lunch_bar"
+  facebook_page:      string | null
+  whatsapp_link:      string | null   // wa.me / api.whatsapp.com URL if found
   has_phone:          boolean
   has_mobile:         boolean
   has_email:          boolean
@@ -102,10 +107,15 @@ export function scoreBusiness(
     : 'Possibly Dormant'
 
   return {
-    place_id: details.place_id,
-    name:     details.name,
+    place_id:         details.place_id,
+    name:             details.name,
     sector,
-    phone:    details.phone ?? null,
+    phone:            details.phone ?? null,
+    website:          details.website ?? null,
+    email:            site?.primary_email ?? null,
+    instagram_handle: site?.instagram_handle ?? null,
+    facebook_page:    site?.facebook_page ?? null,
+    whatsapp_link:    site?.whatsapp_link ?? null,
     has_phone,
     has_mobile,
     has_email,

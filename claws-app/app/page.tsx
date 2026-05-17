@@ -6,9 +6,6 @@ import { useEffect, useState, useRef } from 'react'
 import { EXAMPLE_ZONES } from '@/lib/example-zones'
 import type { TerritoryReport } from '@/lib/demo-report'
 
-type Preview = { sector: string; channels: string; whatsapp_readiness: string; activity_signal: string }
-type PreviewResponse = { postal_code: string; address_label: string; total_count: number; preview: Preview[] }
-
 interface UtmTags {
   src?:      string
   medium?:   string
@@ -24,9 +21,9 @@ export default function HomePage() {
   const [report, setReport]         = useState<TerritoryReport | null>(null)
 
   const [email, setEmail]           = useState('')
-  const [previewLoading, setPreviewLoading] = useState(false)
-  const [previewError, setPreviewError]     = useState('')
-  const [preview, setPreview]               = useState<PreviewResponse | null>(null)
+  const [emailLoading, setEmailLoading] = useState(false)
+  const [emailError, setEmailError]     = useState('')
+  const [emailCaptured, setEmailCaptured] = useState(false)
 
   const utmRef    = useRef<UtmTags>({})
   const didAutoRun = useRef(false)
@@ -50,7 +47,7 @@ export default function HomePage() {
   }, [])
 
   async function runLookup(postal: string, opts: { cacheOnly?: boolean } = {}) {
-    setError(''); setReport(null); setPreview(null)
+    setError(''); setReport(null); setEmailCaptured(false)
     setLoading(true)
     setStage(opts.cacheOnly ? 'Loading your zone…' : 'Locating zone…')
 
@@ -99,10 +96,10 @@ export default function HomePage() {
     await runLookup(postal, { cacheOnly: true })
   }
 
-  async function handlePreview(e: React.FormEvent) {
+  async function handleEmailCapture(e: React.FormEvent) {
     e.preventDefault()
-    setPreviewError(''); setPreview(null)
-    setPreviewLoading(true)
+    setEmailError('')
+    setEmailLoading(true)
     try {
       const res = await fetch('/api/territory/preview', {
         method: 'POST',
@@ -110,12 +107,12 @@ export default function HomePage() {
         body: JSON.stringify({ postal_code: postalCode, email }),
       })
       const json = await res.json()
-      if (!res.ok) { setPreviewError(json.error ?? 'Preview failed'); return }
-      setPreview(json)
+      if (!res.ok) { setEmailError(json.error ?? 'Save failed'); return }
+      setEmailCaptured(true)
     } catch (e) {
-      setPreviewError(String(e))
+      setEmailError(String(e))
     } finally {
-      setPreviewLoading(false)
+      setEmailLoading(false)
     }
   }
 
@@ -263,24 +260,73 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* WhatsApp numbers list */}
-          {report.whatsapp_contacts && report.whatsapp_contacts.length > 0 && (
+          {/* Top enriched businesses with full contact details */}
+          {report.enriched_businesses && report.enriched_businesses.length > 0 && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-[#94afd5] mb-2">
-                WhatsApp Numbers Found ({report.whatsapp_contacts.length})
+                Top {report.enriched_businesses.length} businesses in this zone
               </p>
-              <p className="text-[11px] text-[#94afd5] mb-2 leading-snug">
-                Business names are hidden until you activate your outreach zone. Numbers shown for transparency.
+              <p className="text-[11px] text-[#94afd5] mb-3 leading-snug">
+                Sorted by reachability. The remaining{' '}
+                {Math.max(0, report.total_count - report.enriched_businesses.length)}
+                {report.total_saturated ? '+' : ''} businesses unlock when you activate the outreach zone.
               </p>
               <div className="border border-[#dde8f5] rounded-lg divide-y divide-[#dde8f5] overflow-hidden">
-                {report.whatsapp_contacts.map((c, i) => (
-                  <div key={i} className="flex items-center justify-between gap-3 px-3 py-2 text-sm bg-white">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-[#94afd5] text-xs w-5 shrink-0">{i + 1}.</span>
-                      <span className="capitalize text-[#425d7f] shrink-0">{c.sector}</span>
-                      <span className="text-[10px] text-[#94afd5] truncate hidden sm:inline">· {c.activity_signal}</span>
+                {report.enriched_businesses.map((b, i) => (
+                  <div key={i} className="p-3 text-sm bg-white">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-[#12304f] truncate">
+                          <span className="text-[#94afd5] mr-1">{i + 1}.</span>
+                          {b.name}
+                        </p>
+                        <p className="text-[11px] text-[#94afd5] mt-0.5">
+                          <span className="capitalize">{b.sector}</span> · {b.activity_signal} · reach {b.reachability_score}/100
+                        </p>
+                      </div>
                     </div>
-                    <span className="font-mono text-[#12304f] text-xs whitespace-nowrap">{c.phone}</span>
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                      {b.phone && (
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-[#94afd5] shrink-0 w-12">Phone</span>
+                          <span className="font-mono text-[#12304f] truncate">{b.phone}</span>
+                        </div>
+                      )}
+                      {b.email && (
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-[#94afd5] shrink-0 w-12">Email</span>
+                          <span className="text-[#12304f] truncate">{b.email}</span>
+                        </div>
+                      )}
+                      {b.website && (
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-[#94afd5] shrink-0 w-12">Website</span>
+                          <a href={b.website} target="_blank" rel="noopener" className="text-[#006092] hover:underline truncate">
+                            {b.website.replace(/^https?:\/\/(?:www\.)?/, '')}
+                          </a>
+                        </div>
+                      )}
+                      {b.whatsapp_link && (
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-[#94afd5] shrink-0 w-12">WA link</span>
+                          <a href={b.whatsapp_link} target="_blank" rel="noopener" className="text-[#006092] hover:underline truncate">
+                            wa.me
+                          </a>
+                        </div>
+                      )}
+                      {b.instagram_handle && (
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-[#94afd5] shrink-0 w-12">IG</span>
+                          <span className="text-[#12304f] truncate">@{b.instagram_handle}</span>
+                        </div>
+                      )}
+                      {b.facebook_page && (
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-[#94afd5] shrink-0 w-12">FB</span>
+                          <span className="text-[#12304f] truncate">{b.facebook_page}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -297,58 +343,16 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Preview gate */}
-      {report && !preview && (
-        <form onSubmit={handlePreview} className="bg-white rounded-xl border border-[#dde8f5] p-6 mb-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[#94afd5] mb-2">See 3 Preview Businesses</p>
-          <p className="text-sm text-[#425d7f] mb-4">
-            Drop your email to preview a sample of the reachable businesses in this zone
-            (sector + channels + signal scores, names hidden until activation).
-          </p>
-          <div className="flex gap-3">
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="you@yourcompany.sg"
-              required
-              className="flex-1 border border-[#dde8f5] rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
-            />
-            <button
-              type="submit"
-              disabled={previewLoading || !email}
-              className="bg-[#006092] text-white px-6 py-3 rounded-lg text-sm font-semibold hover:bg-[#004d75] disabled:opacity-50 transition-colors"
-            >
-              {previewLoading ? 'Loading…' : 'See preview →'}
-            </button>
-          </div>
-          {previewError && <p className="mt-3 text-sm text-red-600">{previewError}</p>}
-        </form>
-      )}
-
-      {/* Preview */}
-      {preview && (
+      {/* Lead capture + activation CTA */}
+      {report && (
         <section className="bg-white rounded-xl border border-[#dde8f5] p-6 mb-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[#94afd5] mb-3">
-            Preview — 3 of {preview.total_count} reachable businesses
-          </p>
-          <div className="space-y-3">
-            {preview.preview.map((p, i) => (
-              <div key={i} className="border border-[#dde8f5] rounded-lg p-4 text-sm">
-                <p className="font-semibold text-[#12304f]">
-                  {i + 1}. <span className="capitalize">{p.sector}</span> · this zone · {p.channels}
-                </p>
-                <p className="text-xs text-[#94afd5] mt-1">
-                  WhatsApp Readiness: <span className="text-[#425d7f] font-medium">{p.whatsapp_readiness}</span>
-                  {'  ·  '}
-                  Activity: <span className="text-[#425d7f] font-medium">{p.activity_signal}</span>
-                </p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 bg-[#f3f6ff] rounded-lg p-5 text-center">
+          <div className="bg-[#f3f6ff] rounded-lg p-5 text-center mb-4">
             <p className="text-sm text-[#425d7f] mb-3">
-              Ready to reach all {preview.total_count} businesses?
+              Ready to reach all{' '}
+              <span className="font-semibold text-[#12304f]">
+                {report.total_count}{report.total_saturated ? '+' : ''}
+              </span>{' '}
+              businesses with AI-supervised outreach?
             </p>
             <a
               href="/signup"
@@ -356,8 +360,36 @@ export default function HomePage() {
             >
               Activate Outreach Zone — SGD 600 / mo →
             </a>
-            <p className="text-xs text-[#94afd5] mt-3">3-month minimum · human-supervised first 30 days · cancel anytime after</p>
+            <p className="text-xs text-[#94afd5] mt-3">
+              3-month minimum · human-supervised first 30 days · cancel anytime after
+            </p>
           </div>
+
+          {!emailCaptured ? (
+            <form onSubmit={handleEmailCapture}>
+              <p className="text-xs text-[#94afd5] mb-2">Not ready yet? Drop your email and we&apos;ll send you this report + a follow-up walkthrough.</p>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="you@yourcompany.sg"
+                  required
+                  className="flex-1 border border-[#dde8f5] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
+                />
+                <button
+                  type="submit"
+                  disabled={emailLoading || !email}
+                  className="border border-[#dde8f5] text-[#425d7f] px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#f3f6ff] disabled:opacity-50 transition-colors"
+                >
+                  {emailLoading ? 'Saving…' : 'Email it to me'}
+                </button>
+              </div>
+              {emailError && <p className="mt-2 text-xs text-red-600">{emailError}</p>}
+            </form>
+          ) : (
+            <p className="text-xs text-green-600">✓ Thanks — we&apos;ll be in touch with the full report at {email}.</p>
+          )}
         </section>
       )}
     </main>
