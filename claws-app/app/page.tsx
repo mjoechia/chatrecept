@@ -348,6 +348,11 @@ export default function HomePage() {
         </section>
       )}
 
+      {/* Sample follow-up report — what the customer gets each morning */}
+      {report && report.enriched_businesses.length > 0 && (
+        <SampleFollowUpReport report={report} />
+      )}
+
       {/* Lead capture + activation CTA */}
       {report && (
         <section className="bg-white rounded-xl border border-[#dde8f5] p-6 mb-6 shadow-sm">
@@ -417,6 +422,147 @@ function ScoreRow({ label, value, hint }: { label: string; value: string; hint?:
         <span className="text-sm font-semibold text-[#12304f]">{value}</span>
       </div>
       {hint && <p className="text-[11px] text-[#94afd5] mt-1 leading-snug">{hint}</p>}
+    </div>
+  )
+}
+
+// Plausible sample reply per sector — keeps the mockup feeling localised.
+function replyForSector(sector: string): string {
+  const s = sector.toLowerCase()
+  if (s.includes('f&b'))          return 'Can you send the catering menu? We have 40 pax monthly.'
+  if (s.includes('retail'))       return 'Do you offer corporate gift bundles? Need 50 sets.'
+  if (s.includes('professional')) return 'AGM filing assistance — call me back Wednesday afternoon.'
+  if (s.includes('finance'))      return 'Looking for SME loan advisory. When can we chat?'
+  if (s.includes('wellness'))     return 'Group rate for team of 12? Tuesdays after work.'
+  if (s.includes('health'))       return 'Need annual health screening package quote.'
+  if (s.includes('hospitality'))  return 'Corporate retreat for 30 in July. Send package.'
+  if (s.includes('services'))     return 'Free quote please — 3 sites in this area.'
+  return 'Interested — what does engagement look like?'
+}
+
+interface FollowUpProps {
+  report: TerritoryReport
+}
+
+function SampleFollowUpReport({ report }: FollowUpProps) {
+  // Pick 3 different businesses from the enriched list to populate the
+  // sample replies. Prefer sector diversity for visual variety.
+  const picks: typeof report.enriched_businesses = []
+  const seenSectors = new Set<string>()
+  for (const b of report.enriched_businesses) {
+    if (picks.length >= 3) break
+    if (seenSectors.has(b.sector) && picks.length < 2) continue
+    picks.push(b)
+    seenSectors.add(b.sector)
+  }
+  while (picks.length < 3 && picks.length < report.enriched_businesses.length) {
+    const next = report.enriched_businesses[picks.length]
+    if (!picks.includes(next)) picks.push(next)
+  }
+
+  const statuses: Array<{ label: string; tone: string }> = [
+    { label: 'auto-replied ✓', tone: 'text-green-700 bg-green-50' },
+    { label: 'flagged for you', tone: 'text-amber-700 bg-amber-50' },
+    { label: 'meeting booked ✓', tone: 'text-blue-700 bg-blue-50' },
+  ]
+
+  // Plausible Day-3 mid-campaign numbers — clearly labelled as a sample.
+  const sent     = 23
+  const read     = 18
+  const replied  = 6
+  const booked   = 2
+  const readPct  = Math.round(100 * read / sent)
+  const replyPct = Math.round(100 * replied / sent)
+
+  return (
+    <section className="bg-white rounded-xl border border-[#dde8f5] p-6 mb-6 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-[#94afd5]">
+            Daily Follow-up Report
+          </p>
+          <p className="text-sm text-[#425d7f] mt-0.5">
+            What CLAWS sends to your WhatsApp every morning once outreach is live.
+          </p>
+        </div>
+        <span className="text-[10px] font-bold tracking-widest text-[#94afd5] bg-[#f3f6ff] px-2 py-1 rounded">SAMPLE</span>
+      </div>
+
+      {/* WhatsApp-style daily digest mockup */}
+      <div className="bg-[#e6f4ea] rounded-xl p-4 sm:p-5 max-w-md mx-auto">
+        <div className="flex items-baseline justify-between mb-3">
+          <p className="text-xs font-semibold text-[#12304f]">CLAWS · Day 3</p>
+          <p className="text-[10px] text-[#425d7f]">09:00 SGT</p>
+        </div>
+
+        <p className="text-sm font-semibold text-[#12304f] mb-2">
+          📊 {report.district_label} campaign
+        </p>
+
+        <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+          <StatChip label="Sent"      value={sent.toString()} sub="" />
+          <StatChip label="Read"      value={read.toString()} sub={`${readPct}%`} />
+          <StatChip label="Replied"   value={replied.toString()} sub={`${replyPct}%`} />
+          <StatChip label="Meetings"  value={booked.toString()} sub="scheduled" />
+        </div>
+
+        <p className="text-xs font-semibold text-[#12304f] mb-2">⚡ {replied} replies — 1 needs you:</p>
+
+        <div className="space-y-2">
+          {picks.map((b, i) => {
+            const status = statuses[i] ?? statuses[0]
+            return (
+              <div key={b.name} className="bg-white rounded-lg px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-[#12304f] truncate">{b.name}</p>
+                  <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${status.tone} whitespace-nowrap`}>
+                    {status.label}
+                  </span>
+                </div>
+                <p className="text-xs text-[#425d7f] mt-0.5 italic">&ldquo;{replyForSector(b.sector)}&rdquo;</p>
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="mt-3 pt-3 border-t border-[#cfe5d4] text-[10px] text-[#425d7f] flex justify-between">
+          <span>Spend so far: SGD 12 of 600</span>
+          <span className="text-[#006092] font-semibold">View dashboard →</span>
+        </div>
+      </div>
+
+      {/* Week 1 wrap (compact) */}
+      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+        <WrapStat label="Week 1 reach"    value="50"   />
+        <WrapStat label="Reply rate"      value="28%"  />
+        <WrapStat label="Meetings booked" value="4"    />
+        <WrapStat label="Avg response"    value="2.4h" />
+      </div>
+
+      <p className="mt-4 text-[11px] text-[#94afd5] leading-snug text-center">
+        Numbers shown are typical for similar SG zones in month 1. Your actual results depend on sector, time of year, and offer hook — CLAWS refines them as it learns your zone.
+      </p>
+    </section>
+  )
+}
+
+function StatChip({ label, value, sub }: { label: string; value: string; sub: string }) {
+  return (
+    <div className="bg-white rounded-lg px-2.5 py-1.5">
+      <p className="text-[10px] uppercase tracking-wider text-[#94afd5]">{label}</p>
+      <p className="text-base font-bold text-[#12304f] leading-tight">
+        {value}
+        {sub && <span className="text-[10px] font-medium text-[#425d7f] ml-1">{sub}</span>}
+      </p>
+    </div>
+  )
+}
+
+function WrapStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-[#f3f6ff] rounded-lg px-2 py-2">
+      <p className="text-lg font-bold text-[#12304f]">{value}</p>
+      <p className="text-[10px] text-[#94afd5] mt-0.5">{label}</p>
     </div>
   )
 }
