@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { postalToLatLng } from '@/lib/onemap'
 import { searchNearby, getPlaceDetails, inferSector } from '@/lib/google-places'
-import { findEmailByDomain } from '@/lib/hunter-io'
+import { scrapeSite } from '@/lib/web-scrape'
 import { scoreBusiness, aggregateZone } from '@/lib/signal-scoring'
 import { generateReport } from '@/lib/demo-report'
 import { cacheGet, cacheSet, TTL } from '@/lib/cache'
@@ -52,14 +52,14 @@ export async function POST(req: NextRequest) {
     }, { status: 404 })
   }
 
-  // Step 3 + 4: details + emails (in parallel, capped at 20)
+  // Step 3 + 4: details + site scrape (in parallel, capped at 20)
   const subset = places.slice(0, 20)
   const enriched = await Promise.all(subset.map(async p => {
     const details = await getPlaceDetails(p.place_id)
     if (!details) return null
-    const emails = details.website ? await findEmailByDomain(details.website) : null
+    const site = details.website ? await scrapeSite(details.website) : null
     const sector = inferSector(details.types)
-    return scoreBusiness(details, emails, sector)
+    return scoreBusiness(details, site, sector)
   }))
 
   const businesses = enriched.filter(b => b !== null)

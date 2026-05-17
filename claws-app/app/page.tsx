@@ -126,7 +126,12 @@ export default function HomePage() {
             <p className="text-xs font-semibold uppercase tracking-wider text-[#94afd5] mb-2">Composition</p>
             <div className="text-sm text-[#425d7f] space-y-1">
               <p>Top sectors: {report.composition.sectors.slice(0, 3).map(s => `${s.sector} (${s.count})`).join(' · ')}</p>
-              <p>{Math.round(100 * report.composition.has_phone_count / report.total_count)}% have phone · {Math.round(100 * report.composition.has_email_count / report.total_count)}% have email</p>
+              <p>
+                {Math.round(100 * report.composition.has_mobile_count   / report.total_count)}% mobile ·{' '}
+                {Math.round(100 * report.composition.has_whatsapp_count / report.total_count)}% WhatsApp ·{' '}
+                {Math.round(100 * report.composition.has_email_count    / report.total_count)}% email ·{' '}
+                {Math.round(100 * report.composition.has_social_count   / report.total_count)}% IG/FB
+              </p>
             </div>
           </div>
 

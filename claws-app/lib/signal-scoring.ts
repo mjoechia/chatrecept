@@ -1,10 +1,12 @@
-// Signal scoring engine — per plan §4.
-// Inputs: PlaceDetails + DomainEmails
-// Outputs: Reachability (0-100) · Digital Presence · WhatsApp Readiness ·
-//          Likelihood of Response · Activity Signal
+// Signal scoring engine — per plan §4, re-weighted 2026-05 for SG SME reality.
+//
+// WhatsApp is the primary channel. Mobile phone presence is worth more than
+// email; emails from website scrape are worth more than nothing but secondary.
+// Recent Google review activity is the strongest "is this business alive"
+// proxy.
 
 import type { PlaceDetails } from './google-places'
-import type { DomainEmails } from './hunter-io'
+import type { SiteSignals } from './web-scrape'
 
 export type Level = 'Low' | 'Moderate' | 'High'
 export type Likelihood = 'Low' | 'Medium' | 'High'
@@ -15,8 +17,12 @@ export interface ScoredBusiness {
   name:               string
   sector:             string
   has_phone:          boolean
+  has_mobile:         boolean
   has_email:          boolean
   has_website:        boolean
+  has_whatsapp:       boolean
+  has_instagram:      boolean
+  has_facebook:       boolean
   reachability_score: number       // 0-100
   digital_presence:   Level
   whatsapp_readiness: Level
@@ -25,34 +31,42 @@ export interface ScoredBusiness {
 }
 
 export interface ZoneScores {
-  reachability_score:  number      // weighted average 0-100
-  digital_presence:    Level
+  reachability_score:       number      // weighted average 0-100
+  digital_presence:         Level
   whatsapp_readiness_count: { high: number; medium: number; low: number }
-  whatsapp_readiness:  Level
-  likelihood:          Likelihood
+  whatsapp_readiness:       Level
+  likelihood:               Likelihood
 }
+
+const SG_MOBILE_RE = /(?:\+?65)?[\s-]?[89]\d{7}/
 
 export function scoreBusiness(
   details: PlaceDetails,
-  emails: DomainEmails | null,
+  site: SiteSignals | null,
   sector: string,
 ): ScoredBusiness {
-  const has_phone   = !!details.phone
-  const has_email   = !!emails?.primary_email
-  const has_website = !!details.website
+  const has_phone     = !!details.phone
+  const has_mobile    = has_phone && SG_MOBILE_RE.test(details.phone!)
+  const has_email     = !!site?.primary_email
+  const has_website   = !!details.website
+  const has_whatsapp  = !!site?.has_whatsapp_business
+  const has_instagram = !!site?.instagram_handle
+  const has_facebook  = !!site?.facebook_page
 
-  // Reachability (0-100) — see plan §4
+  const reviewCount = details.user_rating_count ?? 0
+
+  // Reachability (0-100) — re-weighted for SG SME reality
   let score = 0
-  if (has_phone)   score += 30
-  if (has_email)   score += 25
-  if (has_website) score += 15
-  // WhatsApp Business detection requires a check we cannot easily run from
-  // server-side, so for MVP we infer from phone being mobile (most SG mobile
-  // numbers start with 8 or 9)
-  if (has_phone && /\b[89]\d{7}\b/.test(details.phone!)) score += 10
-  // Recent review activity (Google Maps engagement)
-  if ((details.user_rating_count ?? 0) > 5)  score += 10
-  if ((details.user_rating_count ?? 0) > 50) score += 10
+  if (has_mobile)              score += 45  // WhatsApp = primary channel
+  else if (has_phone)          score += 20  // Landline only — much weaker
+  if (reviewCount >= 50)       score += 20
+  else if (reviewCount >= 10)  score += 12
+  else if (reviewCount >= 1)   score += 5
+  if (has_whatsapp)            score += 15
+  if (has_website)             score += 10
+  if (has_email)               score += 10
+  if (has_instagram || has_facebook) score += 10
+  score = Math.min(100, score)
 
   const digital_presence: Level =
     score >= 70 ? 'High'
@@ -60,17 +74,14 @@ export function scoreBusiness(
     : 'Low'
 
   const whatsapp_readiness: Level =
-    (has_phone && /\b[89]\d{7}\b/.test(details.phone!)) ? 'High'
-    : has_phone ? 'Moderate'
+    has_whatsapp ? 'High'
+    : has_mobile ? 'Moderate'
     : 'Low'
 
-  // Likelihood of response — cold start defaults to Medium per plan §4
-  // Refined later from sector_benchmarks data
+  // Likelihood — cold start defaults to Medium; refined later from sector_benchmarks
   const likelihood: Likelihood = 'Medium'
 
   // Activity signal — Phase 2 moat seed
-  // For MVP, use review count as the activity proxy
-  const reviewCount = details.user_rating_count ?? 0
   const activity_signal: ActivitySignal =
     reviewCount >= 20 ? 'Active'
     : reviewCount >= 5 ? 'Moderate'
@@ -81,8 +92,12 @@ export function scoreBusiness(
     name:     details.name,
     sector,
     has_phone,
+    has_mobile,
     has_email,
     has_website,
+    has_whatsapp,
+    has_instagram,
+    has_facebook,
     reachability_score: score,
     digital_presence,
     whatsapp_readiness,
@@ -112,7 +127,7 @@ export function aggregateZone(businesses: ScoredBusiness[]): ZoneScores {
     low:    businesses.filter(b => b.whatsapp_readiness === 'Low').length,
   }
 
-  const waReadinessRatio = waCounts.high / businesses.length
+  const waReadinessRatio = (waCounts.high + waCounts.medium * 0.5) / businesses.length
   const whatsapp_readiness: Level =
     waReadinessRatio >= 0.6 ? 'High'
     : waReadinessRatio >= 0.3 ? 'Moderate'

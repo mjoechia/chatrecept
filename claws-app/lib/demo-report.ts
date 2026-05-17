@@ -11,8 +11,10 @@ export interface TerritoryReport {
   zone_scores:   ZoneScores
   composition: {
     sectors: { sector: string; count: number }[]
-    has_phone_count: number
+    has_mobile_count: number
+    has_whatsapp_count: number
     has_email_count: number
+    has_social_count: number  // IG or FB
   }
   opportunity: {
     likely_active:    number
@@ -60,8 +62,10 @@ export async function generateReport(
     zone_scores:   zone,
     composition: {
       sectors,
-      has_phone_count: businesses.filter(b => b.has_phone).length,
-      has_email_count: businesses.filter(b => b.has_email).length,
+      has_mobile_count:   businesses.filter(b => b.has_mobile).length,
+      has_whatsapp_count: businesses.filter(b => b.has_whatsapp).length,
+      has_email_count:    businesses.filter(b => b.has_email).length,
+      has_social_count:   businesses.filter(b => b.has_instagram || b.has_facebook).length,
     },
     opportunity: {
       likely_active:    businesses.filter(b => b.activity_signal !== 'Possibly Dormant').length,
@@ -132,8 +136,13 @@ function pickPreview(businesses: ScoredBusiness[]): TerritoryReport['preview'] {
   }
 
   return picked.map(b => {
-    const channels = [b.has_phone && 'phone', b.has_email && 'email', b.has_website && 'website']
-      .filter(Boolean).join(' + ') || 'limited'
+    const channels = [
+      b.has_mobile && 'mobile',
+      b.has_whatsapp && 'WA',
+      b.has_email && 'email',
+      b.has_instagram && 'IG',
+      b.has_facebook && 'FB',
+    ].filter(Boolean).join(' + ') || 'limited'
     return {
       sector:             b.sector,
       area_label:         'this zone',
