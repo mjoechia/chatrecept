@@ -33,10 +33,17 @@ export async function searchNearby(
   const cached = await cacheGet<PlaceSummary[]>(cacheKey)
   if (cached) return cached
 
+  // No includedTypes filter — we want ALL business types (CBD = banks,
+  // accounting, law; suburbs = F&B, retail, salons). Exclude obvious
+  // non-business categories so we don't waste a slot on a bus stop.
   const body = {
-    includedTypes: ['restaurant', 'store', 'cafe', 'bakery', 'beauty_salon',
-                    'gym', 'spa', 'lodging', 'shopping_mall', 'clothing_store',
-                    'jewelry_store', 'electronics_store', 'book_store'],
+    excludedPrimaryTypes: [
+      'bus_station', 'subway_station', 'train_station', 'transit_station',
+      'park', 'place_of_worship', 'church', 'mosque', 'hindu_temple',
+      'synagogue', 'cemetery', 'school', 'university', 'primary_school',
+      'secondary_school', 'tourist_attraction', 'airport', 'embassy',
+      'police', 'fire_station', 'public_bathroom', 'parking', 'atm',
+    ],
     maxResultCount: 20,
     locationRestriction: {
       circle: { center: { latitude: lat, longitude: lng }, radius: radiusMeters },
@@ -113,9 +120,13 @@ export async function getPlaceDetails(placeId: string): Promise<PlaceDetails | n
 // Map Google place types → our internal sector taxonomy
 export function inferSector(types: string[]): string {
   const t = types.join(',').toLowerCase()
-  if (t.match(/restaurant|cafe|bakery|food|bar/)) return 'F&B'
-  if (t.match(/store|shopping|jewelry|clothing|electronics|book/)) return 'retail'
-  if (t.match(/beauty|spa|salon|gym|health/)) return 'services'
-  if (t.match(/lodging|hotel/)) return 'hospitality'
+  if (t.match(/restaurant|cafe|bakery|food|bar|coffee/)) return 'F&B'
+  if (t.match(/bank|finance|insurance|atm/))             return 'finance'
+  if (t.match(/lawyer|accounting|notary|real_estate/))   return 'professional'
+  if (t.match(/store|shopping|jewelry|clothing|electronics|book|grocer|supermarket|convenience/)) return 'retail'
+  if (t.match(/beauty|spa|salon|gym|barber|hair|nail/))  return 'wellness'
+  if (t.match(/doctor|dentist|pharmacy|clinic|hospital|veterinary/)) return 'health'
+  if (t.match(/lodging|hotel|hostel/))                   return 'hospitality'
+  if (t.match(/car_repair|laundry|cleaning|electrician|plumber/)) return 'services'
   return 'other'
 }

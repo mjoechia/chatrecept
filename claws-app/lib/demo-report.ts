@@ -105,15 +105,34 @@ function mostCommon(arr: string[]): string {
 }
 
 function simplifyArea(address: string): string {
-  // Extract a friendly area name from the OneMap address
-  if (/orchard/i.test(address))  return 'Orchard Road'
-  if (/raffles/i.test(address))  return 'Raffles Place'
-  if (/tanjong pagar/i.test(address)) return 'Tanjong Pagar'
-  if (/marina/i.test(address))   return 'Marina Bay'
-  if (/jurong/i.test(address))   return 'Jurong'
-  if (/woodlands/i.test(address)) return 'Woodlands'
-  if (/tampines/i.test(address)) return 'Tampines'
-  if (/bedok/i.test(address))    return 'Bedok'
+  // CBD
+  if (/raffles/i.test(address))           return 'Raffles Place'
+  if (/cecil street|robinson road|shenton way|maxwell|amoy/i.test(address)) return 'CBD'
+  if (/tanjong pagar/i.test(address))     return 'Tanjong Pagar'
+  if (/marina/i.test(address))            return 'Marina Bay'
+  if (/clarke quay|boat quay/i.test(address)) return 'Clarke / Boat Quay'
+  if (/chinatown|telok ayer|club street/i.test(address)) return 'Chinatown / Telok Ayer'
+  // Central
+  if (/orchard/i.test(address))           return 'Orchard Road'
+  if (/somerset|dhoby ghaut|bugis|little india|kampong glam/i.test(address)) return 'Central'
+  if (/novena|newton/i.test(address))     return 'Novena / Newton'
+  if (/holland|tanglin/i.test(address))   return 'Holland / Tanglin'
+  // East
+  if (/tampines/i.test(address))          return 'Tampines'
+  if (/bedok/i.test(address))             return 'Bedok'
+  if (/changi|pasir ris/i.test(address))  return 'Changi / Pasir Ris'
+  if (/katong|joo chiat|east coast/i.test(address)) return 'East Coast'
+  // West
+  if (/jurong/i.test(address))            return 'Jurong'
+  if (/clementi/i.test(address))          return 'Clementi'
+  if (/bukit batok|bukit gombak|choa chu kang/i.test(address)) return 'West'
+  // North
+  if (/woodlands/i.test(address))         return 'Woodlands'
+  if (/yishun|sembawang/i.test(address))  return 'Yishun / Sembawang'
+  if (/ang mo kio|bishan|toa payoh/i.test(address)) return 'Central North'
+  // Northeast
+  if (/sengkang|punggol/i.test(address))  return 'Sengkang / Punggol'
+  if (/hougang|serangoon/i.test(address)) return 'Hougang / Serangoon'
   return 'your area'
 }
 

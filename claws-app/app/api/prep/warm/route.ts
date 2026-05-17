@@ -36,8 +36,9 @@ export async function POST(req: NextRequest) {
   }
 
   const cacheKey = `territory:${postalCode}`
+  const force = req.nextUrl.searchParams.get('force') === '1'
   const existing = await cacheGet<TerritoryReport>(cacheKey)
-  if (existing) {
+  if (existing && !force) {
     return NextResponse.json({ status: 'already_cached', postal_code: postalCode })
   }
 
