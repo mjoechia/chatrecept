@@ -20,6 +20,7 @@ export default function HomePage() {
   const [error, setError]           = useState('')
   const [report, setReport]         = useState<TerritoryReport | null>(null)
 
+  const [leadName, setLeadName]     = useState('')
   const [email, setEmail]           = useState('')
   const [emailLoading, setEmailLoading] = useState(false)
   const [emailError, setEmailError]     = useState('')
@@ -104,7 +105,7 @@ export default function HomePage() {
       const res = await fetch('/api/territory/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ postal_code: postalCode, email }),
+        body: JSON.stringify({ postal_code: postalCode, email, name: leadName }),
       })
       const json = await res.json()
       if (!res.ok) { setEmailError(json.error ?? 'Save failed'); return }
@@ -186,8 +187,12 @@ export default function HomePage() {
       {report && (
         <section className="bg-white rounded-xl border border-[#dde8f5] p-6 mb-6 shadow-sm space-y-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#94afd5]">📍 Zone</p>
-            <h2 className="text-xl font-bold text-[#12304f] mt-1">{report.address_label}</h2>
+            <h2 className="text-xl font-bold text-[#12304f]">{report.district_label}</h2>
+            <p className="text-sm text-[#425d7f] mt-1">
+              <span className="font-mono">{report.postal_code}</span>
+              <span className="text-[#94afd5] mx-1.5">·</span>
+              {report.address_label}
+            </p>
           </div>
 
           <div className="bg-[#f3f6ff] rounded-lg p-4">
@@ -367,8 +372,16 @@ export default function HomePage() {
 
           {!emailCaptured ? (
             <form onSubmit={handleEmailCapture}>
-              <p className="text-xs text-[#94afd5] mb-2">Not ready yet? Drop your email and we&apos;ll send you this report + a follow-up walkthrough.</p>
-              <div className="flex gap-2">
+              <p className="text-xs text-[#94afd5] mb-2">Not ready yet? Drop your name + email and we&apos;ll send you this report + a follow-up walkthrough.</p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  value={leadName}
+                  onChange={e => setLeadName(e.target.value)}
+                  placeholder="Your name"
+                  required
+                  className="sm:w-40 border border-[#dde8f5] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006092]"
+                />
                 <input
                   type="email"
                   value={email}
@@ -379,7 +392,7 @@ export default function HomePage() {
                 />
                 <button
                   type="submit"
-                  disabled={emailLoading || !email}
+                  disabled={emailLoading || !email || !leadName.trim()}
                   className="border border-[#dde8f5] text-[#425d7f] px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#f3f6ff] disabled:opacity-50 transition-colors"
                 >
                   {emailLoading ? 'Saving…' : 'Email it to me'}

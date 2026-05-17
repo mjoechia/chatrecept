@@ -3,10 +3,12 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import type { ScoredBusiness, ZoneScores } from './signal-scoring'
+import { districtFromPostal } from './sg-districts'
 
 export interface TerritoryReport {
-  postal_code:    string
-  address_label:  string
+  postal_code:     string
+  district_label:  string  // friendly area name from postal prefix, e.g. "Cecil / Tanjong Pagar"
+  address_label:   string  // raw geocoded address (e.g. "Singapore 048623")
   total_count:    number   // unique businesses we discovered (post-dedupe)
   total_saturated: boolean // true when Google API hit its cap — there are more in this zone than we fetched
   enriched_count: number   // subset of total_count that we deep-enriched (capped at 20)
@@ -84,6 +86,7 @@ export async function generateReport(
 
   return {
     postal_code:     postalCode,
+    district_label:  districtFromPostal(postalCode),
     address_label:   addressLabel,
     total_count:     opts.totalCount,
     total_saturated: opts.saturated,
