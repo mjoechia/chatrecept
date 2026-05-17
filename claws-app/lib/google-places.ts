@@ -36,13 +36,18 @@ export async function searchNearby(
   // No includedTypes filter — we want ALL business types (CBD = banks,
   // accounting, law; suburbs = F&B, retail, salons). Exclude obvious
   // non-business categories so we don't waste a slot on a bus stop.
+  //
+  // IMPORTANT: only Table A primary types are valid in excludedPrimaryTypes.
+  // Umbrella categories like "place_of_worship" or "public_bathroom" get
+  // rejected with 400 Unsupported types. Use the specific religion / facility
+  // types instead.
   const body = {
     excludedPrimaryTypes: [
       'bus_station', 'subway_station', 'train_station', 'transit_station',
-      'park', 'place_of_worship', 'church', 'mosque', 'hindu_temple',
-      'synagogue', 'cemetery', 'school', 'university', 'primary_school',
-      'secondary_school', 'tourist_attraction', 'airport', 'embassy',
-      'police', 'fire_station', 'public_bathroom', 'parking', 'atm',
+      'park', 'church', 'mosque', 'hindu_temple', 'synagogue', 'cemetery',
+      'school', 'primary_school', 'secondary_school', 'university',
+      'tourist_attraction', 'airport', 'embassy', 'police', 'fire_station',
+      'parking', 'atm',
     ],
     maxResultCount: 20,
     locationRestriction: {
