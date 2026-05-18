@@ -1,36 +1,38 @@
 // Daily spend tracker — protects against runaway API cost.
-// MVP: in-memory counter that resets at midnight UTC.
+// MVP: in-memory counters that reset at midnight UTC.
 // Production: persist to Supabase / Redis for multi-instance accuracy.
+//
+// Two layers:
+//   1. Per-IP daily SGD cap (primary defence — limits any single user/abuser)
+//   2. Global daily SGD cap (secondary safety net across all IPs)
 
 // Approximate cost of one uncached territory lookup (in SGD):
 // - Google Geocoding: ~0.007
-// - Places Nearby Search: ~0.027
+// - Places Nearby Search ×2 (popularity + distance): ~0.054
+// - Text Search (3 pages): ~0.13
 // - Place Details × 20: ~0.46
-// - Web scrape × 20: ~0.10 (mostly Claude tokens if AI extraction kicks in)
+// - Web scrape × 20: ~0.10
 // - Claude Haiku hook: ~0.04
-// Sum ≈ SGD 0.60
-const COST_PER_UNCACHED_LOOKUP_SGD = 0.60
-
-let todaySpend = 0
-let todayKey   = ''
+// Sum ≈ SGD 0.80
+const COST_PER_UNCACHED_LOOKUP_SGD = 0.80
 
 function todayBucket(): string {
   const d = new Date()
   return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`
 }
 
-function rollover() {
+// ── Global ───────────────────────────────────────────────────────────────────
+
+let todaySpend = 0
+let todayKey   = ''
+
+function rolloverGlobal() {
   const key = todayBucket()
   if (key !== todayKey) { todayKey = key; todaySpend = 0 }
 }
 
-export function recordLookupSpend(cost = COST_PER_UNCACHED_LOOKUP_SGD): void {
-  rollover()
-  todaySpend += cost
-}
-
 export function getTodaySpend(): number {
-  rollover()
+  rolloverGlobal()
   return todaySpend
 }
 
@@ -42,6 +44,39 @@ export function isOverBudget(): boolean {
   return getTodaySpend() >= getDailyCap()
 }
 
-export function remainingBudget(): number {
-  return Math.max(0, getDailyCap() - getTodaySpend())
+// ── Per-IP ──────────────────────────────────────────────────────────────────
+
+interface IpBucket { day: string; spent: number }
+const ipMap = new Map<string, IpBucket>()
+
+function rolloverIp(ip: string): IpBucket {
+  const key = todayBucket()
+  const existing = ipMap.get(ip)
+  if (!existing || existing.day !== key) {
+    const fresh = { day: key, spent: 0 }
+    ipMap.set(ip, fresh)
+    return fresh
+  }
+  return existing
+}
+
+export function getIpDailyCap(): number {
+  return Number(process.env.MAX_DAILY_SPEND_PER_IP_SGD ?? 20)
+}
+
+export function getIpSpend(ip: string): number {
+  return rolloverIp(ip).spent
+}
+
+export function isIpOverBudget(ip: string): boolean {
+  return getIpSpend(ip) >= getIpDailyCap()
+}
+
+// ── Recording (write both buckets atomically) ───────────────────────────────
+
+export function recordLookupSpend(ip: string, cost = COST_PER_UNCACHED_LOOKUP_SGD): void {
+  rolloverGlobal()
+  todaySpend += cost
+  const bucket = rolloverIp(ip)
+  bucket.spent += cost
 }

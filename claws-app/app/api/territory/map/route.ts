@@ -5,8 +5,11 @@ import { scrapeSite } from '@/lib/web-scrape'
 import { scoreBusiness, aggregateZone } from '@/lib/signal-scoring'
 import { generateReport } from '@/lib/demo-report'
 import { cacheGet, cacheSet, TTL } from '@/lib/cache'
-import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
-import { isOverBudget, recordLookupSpend, getTodaySpend, getDailyCap } from '@/lib/spend-tracker'
+import { getClientIp } from '@/lib/rate-limit'
+import {
+  isOverBudget, recordLookupSpend, getTodaySpend, getDailyCap,
+  isIpOverBudget, getIpSpend, getIpDailyCap,
+} from '@/lib/spend-tracker'
 import type { TerritoryReport } from '@/lib/demo-report'
 
 export const dynamic = 'force-dynamic'
@@ -23,11 +26,10 @@ interface MapRequestBody {
 }
 
 // POST /api/territory/map { postal_code, cache_only?, utm? }
-// Public route, rate-limited 1/IP/day.
-// Guardrails:
-//   - Rate limit per IP
-//   - Global daily spend cap (MAX_DAILY_SPEND_SGD)
-//   - cache_only mode for personalised prospect links
+// Public route. Guardrails:
+//   - Per-IP daily SGD cap   (MAX_DAILY_SPEND_PER_IP_SGD, default 20)
+//   - Global daily SGD cap   (MAX_DAILY_SPEND_SGD, default 20) — safety net
+//   - cache_only mode for personalised prospect links (always free)
 //   - UTM passthrough for attribution
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req.headers)
@@ -58,23 +60,26 @@ export async function POST(req: NextRequest) {
     }, { status: 503 })
   }
 
-  // ── Rate limit (visitors only — admin warm endpoint bypasses) ───────────
-  const limit = checkRateLimit(ip, 1)
-  if (!limit.allowed) {
-    return NextResponse.json(
-      { error: "You've used your free try for today. Enter your email below to try another postal code.",
-        reset_at: limit.resetAt },
-      { status: 429 }
-    )
+  // ── Per-IP daily SGD cap (primary defence) ──────────────────────────────
+  // Each IP gets MAX_DAILY_SPEND_PER_IP_SGD per day. Generous enough that a
+  // genuine prospect can try a handful of postal codes; restrictive enough
+  // that an abuser hitting 100 codes burns out of their own budget fast.
+  if (isIpOverBudget(ip)) {
+    return NextResponse.json({
+      error: "You've used your free demo budget for today. Try a sample zone below, or come back tomorrow.",
+      ip_spend_capped: true,
+      ip_cap_sgd:      getIpDailyCap(),
+      ip_spent_sgd:    Number(getIpSpend(ip).toFixed(2)),
+    }, { status: 429 })
   }
 
-  // ── Global daily spend cap ──────────────────────────────────────────────
+  // ── Global daily SGD cap (safety net across all IPs) ────────────────────
   if (isOverBudget()) {
     return NextResponse.json({
       error: 'Our demo is at high demand today — try one of our example zones, or come back tomorrow.',
-      spend_capped: true,
-      daily_cap_sgd:  getDailyCap(),
-      today_spent_sgd: getTodaySpend(),
+      spend_capped:    true,
+      daily_cap_sgd:   getDailyCap(),
+      today_spent_sgd: Number(getTodaySpend().toFixed(2)),
     }, { status: 429 })
   }
 
@@ -128,7 +133,7 @@ export async function POST(req: NextRequest) {
   stage('claude_report', tReport)
 
   await cacheSet(cacheKey, report, TTL.TERRITORY)
-  recordLookupSpend()
+  recordLookupSpend(ip)
   logLookup({ postalCode, ip, cached: false, utm: body.utm })
 
   console.log(`[map ${postalCode}] TOTAL ${Date.now() - t0}ms`)
