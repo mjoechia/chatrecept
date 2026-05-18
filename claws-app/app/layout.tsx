@@ -4,7 +4,7 @@ import './globals.css'
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'CLAWS — AI Territory Intelligence',
+  title: 'JC CLAWs — AI Territory Intelligence',
   description: 'Map the reachable businesses in any Singapore postal code in 30 seconds.',
 }
 
@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <span className="text-[#006092] font-bold text-sm tracking-wide">ChatRecept</span>
           </a>
           <span className="text-[#dde8f5] font-light text-lg select-none">/</span>
-          <a href="/" className="text-[#425d7f] font-semibold text-sm hover:text-[#12304f] transition-colors">CLAWS</a>
+          <a href="/" className="text-[#425d7f] font-semibold text-sm hover:text-[#12304f] transition-colors">JC CLAWs</a>
           <span className="text-[#dde8f5] font-light text-lg select-none mx-1">·</span>
           <a href="/about" className="text-[#94afd5] text-sm hover:text-[#425d7f] transition-colors">About</a>
         </div>

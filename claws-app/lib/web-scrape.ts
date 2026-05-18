@@ -21,7 +21,7 @@ export interface SiteSignals {
 }
 
 const FETCH_TIMEOUT_MS = 5000
-const USER_AGENT = 'Mozilla/5.0 (compatible; CLAWSBot/0.1; +https://chatrecept.chat/claws)'
+const USER_AGENT = 'Mozilla/5.0 (compatible; JCClawsBot/0.1; +https://chatrecept.chat/claws)'
 
 export async function scrapeSite(websiteUrl: string): Promise<SiteSignals | null> {
   const domain = extractDomain(websiteUrl)

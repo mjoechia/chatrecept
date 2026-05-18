@@ -122,7 +122,7 @@ export default function HomePage() {
       {/* Hero */}
       <section className="text-center mb-10">
         <h1 className="text-3xl md:text-4xl font-bold text-[#12304f] mb-3">
-          CLAWS — AI Territory Intelligence
+          JC CLAWs — AI Territory Intelligence
         </h1>
         <p className="text-sm md:text-base text-[#425d7f] max-w-xl mx-auto">
           Enter a Singapore postal code. We map the reachable businesses
@@ -505,7 +505,7 @@ function SampleFollowUpReport({ report }: FollowUpProps) {
             Daily Follow-up Report
           </p>
           <p className="text-sm text-[#425d7f] mt-0.5">
-            What CLAWS sends to your WhatsApp every morning once outreach is live.
+            What JC CLAWs sends to your WhatsApp every morning once outreach is live.
           </p>
         </div>
         <span className="text-[10px] font-bold tracking-widest text-[#94afd5] bg-[#f3f6ff] px-2 py-1 rounded">SAMPLE</span>
@@ -514,7 +514,7 @@ function SampleFollowUpReport({ report }: FollowUpProps) {
       {/* WhatsApp-style daily digest mockup */}
       <div className="bg-[#e6f4ea] rounded-xl p-4 sm:p-5 max-w-md mx-auto">
         <div className="flex items-baseline justify-between mb-3">
-          <p className="text-xs font-semibold text-[#12304f]">CLAWS · Day 3</p>
+          <p className="text-xs font-semibold text-[#12304f]">JC CLAWs · Day 3</p>
           <p className="text-[10px] text-[#425d7f]">09:00 SGT</p>
         </div>
 
@@ -562,7 +562,7 @@ function SampleFollowUpReport({ report }: FollowUpProps) {
       </div>
 
       <p className="mt-4 text-[11px] text-[#94afd5] leading-snug text-center">
-        Numbers shown are typical for similar SG zones in month 1. Your actual results depend on sector, time of year, and offer hook — CLAWS refines them as it learns your zone.
+        Numbers shown are typical for similar SG zones in month 1. Your actual results depend on sector, time of year, and offer hook — JC CLAWs refines them as it learns your zone.
       </p>
     </section>
   )

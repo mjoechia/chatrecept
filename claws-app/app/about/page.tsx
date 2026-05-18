@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'About CLAWS — The Precision Predator for SME Sales',
+  title: 'About JC CLAWs — The Precision Predator for SME Sales',
   description: 'The AI SDR your small business never has to hire — maps your area, talks to leads on WhatsApp, books meetings.',
 }
 
@@ -74,7 +74,7 @@ export default function AboutPage() {
               </p>
               <div className="flex items-center gap-1 mb-2" style={{ color: C.onTertiaryCont }}>
                 <span className="material-symbols-outlined">check_circle</span>
-                <span className="text-xs font-semibold tracking-wider">CLAWS SOLUTION</span>
+                <span className="text-xs font-semibold tracking-wider">JC CLAWs SOLUTION</span>
               </div>
               <p className="text-sm" style={{ color: C.onSurfaceVariant }}>
                 Autonomous mapping of every reachable business in your target SG postal codes.
@@ -91,7 +91,7 @@ export default function AboutPage() {
                 &quot;I hate cold calling and monitoring LinkedIn all day.&quot;
               </p>
               <p className="text-sm opacity-90">
-                CLAWS engages leads directly on WhatsApp using Voice Training that mimics your exact closing style.
+                JC CLAWs engages leads directly on WhatsApp using Voice Training that mimics your exact closing style.
               </p>
             </div>
           </div>
@@ -126,7 +126,7 @@ export default function AboutPage() {
                   <td className="p-3 font-bold" style={{ color: C.onSurfaceVariant }}>$3,000 – $5,000</td>
                 </tr>
                 <tr style={{ backgroundColor: `${C.secondaryFixed}1a` }}>
-                  <td className="p-3 font-bold" style={{ color: C.primary }}>CLAWS AI</td>
+                  <td className="p-3 font-bold" style={{ color: C.primary }}>JC CLAWs AI</td>
                   <td className="p-3 font-bold text-lg" style={{ color: C.primary }}>$600</td>
                 </tr>
               </tbody>
@@ -148,26 +148,26 @@ export default function AboutPage() {
             <RoiCard
               title="F&B (Orchard / CBD)"
               badge="HIGH CONFIDENCE"
-              body="Targeting corporate offices for catering. CLAWS maps 200 nearby buildings and secures 15 recurring lunch contracts in month one."
+              body="Targeting corporate offices for catering. JC CLAWs maps 200 nearby buildings and secures 15 recurring lunch contracts in month one."
             />
             <RoiCard
               title="Audit & Tax Firms"
               badge="PRECISION"
-              body="Reaching out to new ACRA registrations. CLAWS initiates contact within 4 hours of registration, before the competition even wakes up."
+              body="Reaching out to new ACRA registrations. JC CLAWs initiates contact within 4 hours of registration, before the competition even wakes up."
             />
             <RoiCard
               title="Retail Re-engagement"
               badge="REVENUE BOOSTER"
-              body="Reviving 500 dormant customers via personalised WhatsApp offers. CLAWS handles 100 simultaneous conversations to drive weekend footfall."
+              body="Reviving 500 dormant customers via personalised WhatsApp offers. JC CLAWs handles 100 simultaneous conversations to drive weekend footfall."
             />
           </div>
         </div>
       </section>
 
-      {/* What CLAWS is NOT */}
+      {/* What JC CLAWs is NOT */}
       <section className="px-4 md:px-8 py-12" style={{ backgroundColor: C.primary, color: C.onPrimary }}>
         <div className="max-w-3xl mx-auto">
-          <h2 className="font-hanken text-2xl md:text-3xl font-semibold mb-6">What CLAWS is NOT</h2>
+          <h2 className="font-hanken text-2xl md:text-3xl font-semibold mb-6">What JC CLAWs is NOT</h2>
           <ul className="flex flex-col gap-3">
             <li className="flex gap-3 items-start">
               <span className="material-symbols-outlined" style={{ color: C.secondaryFixed }}>do_not_disturb_on</span>
@@ -184,7 +184,7 @@ export default function AboutPage() {
             <li className="flex gap-3 items-start">
               <span className="material-symbols-outlined" style={{ color: C.secondaryFixed }}>do_not_disturb_on</span>
               <p className="text-sm">
-                <strong>Not a template filler.</strong> CLAWS is trained on your specific voice, slang, and technical jargon.
+                <strong>Not a template filler.</strong> JC CLAWs is trained on your specific voice, slang, and technical jargon.
               </p>
             </li>
           </ul>
@@ -211,7 +211,7 @@ export default function AboutPage() {
             <Moat
               icon="hub"
               title="SG SME Interaction Graph"
-              body="Every campaign teaches CLAWS what works by sector × district. By month 6, a new tenant gets benchmarked reply rates before they launch."
+              body="Every campaign teaches JC CLAWs what works by sector × district. By month 6, a new tenant gets benchmarked reply rates before they launch."
             />
           </div>
         </div>
@@ -240,7 +240,7 @@ export default function AboutPage() {
       <footer style={{ backgroundColor: C.primary, borderTop: `1px solid ${C.outlineVariant}` }}>
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-12 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex flex-col items-center md:items-start gap-1">
-            <span className="font-hanken text-2xl font-black" style={{ color: C.secondaryFixed }}>CLAWS</span>
+            <span className="font-hanken text-2xl font-black" style={{ color: C.secondaryFixed }}>JC CLAWs</span>
             <p className="text-sm text-center md:text-left" style={{ color: '#a4cdda' }}>
               © 2026 ChatRecept. The Precision Predator for SME Sales.
             </p>
