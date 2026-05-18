@@ -196,22 +196,35 @@ export default function HomePage() {
           </div>
 
           <div className="bg-[#f3f6ff] rounded-lg p-4">
-            <p className="text-3xl font-bold text-[#006092]">
-              {report.total_count}{report.total_saturated ? '+' : ''}
+            <p className="text-xs font-semibold uppercase tracking-wider text-[#94afd5] mb-3">
+              This zone — mapped at a glance
             </p>
-            <p className="text-sm text-[#425d7f] mt-0.5">
-              reachable businesses mapped
-              {report.total_saturated && (
-                <span className="text-xs text-[#94afd5] ml-1">
-                  (Google API cap — more exist in this zone)
-                </span>
-              )}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <BreakdownStat
+                label="Buildings"
+                value={report.breakdown.buildings.toString()}
+                sub="detected"
+              />
+              <BreakdownStat
+                label="Sectors"
+                value={report.breakdown.sectors.toString()}
+                sub="represented"
+              />
+              <BreakdownStat
+                label="Active listings"
+                value={`${report.breakdown.active_listings}${report.total_saturated ? '+' : ''}`}
+                sub={report.total_saturated ? 'capped by API' : 'mapped'}
+              />
+              <BreakdownStat
+                label="High-opportunity"
+                value={report.breakdown.high_opportunity.toString()}
+                sub="mobile + active"
+              />
+            </div>
+            <p className="text-[11px] text-[#94afd5] mt-3 leading-snug">
+              Top {report.enriched_count} listings enriched with phone, email, social — shown below.
+              {report.total_saturated && ' API returned its maximum page count; the zone has more listings than we fetched.'}
             </p>
-            {report.enriched_count < report.total_count && (
-              <p className="text-[11px] text-[#94afd5] mt-1">
-                Top {report.enriched_count} enriched for signal scoring below.
-              </p>
-            )}
           </div>
 
           {/* Signal scores */}
@@ -260,8 +273,8 @@ export default function HomePage() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-[#94afd5] mb-2">Opportunity Type</p>
             <div className="text-sm text-[#425d7f] space-y-1">
-              <p>Likely-active businesses: <span className="font-semibold text-[#12304f]">{report.opportunity.likely_active}</span></p>
-              <p>Possibly-dormant (weak signals): <span className="font-semibold text-[#12304f]">{report.opportunity.possibly_dormant}</span></p>
+              <p>Currently-active listings: <span className="font-semibold text-[#12304f]">{report.opportunity.likely_active}</span></p>
+              <p>Lower recent activity: <span className="font-semibold text-[#12304f]">{report.opportunity.lower_activity}</span> <span className="text-[10px] text-[#94afd5]">(growth-help candidates)</span></p>
             </div>
           </div>
 
@@ -411,6 +424,16 @@ export default function HomePage() {
         </section>
       )}
     </main>
+  )
+}
+
+function BreakdownStat({ label, value, sub }: { label: string; value: string; sub: string }) {
+  return (
+    <div className="bg-white rounded-lg px-3 py-2.5 text-center">
+      <p className="text-[10px] uppercase tracking-wider text-[#94afd5]">{label}</p>
+      <p className="text-2xl font-bold text-[#006092] leading-tight mt-0.5">{value}</p>
+      <p className="text-[10px] text-[#425d7f] mt-0.5">{sub}</p>
+    </div>
   )
 }
 

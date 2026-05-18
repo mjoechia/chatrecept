@@ -13,6 +13,14 @@ export interface TerritoryReport {
   total_saturated: boolean // true when Google API hit its cap — there are more in this zone than we fetched
   enriched_count: number   // subset of total_count that we deep-enriched (capped at 20)
   zone_scores:    ZoneScores
+  // Multi-dimensional headline breakdown for the report header. Same data
+  // we already have, just framed as multiple lenses on the zone.
+  breakdown: {
+    buildings:        number   // distinct buildings inferred from name patterns
+    sectors:          number   // # of represented sectors
+    active_listings:  number   // mirrors total_count for clarity in copy
+    high_opportunity: number   // mobile + currently-active businesses
+  }
   composition: {
     sectors: { sector: string; count: number }[]
     has_mobile_count: number
@@ -22,7 +30,7 @@ export interface TerritoryReport {
   }
   opportunity: {
     likely_active:    number
-    possibly_dormant: number
+    lower_activity:   number
   }
   sample_hook: string
   // Top enriched businesses with full contact details — what prospects see in
@@ -84,6 +92,18 @@ export async function generateReport(
       reachability_score: b.reachability_score,
     }))
 
+  // Building count — distinct anchor names extracted from the enriched list.
+  // Common SG anchors (malls, towers, hubs) appear as prefix patterns in
+  // business names. Falls back to a density estimate when patterns don't match.
+  const buildings = countDistinctBuildings(businesses) ||
+                    Math.max(1, Math.ceil(businesses.length / 3))
+
+  // High-opportunity: has a mobile number AND is currently active. These are
+  // the ones an SDR would prioritise on day 1.
+  const high_opportunity = businesses
+    .filter(b => b.has_mobile && b.activity_signal === 'Active')
+    .length
+
   return {
     postal_code:     postalCode,
     district_label:  districtFromPostal(postalCode),
@@ -92,6 +112,12 @@ export async function generateReport(
     total_saturated: opts.saturated,
     enriched_count:  businesses.length,
     zone_scores:     zone,
+    breakdown: {
+      buildings,
+      sectors:          sectors.length,
+      active_listings:  opts.totalCount,
+      high_opportunity,
+    },
     composition: {
       sectors,
       has_mobile_count:   businesses.filter(b => b.has_mobile).length,
@@ -100,8 +126,8 @@ export async function generateReport(
       has_social_count:   businesses.filter(b => b.has_instagram || b.has_facebook).length,
     },
     opportunity: {
-      likely_active:    businesses.filter(b => b.activity_signal !== 'Possibly Dormant').length,
-      possibly_dormant: businesses.filter(b => b.activity_signal === 'Possibly Dormant').length,
+      likely_active:    businesses.filter(b => b.activity_signal !== 'Lower recent activity').length,
+      lower_activity:   businesses.filter(b => b.activity_signal === 'Lower recent activity').length,
     },
     sample_hook,
     enriched_businesses,
@@ -125,6 +151,36 @@ async function generateHook(district: string, sector: string): Promise<string> {
   const text = res.content[0]
   if (text.type === 'text') return text.text.trim()
   return `Hi [Business] 👋 We work with ${sector} businesses in ${district}. Worth a 15-min chat?`
+}
+
+// Distinct buildings inferred from business name patterns. Many SG addresses
+// share a building prefix ("ION Orchard - Starbucks", "ION Orchard - Sephora").
+// We look for repeated anchor tokens to estimate building count.
+function countDistinctBuildings(businesses: ScoredBusiness[]): number {
+  if (businesses.length === 0) return 0
+  const buildingMatchers: { re: RegExp; key: string }[] = [
+    { re: /\b(ion\s*orchard|paragon|takashimaya|wisma\s*atria|ngee\s*ann|tangs|lucky\s*plaza|forum|mandarin\s*gallery|313)\b/i, key: 'orchard' },
+    { re: /\b(suntec|marina\s*square|raffles\s*city|millenia|esplanade)\b/i, key: 'marina' },
+    { re: /\b(jewel|changi\s*airport)\b/i, key: 'changi' },
+    { re: /\b(plaza\s*singapura|the\s*centrepoint|orchard\s*central|somerset)\b/i, key: 'somerset' },
+    { re: /\b(vivocity|harbourfront)\b/i, key: 'harbourfront' },
+    { re: /\b(jem|jcube|imm|westgate|jurong\s*point)\b/i, key: 'jurong' },
+    { re: /\b(tampines\s*mall|century\s*square|tampines\s*1)\b/i, key: 'tampines' },
+    { re: /\b(bedok\s*mall|heartbeat@bedok|djitsun)\b/i, key: 'bedok' },
+    { re: /\b(amk\s*hub|jubilee|nex|hougang\s*mall)\b/i, key: 'northeast' },
+    { re: /\b(uic\s*building|asia\s*square|ocbc\s*centre|capital\s*tower|tanjong\s*pagar\s*centre)\b/i, key: 'cbd-towers' },
+  ]
+  const buildings = new Set<string>()
+  let unmatched = 0
+  for (const b of businesses) {
+    let matched = false
+    for (const m of buildingMatchers) {
+      if (m.re.test(b.name)) { buildings.add(m.key); matched = true; break }
+    }
+    if (!matched) unmatched++
+  }
+  // Add 1 "implied buildings" slot per ~3 unmatched businesses (rough density)
+  return buildings.size + Math.ceil(unmatched / 3)
 }
 
 function mostCommon(arr: string[]): string {

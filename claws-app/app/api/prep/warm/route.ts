@@ -4,7 +4,7 @@ import { discoverNearby, getPlaceDetails, inferSector } from '@/lib/google-place
 import { scrapeSite } from '@/lib/web-scrape'
 import { scoreBusiness, aggregateZone } from '@/lib/signal-scoring'
 import { generateReport } from '@/lib/demo-report'
-import { cacheGet, cacheSet, TTL } from '@/lib/cache'
+import { cacheGet, cacheSet, ttlForPostal } from '@/lib/cache'
 import type { TerritoryReport } from '@/lib/demo-report'
 
 export const dynamic = 'force-dynamic'
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     totalCount: places.length,
     saturated,
   })
-  await cacheSet(cacheKey, report, TTL.TERRITORY)
+  await cacheSet(cacheKey, report, ttlForPostal(postalCode))
 
   return NextResponse.json({
     status: 'warmed',

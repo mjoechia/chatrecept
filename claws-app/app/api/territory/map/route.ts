@@ -4,7 +4,7 @@ import { discoverNearby, getPlaceDetails, inferSector } from '@/lib/google-place
 import { scrapeSite } from '@/lib/web-scrape'
 import { scoreBusiness, aggregateZone } from '@/lib/signal-scoring'
 import { generateReport } from '@/lib/demo-report'
-import { cacheGet, cacheSet, TTL } from '@/lib/cache'
+import { cacheGet, cacheSet, ttlForPostal } from '@/lib/cache'
 import { getClientIp } from '@/lib/rate-limit'
 import {
   isOverBudget, recordLookupSpend, getTodaySpend, getDailyCap,
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
   })
   stage('claude_report', tReport)
 
-  await cacheSet(cacheKey, report, TTL.TERRITORY)
+  await cacheSet(cacheKey, report, ttlForPostal(postalCode))
   recordLookupSpend(ip)
   logLookup({ postalCode, ip, cached: false, utm: body.utm })
 

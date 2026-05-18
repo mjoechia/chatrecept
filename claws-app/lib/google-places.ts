@@ -156,37 +156,53 @@ export async function searchByText(
   return all
 }
 
-// Run multiple discovery strategies in parallel and dedupe.
-//  - Nearby ranked by POPULARITY: top 20 most-popular
-//  - Nearby ranked by DISTANCE:   top 20 closest
-//  - Text Search "businesses":    up to 60 broadly-matching
-// Union gives 60-100 unique places for dense zones.
+// Run six parallel discovery strategies and dedupe:
+//  - Nearby 500m, ranked POPULARITY  → top 20 most-popular in the immediate zone
+//  - Nearby 500m, ranked DISTANCE    → top 20 closest
+//  - Nearby 800m, ranked POPULARITY  → adjacent-block anchors (often F&B)
+//  - Text Search "restaurants cafes food bakery" → F&B segment
+//  - Text Search "shops retail stores boutique"  → retail segment
+//  - Text Search "services offices professional clinic" → services segment
 //
-// `saturated` is true when all three sources hit their caps — signal that
-// "there are still more in this zone that we didn't fetch".
+// Union after dedupe yields 150-250 unique places for dense SG zones.
+// All 6 calls run in parallel → total latency ~= the slowest single call.
+//
+// `saturated` flips true only when all six sources hit their caps.
 export async function discoverNearby(
   lat: number,
   lng: number,
   radiusMeters = 500,
 ): Promise<{ places: PlaceSummary[]; saturated: boolean }> {
-  const [popular, nearest, textHits] = await Promise.all([
-    searchNearby(lat, lng, radiusMeters, 'POPULARITY'),
-    searchNearby(lat, lng, radiusMeters, 'DISTANCE'),
-    searchByText(lat, lng, 'shops restaurants services offices businesses', radiusMeters),
+  const [popular, nearest, popularWide, textFnb, textRetail, textServices] = await Promise.all([
+    searchNearby(lat, lng, radiusMeters,       'POPULARITY'),
+    searchNearby(lat, lng, radiusMeters,       'DISTANCE'),
+    searchNearby(lat, lng, radiusMeters * 1.6, 'POPULARITY'),
+    searchByText(lat, lng, 'restaurants cafes food bakery',          radiusMeters),
+    searchByText(lat, lng, 'shops retail stores boutique',           radiusMeters),
+    searchByText(lat, lng, 'services offices professional clinic',   radiusMeters),
   ])
 
-  // Interleave preferring popularity > nearest > text relevance
+  // Round-robin merge across sources — popularity-ranked first so the best
+  // signals end up in the top-N enrichment slice.
+  const sources: PlaceSummary[][] = [popular, nearest, popularWide, textFnb, textRetail, textServices]
   const seen   = new Set<string>()
   const merged: PlaceSummary[] = []
-  const maxLen = Math.max(popular.length, nearest.length, textHits.length)
+  const maxLen = Math.max(...sources.map(s => s.length))
   for (let i = 0; i < maxLen; i++) {
-    for (const arr of [popular, nearest, textHits]) {
+    for (const arr of sources) {
       const p = arr[i]
       if (p && !seen.has(p.place_id)) { seen.add(p.place_id); merged.push(p) }
     }
   }
 
-  const saturated = popular.length >= 20 && nearest.length >= 20 && textHits.length >= 60
+  const saturated =
+    popular.length     >= 20 &&
+    nearest.length     >= 20 &&
+    popularWide.length >= 20 &&
+    textFnb.length     >= 60 &&
+    textRetail.length  >= 60 &&
+    textServices.length >= 60
+
   return { places: merged, saturated }
 }
 

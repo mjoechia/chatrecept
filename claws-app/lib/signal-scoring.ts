@@ -10,7 +10,7 @@ import type { SiteSignals } from './web-scrape'
 
 export type Level = 'Low' | 'Moderate' | 'High'
 export type Likelihood = 'Low' | 'Medium' | 'High'
-export type ActivitySignal = 'Active' | 'Moderate' | 'Possibly Dormant'
+export type ActivitySignal = 'Active' | 'Moderate' | 'Lower recent activity'
 
 export interface ScoredBusiness {
   place_id:           string
@@ -104,7 +104,7 @@ export function scoreBusiness(
   const activity_signal: ActivitySignal =
     reviewCount >= 20 ? 'Active'
     : reviewCount >= 5 ? 'Moderate'
-    : 'Possibly Dormant'
+    : 'Lower recent activity'
 
   return {
     place_id:         details.place_id,

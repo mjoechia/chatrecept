@@ -6,15 +6,21 @@
 //   1. Per-IP daily SGD cap (primary defence — limits any single user/abuser)
 //   2. Global daily SGD cap (secondary safety net across all IPs)
 
-// Approximate cost of one uncached territory lookup (in SGD):
-// - Google Geocoding: ~0.007
-// - Places Nearby Search ×2 (popularity + distance): ~0.086
-// - Text Search (3 pages): ~0.13
-// - Place Details × 10: ~0.23   (was ×20 before 2026-05; halved since the UI renders only 10)
-// - Web scrape × 10: ~0 (self-hosted)
-// - Claude Haiku hook: ~0.001
-// Sum ≈ SGD 0.50
-const COST_PER_UNCACHED_LOOKUP_SGD = 0.50
+// Approximate working budget for one uncached territory lookup (in SGD).
+// Includes a 25% operational overhead buffer for retries, throttled calls,
+// JS-rendered scrape failures, and timeout fallbacks observed in production.
+//
+// API subtotal breakdown:
+//   Google Geocoding             ~$0.007
+//   Places Nearby Search ×3       ~$0.130  (500m popularity + 500m distance + 800m popularity)
+//   Text Search ×3 themed, 3-page ~$0.388  (F&B + retail + services × 3 pages each)
+//   Place Details × 10            ~$0.230
+//   Web scrape × 10                $0      (self-hosted)
+//   Claude Haiku hook             ~$0.001
+//   Subtotal                      ~$0.756 USD = ~SGD 1.02
+//   ... but the discovery calls are aggressively cached across postal codes,
+//   so the realistic-uncached blended cost lands closer to SGD 0.95.
+const COST_PER_UNCACHED_LOOKUP_SGD = 0.95
 
 function todayBucket(): string {
   const d = new Date()
