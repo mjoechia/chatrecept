@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import TopBarAuth from './TopBarAuth'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,6 +31,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <a href="/" className="text-[#425d7f] font-semibold text-sm hover:text-[#12304f] transition-colors">JC CLAWs</a>
           <span className="text-[#dde8f5] font-light text-lg select-none mx-1">·</span>
           <a href="/about" className="text-[#94afd5] text-sm hover:text-[#425d7f] transition-colors">About</a>
+          <div className="ml-auto">
+            <TopBarAuth />
+          </div>
         </div>
         {children}
       </body>

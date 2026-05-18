@@ -40,10 +40,12 @@ export default function HomePage() {
       prospect: params.get('prospect')     ?? undefined,
     }
     const pre = params.get('p')
+    const autoRun = params.get('autorun') === '1'
     if (pre && /^\d{6}$/.test(pre) && !didAutoRun.current) {
       didAutoRun.current = true
       setPostalCode(pre)
-      runLookup(pre, { cacheOnly: true })
+      // After post-login redirect we want a fresh lookup, not cache-only
+      runLookup(pre, { cacheOnly: !autoRun })
     }
   }, [])
 
@@ -74,6 +76,13 @@ export default function HomePage() {
           utm:         utmRef.current,
         }),
       })
+      // 401 → not signed in. Send them to the login page with this postal
+      // code preserved so we can auto-run after they come back.
+      if (res.status === 401 && !opts.cacheOnly) {
+        const next = encodeURIComponent(`/?p=${postal}&autorun=1`)
+        window.location.href = `/auth/login?next=${next}`
+        return
+      }
       const json = await res.json()
       if (!res.ok) { setError(json.error ?? 'Lookup failed'); return }
       setReport(json)

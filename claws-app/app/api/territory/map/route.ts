@@ -10,6 +10,8 @@ import {
   isOverBudget, recordLookupSpend, getTodaySpend, getDailyCap,
   isIpOverBudget, getIpSpend, getIpDailyCap,
 } from '@/lib/spend-tracker'
+import { requireUser } from '@/lib/admin'
+import { recordUserSpend, getPerUserDailyCap } from '@/lib/claws-users'
 import type { TerritoryReport } from '@/lib/demo-report'
 
 export const dynamic = 'force-dynamic'
@@ -60,7 +62,31 @@ export async function POST(req: NextRequest) {
     }, { status: 503 })
   }
 
-  // ── Per-IP daily SGD cap (primary defence) ──────────────────────────────
+  // ── Auth gate (live lookups require a logged-in user) ──────────────────
+  const auth = await requireUser()
+  if (!auth.ok) return auth.error
+  const claws = auth.user
+
+  if (!claws.mapping_enabled) {
+    return NextResponse.json({
+      error: 'Your account does not have mapping access. Contact admin to request it.',
+      mapping_disabled: true,
+    }, { status: 403 })
+  }
+
+  // ── Per-user daily SGD cap ──────────────────────────────────────────────
+  const userCap   = getPerUserDailyCap()
+  const userSpent = Number(claws.spend_today_sgd ?? 0)
+  if (userSpent >= userCap) {
+    return NextResponse.json({
+      error: "You've used your daily mapping budget. Try a sample zone below, or come back tomorrow.",
+      user_spend_capped: true,
+      user_cap_sgd:      userCap,
+      user_spent_sgd:    Number(userSpent.toFixed(2)),
+    }, { status: 429 })
+  }
+
+  // ── Per-IP daily SGD cap (defence-in-depth) ─────────────────────────────
   // Each IP gets MAX_DAILY_SPEND_PER_IP_SGD per day. Generous enough that a
   // genuine prospect can try a handful of postal codes; restrictive enough
   // that an abuser hitting 100 codes burns out of their own budget fast.
@@ -138,7 +164,11 @@ export async function POST(req: NextRequest) {
 
   await cacheSet(cacheKey, report, ttlForPostal(postalCode))
   recordLookupSpend(ip)
-  logLookup({ postalCode, ip, cached: false, utm: body.utm })
+  // Persist per-user spend so the cap survives Railway redeploys
+  await recordUserSpend(claws.auth_user_id, 0.95).catch(e =>
+    console.error('[map] recordUserSpend failed', e)
+  )
+  logLookup({ postalCode, ip, cached: false, utm: body.utm, userEmail: claws.email })
 
   console.log(`[map ${postalCode}] TOTAL ${Date.now() - t0}ms`)
   return NextResponse.json(report)
@@ -149,6 +179,7 @@ function logLookup(args: {
   ip: string
   cached: boolean
   utm?: MapRequestBody['utm']
+  userEmail?: string
 }): void {
   // TODO: persist to Supabase demo_lookups table once schema lands
   console.log('[demo lookup]', {
@@ -156,6 +187,7 @@ function logLookup(args: {
     postal_code: args.postalCode,
     ip: args.ip,
     cached: args.cached,
+    user:         args.userEmail   ?? null,
     utm_src:      args.utm?.src      ?? null,
     utm_medium:   args.utm?.medium   ?? null,
     utm_campaign: args.utm?.campaign ?? null,
