@@ -16,24 +16,38 @@ export interface ClawsUser {
   updated_at:      string
 }
 
+// The master admin can never be demoted or have mapping disabled. They are
+// the root of trust for all access changes. Configurable via env var with a
+// safe default — set MASTER_ADMIN_EMAIL in Railway if a different person
+// should own the system.
+const MASTER_ADMIN_EMAIL = (process.env.MASTER_ADMIN_EMAIL ?? 'mjoechia@gmail.com').toLowerCase()
+
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? '')
   .split(',')
   .map(e => e.trim().toLowerCase())
   .filter(Boolean)
 
+export function isMasterAdmin(email: string | null | undefined): boolean {
+  if (!email) return false
+  return email.toLowerCase() === MASTER_ADMIN_EMAIL
+}
+
 function isBootstrapAdmin(email: string): boolean {
-  return ADMIN_EMAILS.includes(email.toLowerCase())
+  // Master is implicitly an admin; explicit allowlist covers everyone else
+  return isMasterAdmin(email) || ADMIN_EMAILS.includes(email.toLowerCase())
 }
 
 // Get an existing user record OR create one for a first-time Google sign-in.
 // Default policy: mapping_enabled = true. Admin status comes from ADMIN_EMAILS.
+// Master admin always has is_admin=true and mapping_enabled=true enforced.
 export async function upsertUser(args: {
   authUserId: string
   email:      string
   name?:      string | null
 }): Promise<ClawsUser> {
   const svc = createServiceClient()
-  const admin = isBootstrapAdmin(args.email)
+  const master = isMasterAdmin(args.email)
+  const admin  = isBootstrapAdmin(args.email)
 
   // Try to fetch first
   const { data: existing } = await svc
@@ -43,11 +57,18 @@ export async function upsertUser(args: {
     .single()
 
   if (existing) {
-    // Auto-promote if their email is in ADMIN_EMAILS but flag isn't set yet
-    if (admin && !existing.is_admin) {
+    // For the master account: force is_admin and mapping_enabled every time.
+    // For bootstrap admins: promote if not already promoted.
+    const needsPromotion = (master && (!existing.is_admin || !existing.mapping_enabled))
+                       || (admin  && !existing.is_admin)
+    if (needsPromotion) {
       const { data: promoted } = await svc
         .from('users')
-        .update({ is_admin: true, updated_at: new Date().toISOString() })
+        .update({
+          is_admin:        admin || master,
+          mapping_enabled: master ? true : existing.mapping_enabled,
+          updated_at:      new Date().toISOString(),
+        })
         .eq('auth_user_id', args.authUserId)
         .select('*')
         .single()

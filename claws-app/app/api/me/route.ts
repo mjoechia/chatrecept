@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSessionClient } from '@/lib/supabase-server'
-import { upsertUser, getPerUserDailyCap } from '@/lib/claws-users'
+import { upsertUser, getPerUserDailyCap, isMasterAdmin } from '@/lib/claws-users'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,6 +26,7 @@ export async function GET() {
       email:            claws.email,
       name:             claws.name,
       is_admin:         claws.is_admin,
+      is_master:        isMasterAdmin(claws.email),
       mapping_enabled:  claws.mapping_enabled,
       spend_today_sgd:  Number(claws.spend_today_sgd),
       spend_cap_sgd:    getPerUserDailyCap(),

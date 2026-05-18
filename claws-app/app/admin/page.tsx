@@ -12,6 +12,7 @@ interface ClawsUser {
   name:            string | null
   mapping_enabled: boolean
   is_admin:        boolean
+  is_master:       boolean
   spend_today_sgd: number
   spend_day:       string | null
   created_at:      string
@@ -38,6 +39,10 @@ export default function AdminPage() {
 
   async function togglePermission(u: ClawsUser, field: 'mapping_enabled' | 'is_admin') {
     if (!users) return
+    if (u.is_master) {
+      setError('The master admin account cannot be modified.')
+      return
+    }
     const newValue = !u[field]
     // Optimistic update
     setUsers(users.map(x => x.id === u.id ? { ...x, [field]: newValue } : x))
@@ -83,9 +88,16 @@ export default function AdminPage() {
             </thead>
             <tbody className="divide-y divide-[#dde8f5]">
               {users.map(u => (
-                <tr key={u.id} className="hover:bg-[#f3f6ff]">
+                <tr key={u.id} className={`hover:bg-[#f3f6ff] ${u.is_master ? 'bg-[#fff8e1]/40' : ''}`}>
                   <td className="px-4 py-3">
-                    <p className="font-medium text-[#12304f]">{u.name ?? u.email}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium text-[#12304f]">{u.name ?? u.email}</p>
+                      {u.is_master && (
+                        <span className="text-[9px] font-bold tracking-widest text-[#8a6d00] bg-[#fef3c7] border border-[#fde68a] px-1.5 py-0.5 rounded uppercase">
+                          Master
+                        </span>
+                      )}
+                    </div>
                     {u.name && <p className="text-xs text-[#94afd5]">{u.email}</p>}
                   </td>
                   <td className="px-4 py-3 text-xs text-[#425d7f]">
@@ -95,10 +107,18 @@ export default function AdminPage() {
                     SGD {Number(u.spend_today_sgd ?? 0).toFixed(2)}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <Toggle on={u.mapping_enabled} onClick={() => togglePermission(u, 'mapping_enabled')} />
+                    <Toggle
+                      on={u.mapping_enabled}
+                      disabled={u.is_master}
+                      onClick={() => togglePermission(u, 'mapping_enabled')}
+                    />
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <Toggle on={u.is_admin} onClick={() => togglePermission(u, 'is_admin')} />
+                    <Toggle
+                      on={u.is_admin}
+                      disabled={u.is_master}
+                      onClick={() => togglePermission(u, 'is_admin')}
+                    />
                   </td>
                 </tr>
               ))}
@@ -110,11 +130,13 @@ export default function AdminPage() {
   )
 }
 
-function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
+function Toggle({ on, onClick, disabled }: { on: boolean; onClick: () => void; disabled?: boolean }) {
   return (
     <button
       onClick={onClick}
-      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${on ? 'bg-[#006092]' : 'bg-[#dde8f5]'}`}
+      disabled={disabled}
+      title={disabled ? 'Locked — master admin' : ''}
+      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${on ? 'bg-[#006092]' : 'bg-[#dde8f5]'} ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
       aria-pressed={on}
     >
       <span

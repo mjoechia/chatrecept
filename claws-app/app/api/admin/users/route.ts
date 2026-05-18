@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin'
 import { createServiceClient } from '@/lib/supabase'
+import { isMasterAdmin } from '@/lib/claws-users'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/admin/users — list all claws users (admin only)
+// GET /api/admin/users — list all claws users (admin only).
+// Annotates each row with is_master so the UI can render the master account
+// with disabled toggles + a "Master" badge.
 export async function GET() {
   const auth = await requireAdmin()
   if (!auth.ok) return auth.error
@@ -16,5 +19,10 @@ export async function GET() {
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data ?? [])
+
+  const annotated = (data ?? []).map(u => ({
+    ...u,
+    is_master: isMasterAdmin(u.email),
+  }))
+  return NextResponse.json(annotated)
 }
