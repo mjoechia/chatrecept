@@ -8,13 +8,13 @@
 
 // Approximate cost of one uncached territory lookup (in SGD):
 // - Google Geocoding: ~0.007
-// - Places Nearby Search ×2 (popularity + distance): ~0.054
+// - Places Nearby Search ×2 (popularity + distance): ~0.086
 // - Text Search (3 pages): ~0.13
-// - Place Details × 20: ~0.46
-// - Web scrape × 20: ~0.10
-// - Claude Haiku hook: ~0.04
-// Sum ≈ SGD 0.80
-const COST_PER_UNCACHED_LOOKUP_SGD = 0.80
+// - Place Details × 10: ~0.23   (was ×20 before 2026-05; halved since the UI renders only 10)
+// - Web scrape × 10: ~0 (self-hosted)
+// - Claude Haiku hook: ~0.001
+// Sum ≈ SGD 0.50
+const COST_PER_UNCACHED_LOOKUP_SGD = 0.50
 
 function todayBucket(): string {
   const d = new Date()

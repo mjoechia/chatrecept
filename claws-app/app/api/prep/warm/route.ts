@@ -48,7 +48,9 @@ export async function POST(req: NextRequest) {
   const { places, saturated } = await discoverNearby(location.latitude, location.longitude, 500)
   if (places.length === 0) return NextResponse.json({ error: 'No businesses found in zone' }, { status: 404 })
 
-  const subset = places.slice(0, 20)
+  // Top 10 enrichment — matches /api/territory/map behaviour and keeps
+  // pre-warm cost in line with live-lookup cost (~SGD 0.50).
+  const subset = places.slice(0, 10)
   const enriched = await Promise.all(subset.map(async p => {
     const details = await getPlaceDetails(p.place_id)
     if (!details) return null
