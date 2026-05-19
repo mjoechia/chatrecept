@@ -7,7 +7,14 @@ export const dynamic = 'force-dynamic'
 // GET /auth/callback?code=... — exchanges OAuth code for a Supabase session,
 // then upserts the claws.users row.
 export async function GET(req: NextRequest) {
-  const { searchParams, origin } = new URL(req.url)
+  const url = new URL(req.url)
+  const searchParams = url.searchParams
+  // Railway puts the public host in x-forwarded-host; req.url's host header
+  // reflects the internal upstream (e.g. localhost:8080), which would send
+  // post-login redirects to the wrong origin.
+  const forwardedHost = req.headers.get('x-forwarded-host')
+  const forwardedProto = req.headers.get('x-forwarded-proto') ?? 'https'
+  const origin = forwardedHost ? `${forwardedProto}://${forwardedHost}` : url.origin
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/'
 
