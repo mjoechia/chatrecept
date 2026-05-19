@@ -12,10 +12,10 @@ export default function LoginPage() {
   async function handleGoogle() {
     setLoading(true); setError('')
     const supabase = createClient()
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin
-    // Preserve any ?next=... param so we land back where the user was
+    // Always use the live browser origin — avoids stale NEXT_PUBLIC_APP_URL values
+    // baked into the build pointing at localhost or the wrong domain.
     const next = new URLSearchParams(window.location.search).get('next') ?? '/'
-    const callback = `${appUrl}/auth/callback?next=${encodeURIComponent(next)}`
+    const callback = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: callback },
