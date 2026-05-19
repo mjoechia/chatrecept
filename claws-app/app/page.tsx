@@ -83,9 +83,20 @@ export default function HomePage() {
         window.location.href = `/auth/login?next=${next}`
         return
       }
-      const json = await res.json()
-      if (!res.ok) { setError(json.error ?? 'Lookup failed'); return }
-      setReport(json)
+      // Tolerate non-JSON responses (502 from a cold deploy, HTML error
+      // pages, empty 500s) — show a friendly message instead of a cryptic
+      // "Unexpected end of JSON input".
+      const text = await res.text()
+      let json: { error?: string } & Record<string, unknown> = {}
+      if (text) {
+        try { json = JSON.parse(text) }
+        catch { /* keep json empty */ }
+      }
+      if (!res.ok) {
+        setError(json.error ?? `Server returned ${res.status}. Try a sample zone, or try again in a minute.`)
+        return
+      }
+      setReport(json as unknown as TerritoryReport)
     } catch (e) {
       setError(String(e))
     } finally {

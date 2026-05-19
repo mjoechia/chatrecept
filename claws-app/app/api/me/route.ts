@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSessionClient } from '@/lib/supabase-server'
 import { upsertUser, getPerUserDailyCap, isMasterAdmin } from '@/lib/claws-users'
+import { authConfigured } from '@/lib/admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,13 +9,17 @@ export const dynamic = 'force-dynamic'
 // Returns null fields when not logged in (200, not 401) so the page can render
 // the anonymous experience without an extra error path.
 export async function GET() {
-  const supabase = await createSessionClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user?.email) {
-    return NextResponse.json({ authenticated: false })
+  if (!authConfigured()) {
+    return NextResponse.json({ authenticated: false, auth_unavailable: true })
   }
 
   try {
+    const supabase = await createSessionClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user?.email) {
+      return NextResponse.json({ authenticated: false })
+    }
+
     const claws = await upsertUser({
       authUserId: user.id,
       email:      user.email,
@@ -32,6 +37,7 @@ export async function GET() {
       spend_cap_sgd:    getPerUserDailyCap(),
     })
   } catch (e) {
-    return NextResponse.json({ authenticated: false, error: String(e) }, { status: 500 })
+    console.error('[api/me]', e)
+    return NextResponse.json({ authenticated: false, error: String(e) })
   }
 }
