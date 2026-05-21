@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import WebChatBubble from "@/components/WebChatBubble";
+import SignupForm from "@/components/SignupForm";
 import { supabase } from "@/lib/supabase-client";
 import type { User } from "@supabase/supabase-js";
 
@@ -90,11 +91,19 @@ export default function ComingSoonPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [user, setUser] = useState<User | null>(null);
   const [secretariatUrl, setSecretariatUrl] = useState<string | null>(null)
+  const [signupOpen, setSignupOpen] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user))
+    // Open the signup modal as soon as we know the visitor isn't authenticated.
+    // Doing this after the initial getUser() avoids a flash for users who are
+    // already signed in (cookies just need to be read).
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user)
+      if (!data.user) setSignupOpen(true)
+    })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       setUser(session?.user ?? null)
+      if (session?.user) setSignupOpen(false)
       if (session) {
         const url = `${SECRETARIAT_URL}/auth/set-session#access_token=${session.access_token}&refresh_token=${session.refresh_token}`
         setSecretariatUrl(url)
@@ -111,6 +120,13 @@ export default function ComingSoonPage() {
     })
     return () => subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (!signupOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSignupOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [signupOpen])
 
   function handleGoogleLogin() {
     const params = new URLSearchParams(location.search)
@@ -900,6 +916,32 @@ export default function ComingSoonPage() {
       </footer>
 
       <WebChatBubble />
+
+      {signupOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[rgba(18,48,79,0.55)] backdrop-blur-sm"
+          onClick={() => setSignupOpen(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="relative w-full max-w-md bg-white border border-[#dde8f5] rounded-2xl p-8 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setSignupOpen(false)}
+              aria-label="Close signup"
+              className="absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center text-[#94afd5] hover:bg-[#f3f6ff] hover:text-[#12304f] transition-colors"
+            >
+              <Icon name="close" size={20} />
+            </button>
+            <Suspense>
+              <SignupForm />
+            </Suspense>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
