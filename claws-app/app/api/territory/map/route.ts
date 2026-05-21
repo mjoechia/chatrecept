@@ -11,7 +11,7 @@ import {
   isIpOverBudget, getIpSpend, getIpDailyCap,
 } from '@/lib/spend-tracker'
 import { requireUser } from '@/lib/admin'
-import { recordUserSpend, getPerUserDailyCap } from '@/lib/claws-users'
+import { recordUserSpend, getPerUserDailyCap, checkAccess, consumeDailyMapAttempt } from '@/lib/claws-users'
 import type { TerritoryReport } from '@/lib/demo-report'
 
 export const dynamic = 'force-dynamic'
@@ -67,10 +67,12 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) return auth.error
   const claws = auth.user
 
-  if (!claws.mapping_enabled) {
+  const access = checkAccess(claws)
+  if (!access.ok) {
     return NextResponse.json({
-      error: 'Your account does not have mapping access. Contact admin to request it.',
-      mapping_disabled: true,
+      error:          access.message,
+      access_blocked: true,
+      reason:         access.reason,
     }, { status: 403 })
   }
 
@@ -167,6 +169,11 @@ export async function POST(req: NextRequest) {
   // Persist per-user spend so the cap survives Railway redeploys
   await recordUserSpend(claws.auth_user_id, 0.95).catch(e =>
     console.error('[map] recordUserSpend failed', e)
+  )
+  // For tier=map_once_daily, burn the daily allowance only after we
+  // confirm the lookup actually succeeded — failures don't cost a quota.
+  await consumeDailyMapAttempt(claws.auth_user_id).catch(e =>
+    console.error('[map] consumeDailyMapAttempt failed', e)
   )
   logLookup({ postalCode, ip, cached: false, utm: body.utm, userEmail: claws.email })
 

@@ -3,23 +3,26 @@
 
 import { createServiceClient } from './supabase'
 
+export type Tier = 'pending' | 'none' | 'map_once_daily' | 'trial'
+
 export interface ClawsUser {
-  id:              string
-  auth_user_id:    string
-  email:           string
-  name:            string | null
-  mapping_enabled: boolean
-  is_admin:        boolean
-  spend_today_sgd: number
-  spend_day:       string | null
-  created_at:      string
-  updated_at:      string
+  id:               string
+  auth_user_id:     string
+  email:            string
+  name:             string | null
+  tier:             Tier
+  trial_ends_at:    string | null
+  daily_map_count:  number
+  daily_map_day:    string | null
+  is_admin:         boolean
+  spend_today_sgd:  number
+  spend_day:        string | null
+  created_at:       string
+  updated_at:       string
 }
 
-// The master admin can never be demoted or have mapping disabled. They are
-// the root of trust for all access changes. Configurable via env var with a
-// safe default — set MASTER_ADMIN_EMAIL in Railway if a different person
-// should own the system.
+// The master admin can never be demoted or have access removed. Set
+// MASTER_ADMIN_EMAIL in Railway if a different person should own the system.
 const MASTER_ADMIN_EMAIL = (process.env.MASTER_ADMIN_EMAIL ?? 'mjoechia@gmail.com').toLowerCase()
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? '')
@@ -33,13 +36,82 @@ export function isMasterAdmin(email: string | null | undefined): boolean {
 }
 
 function isBootstrapAdmin(email: string): boolean {
-  // Master is implicitly an admin; explicit allowlist covers everyone else
   return isMasterAdmin(email) || ADMIN_EMAILS.includes(email.toLowerCase())
 }
 
+// ── Access decisions ────────────────────────────────────────────────────────
+
+export interface AccessDenied {
+  ok: false
+  reason: 'pending' | 'none' | 'trial_expired' | 'daily_limit_reached'
+  message: string
+}
+export type AccessResult = { ok: true } | AccessDenied
+
+// Decide whether this user can run a live map lookup *right now*. For
+// map_once_daily this only checks the daily quota; consumeDailyMapAttempt
+// must be called separately once the lookup actually succeeds, so we don't
+// burn a user's only daily attempt on a failure.
+export function checkAccess(u: ClawsUser, now: Date = new Date()): AccessResult {
+  if (u.is_admin) return { ok: true }
+
+  if (u.tier === 'pending') {
+    return { ok: false, reason: 'pending', message: 'Your account is pending admin approval.' }
+  }
+  if (u.tier === 'none') {
+    return { ok: false, reason: 'none', message: 'Your account does not have mapping access. Contact admin to request it.' }
+  }
+  if (u.tier === 'trial') {
+    if (u.trial_ends_at && new Date(u.trial_ends_at) <= now) {
+      return { ok: false, reason: 'trial_expired', message: 'Your trial has ended. Contact admin to renew.' }
+    }
+    return { ok: true }
+  }
+  if (u.tier === 'map_once_daily') {
+    const today = now.toISOString().slice(0, 10)
+    const count = u.daily_map_day === today ? u.daily_map_count : 0
+    if (count >= 1) {
+      return { ok: false, reason: 'daily_limit_reached', message: "You've used today's lookup. Come back tomorrow." }
+    }
+    return { ok: true }
+  }
+  // Unreachable for current Tier union, but keep a safe default
+  return { ok: false, reason: 'none', message: 'No access.' }
+}
+
+// Convenience — true iff checkAccess would return ok. Used by /api/me.
+export function canMap(u: ClawsUser, now: Date = new Date()): boolean {
+  return checkAccess(u, now).ok
+}
+
+// Bump the daily map counter for tier=map_once_daily. No-op for any other
+// tier (so it's safe to always call after a successful lookup).
+export async function consumeDailyMapAttempt(authUserId: string): Promise<void> {
+  const svc = createServiceClient()
+  const today = new Date().toISOString().slice(0, 10)
+  const { data: u } = await svc
+    .from('users')
+    .select('tier, daily_map_count, daily_map_day')
+    .eq('auth_user_id', authUserId)
+    .single()
+  if (!u || u.tier !== 'map_once_daily') return
+  const current = u.daily_map_day === today ? Number(u.daily_map_count ?? 0) : 0
+  await svc
+    .from('users')
+    .update({
+      daily_map_count: current + 1,
+      daily_map_day:   today,
+      updated_at:      new Date().toISOString(),
+    })
+    .eq('auth_user_id', authUserId)
+}
+
+// ── Upsert on sign-in ───────────────────────────────────────────────────────
+
 // Get an existing user record OR create one for a first-time Google sign-in.
-// Default policy: mapping_enabled = true. Admin status comes from ADMIN_EMAILS.
-// Master admin always has is_admin=true and mapping_enabled=true enforced.
+// New users default to tier='pending' — they need admin approval before any
+// live lookup. Master admin and bootstrap admins from ADMIN_EMAILS are
+// promoted (is_admin=true) which bypasses the tier gate.
 export async function upsertUser(args: {
   authUserId: string
   email:      string
@@ -49,7 +121,6 @@ export async function upsertUser(args: {
   const master = isMasterAdmin(args.email)
   const admin  = isBootstrapAdmin(args.email)
 
-  // Try to fetch first
   const { data: existing } = await svc
     .from('users')
     .select('*')
@@ -57,17 +128,15 @@ export async function upsertUser(args: {
     .single()
 
   if (existing) {
-    // For the master account: force is_admin and mapping_enabled every time.
-    // For bootstrap admins: promote if not already promoted.
-    const needsPromotion = (master && (!existing.is_admin || !existing.mapping_enabled))
-                       || (admin  && !existing.is_admin)
+    // Master + bootstrap admins should always have is_admin=true. Promote on
+    // every login (cheap and self-healing if someone toggled them off).
+    const needsPromotion = (master || admin) && !existing.is_admin
     if (needsPromotion) {
       const { data: promoted } = await svc
         .from('users')
         .update({
-          is_admin:        admin || master,
-          mapping_enabled: master ? true : existing.mapping_enabled,
-          updated_at:      new Date().toISOString(),
+          is_admin:   true,
+          updated_at: new Date().toISOString(),
         })
         .eq('auth_user_id', args.authUserId)
         .select('*')
@@ -77,15 +146,16 @@ export async function upsertUser(args: {
     return existing as ClawsUser
   }
 
-  // First login → create row
   const { data: created, error } = await svc
     .from('users')
     .insert({
-      auth_user_id:    args.authUserId,
-      email:           args.email.toLowerCase(),
-      name:            args.name ?? null,
-      mapping_enabled: true,
-      is_admin:        admin,
+      auth_user_id: args.authUserId,
+      email:        args.email.toLowerCase(),
+      name:         args.name ?? null,
+      // Bootstrap admins land with is_admin=true so they don't need to be
+      // self-approved. Everyone else defaults to tier='pending' (set by
+      // the column default) and is_admin=false.
+      is_admin:     admin,
     })
     .select('*')
     .single()
@@ -94,7 +164,8 @@ export async function upsertUser(args: {
   return created as ClawsUser
 }
 
-// Increment a user's per-day spend bucket. Resets when spend_day != today.
+// ── Spend tracking ──────────────────────────────────────────────────────────
+
 export async function recordUserSpend(
   authUserId: string,
   costSgd: number,

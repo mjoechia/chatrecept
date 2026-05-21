@@ -5,17 +5,36 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+type Tier = 'pending' | 'none' | 'map_once_daily' | 'trial'
+
 interface ClawsUser {
-  id:              string
-  auth_user_id:    string
-  email:           string
-  name:            string | null
-  mapping_enabled: boolean
-  is_admin:        boolean
-  is_master:       boolean
-  spend_today_sgd: number
-  spend_day:       string | null
-  created_at:      string
+  id:               string
+  auth_user_id:     string
+  email:            string
+  name:             string | null
+  tier:             Tier
+  trial_ends_at:    string | null
+  daily_map_count:  number
+  daily_map_day:    string | null
+  is_admin:         boolean
+  is_master:        boolean
+  spend_today_sgd:  number
+  spend_day:        string | null
+  created_at:       string
+}
+
+const TIER_LABEL: Record<Tier, string> = {
+  pending:        'Pending',
+  none:           'No access',
+  map_once_daily: 'Map once daily',
+  trial:          'Trial',
+}
+
+const TIER_BADGE: Record<Tier, string> = {
+  pending:        'bg-amber-50 text-amber-700 border-amber-200',
+  none:           'bg-gray-100 text-gray-600 border-gray-200',
+  map_once_daily: 'bg-sky-50 text-sky-700 border-sky-200',
+  trial:          'bg-emerald-50 text-emerald-700 border-emerald-200',
 }
 
 export default function AdminPage() {
@@ -37,36 +56,41 @@ export default function AdminPage() {
     return () => { cancelled = true }
   }, [router])
 
-  async function togglePermission(u: ClawsUser, field: 'mapping_enabled' | 'is_admin') {
+  async function patchUser(u: ClawsUser, body: { tier?: Tier; trial_days?: number; is_admin?: boolean }) {
     if (!users) return
     if (u.is_master) {
       setError('The master admin account cannot be modified.')
       return
     }
-    const newValue = !u[field]
-    // Optimistic update
-    setUsers(users.map(x => x.id === u.id ? { ...x, [field]: newValue } : x))
-
+    setError('')
     const res = await fetch(`/api/admin/users/${u.id}`, {
-      method: 'PATCH',
+      method:  'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [field]: newValue }),
+      body:    JSON.stringify(body),
     })
     if (!res.ok) {
       const j = await res.json().catch(() => ({}))
       setError(j.error ?? 'Update failed')
-      // Revert
-      setUsers(users)
+      return
     }
+    const updated = await res.json() as ClawsUser
+    setUsers(users.map(x => x.id === u.id ? { ...x, ...updated } : x))
   }
 
+  const pending = (users ?? []).filter(u => u.tier === 'pending').length
+
   return (
-    <main className="max-w-5xl mx-auto px-6 py-12">
-      <h1 className="text-2xl font-bold text-[#12304f] mb-2">JC CLAWs · Admin · Users</h1>
+    <main className="max-w-6xl mx-auto px-6 py-12">
+      <h1 className="text-2xl font-bold text-[#12304f] mb-1">JC CLAWs · Admin · Users</h1>
       <p className="text-sm text-[#425d7f] mb-6">
-        Sign-in is gated by Google OAuth. Disable mapping for any user here — they&apos;ll see a friendly
-        message and can still browse cached zones.
+        Approve new sign-ins, assign tiers, and grant admin powers. Mapping access depends on tier + admin flag.
       </p>
+
+      {pending > 0 && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span className="font-semibold">{pending} pending</span> {pending === 1 ? 'user is' : 'users are'} waiting for approval.
+        </div>
+      )}
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm mb-4">{error}</div>}
 
@@ -81,52 +105,119 @@ export default function AdminPage() {
               <tr>
                 <th className="px-4 py-3">User</th>
                 <th className="px-4 py-3">Joined</th>
-                <th className="px-4 py-3 text-right">Spent today</th>
-                <th className="px-4 py-3 text-center">Mapping</th>
+                <th className="px-4 py-3">Tier</th>
+                <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-center">Admin</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#dde8f5]">
               {users.map(u => (
-                <tr key={u.id} className={`hover:bg-[#f3f6ff] ${u.is_master ? 'bg-[#fff8e1]/40' : ''}`}>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium text-[#12304f]">{u.name ?? u.email}</p>
-                      {u.is_master && (
-                        <span className="text-[9px] font-bold tracking-widest text-[#8a6d00] bg-[#fef3c7] border border-[#fde68a] px-1.5 py-0.5 rounded uppercase">
-                          Master
-                        </span>
-                      )}
-                    </div>
-                    {u.name && <p className="text-xs text-[#94afd5]">{u.email}</p>}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-[#425d7f]">
-                    {new Date(u.created_at).toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' })}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono text-xs text-[#425d7f]">
-                    SGD {Number(u.spend_today_sgd ?? 0).toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <Toggle
-                      on={u.mapping_enabled}
-                      disabled={u.is_master}
-                      onClick={() => togglePermission(u, 'mapping_enabled')}
-                    />
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <Toggle
-                      on={u.is_admin}
-                      disabled={u.is_master}
-                      onClick={() => togglePermission(u, 'is_admin')}
-                    />
-                  </td>
-                </tr>
+                <UserRow key={u.id} user={u} onPatch={patchUser} />
               ))}
             </tbody>
           </table>
         </div>
       )}
     </main>
+  )
+}
+
+function UserRow({ user: u, onPatch }: {
+  user:    ClawsUser
+  onPatch: (u: ClawsUser, body: { tier?: Tier; trial_days?: number; is_admin?: boolean }) => Promise<void>
+}) {
+  const [trialDays, setTrialDays] = useState(14)
+  const today = new Date().toISOString().slice(0, 10)
+  const todayMaps = u.daily_map_day === today ? u.daily_map_count : 0
+
+  const trialExpired = u.tier === 'trial'
+    && u.trial_ends_at != null
+    && new Date(u.trial_ends_at) <= new Date()
+
+  return (
+    <tr className={`hover:bg-[#f9fbff] ${u.is_master ? 'bg-[#fff8e1]/40' : ''} ${u.tier === 'pending' ? 'bg-amber-50/30' : ''}`}>
+      <td className="px-4 py-3 align-top">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="font-medium text-[#12304f]">{u.name ?? u.email}</p>
+          {u.is_master && (
+            <span className="text-[9px] font-bold tracking-widest text-[#8a6d00] bg-[#fef3c7] border border-[#fde68a] px-1.5 py-0.5 rounded uppercase">
+              Master
+            </span>
+          )}
+        </div>
+        {u.name && <p className="text-xs text-[#94afd5]">{u.email}</p>}
+      </td>
+
+      <td className="px-4 py-3 align-top text-xs text-[#425d7f]">
+        {new Date(u.created_at).toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' })}
+      </td>
+
+      <td className="px-4 py-3 align-top">
+        <div className="flex flex-col gap-1.5">
+          <select
+            value={u.tier}
+            disabled={u.is_master}
+            onChange={e => {
+              const tier = e.target.value as Tier
+              onPatch(u, tier === 'trial' ? { tier, trial_days: trialDays } : { tier })
+            }}
+            className={`text-xs rounded-md border px-2 py-1.5 ${TIER_BADGE[u.tier]} ${u.is_master ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+          >
+            <option value="pending">{TIER_LABEL.pending}</option>
+            <option value="none">{TIER_LABEL.none}</option>
+            <option value="map_once_daily">{TIER_LABEL.map_once_daily}</option>
+            <option value="trial">{TIER_LABEL.trial}</option>
+          </select>
+          {u.tier === 'trial' && !u.is_master && (
+            <div className="flex items-center gap-1 text-[11px] text-[#425d7f]">
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={trialDays}
+                onChange={e => setTrialDays(Number(e.target.value))}
+                className="w-14 border border-[#dde8f5] rounded px-1.5 py-0.5 text-xs font-mono"
+              />
+              <span className="text-[#94afd5]">days</span>
+              <button
+                onClick={() => onPatch(u, { tier: 'trial', trial_days: trialDays })}
+                className="ml-1 text-[10px] font-semibold uppercase tracking-wider text-[#006092] hover:underline"
+              >
+                Set
+              </button>
+            </div>
+          )}
+        </div>
+      </td>
+
+      <td className="px-4 py-3 align-top text-xs text-[#425d7f]">
+        {u.tier === 'pending' && <span className="text-amber-700">Awaiting approval</span>}
+        {u.tier === 'none'    && <span className="text-gray-500">Denied</span>}
+        {u.tier === 'map_once_daily' && (
+          <span className={todayMaps >= 1 ? 'text-gray-500' : 'text-sky-700'}>
+            {todayMaps}/1 today
+          </span>
+        )}
+        {u.tier === 'trial' && u.trial_ends_at && (
+          <span className={trialExpired ? 'text-red-600 font-semibold' : 'text-emerald-700'}>
+            {trialExpired ? 'Trial expired' : `Until ${new Date(u.trial_ends_at).toLocaleDateString('en-SG', { day: '2-digit', month: 'short' })}`}
+          </span>
+        )}
+        {Number(u.spend_today_sgd) > 0 && (
+          <div className="text-[10px] text-[#94afd5] mt-0.5">
+            SGD {Number(u.spend_today_sgd).toFixed(2)} spent today
+          </div>
+        )}
+      </td>
+
+      <td className="px-4 py-3 align-top text-center">
+        <Toggle
+          on={u.is_admin}
+          disabled={u.is_master}
+          onClick={() => onPatch(u, { is_admin: !u.is_admin })}
+        />
+      </td>
+    </tr>
   )
 }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSessionClient } from '@/lib/supabase-server'
-import { upsertUser, getPerUserDailyCap, isMasterAdmin } from '@/lib/claws-users'
+import { upsertUser, getPerUserDailyCap, isMasterAdmin, checkAccess } from '@/lib/claws-users'
 import { authConfigured } from '@/lib/admin'
 
 export const dynamic = 'force-dynamic'
@@ -26,13 +26,18 @@ export async function GET() {
       name:       (user.user_metadata?.full_name as string | undefined) ?? null,
     })
 
+    const access = checkAccess(claws)
     return NextResponse.json({
       authenticated:    true,
       email:            claws.email,
       name:             claws.name,
       is_admin:         claws.is_admin,
       is_master:        isMasterAdmin(claws.email),
-      mapping_enabled:  claws.mapping_enabled,
+      tier:             claws.tier,
+      trial_ends_at:    claws.trial_ends_at,
+      can_map:          access.ok,
+      access_reason:    access.ok ? null : access.reason,
+      access_message:   access.ok ? null : access.message,
       spend_today_sgd:  Number(claws.spend_today_sgd),
       spend_cap_sgd:    getPerUserDailyCap(),
     })
