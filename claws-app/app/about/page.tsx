@@ -102,7 +102,7 @@ export default function AboutPage() {
       <section className="px-4 md:px-8 py-12" style={{ backgroundColor: C.surfaceLow }}>
         <div className="max-w-3xl mx-auto">
           <h2 className="font-hanken text-2xl md:text-3xl font-semibold mb-1" style={{ color: C.primary }}>
-            Why SGD 600/mo is Cheap
+            Why JC CLAWs Is Cheap
           </h2>
           <p className="text-sm mb-6" style={{ color: C.onSurfaceVariant }}>
             The reality of building a sales team in Singapore.
@@ -127,7 +127,7 @@ export default function AboutPage() {
                 </tr>
                 <tr style={{ backgroundColor: `${C.secondaryFixed}1a` }}>
                   <td className="p-3 font-bold" style={{ color: C.primary }}>JC CLAWs AI</td>
-                  <td className="p-3 font-bold text-lg" style={{ color: C.primary }}>$600</td>
+                  <td className="p-3 font-bold text-lg" style={{ color: C.primary }}>A fraction of the cost</td>
                 </tr>
               </tbody>
             </table>

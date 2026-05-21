@@ -401,7 +401,7 @@ export default function HomePage() {
               href="/signup"
               className="inline-block bg-[#006092] text-white px-6 py-3 rounded-lg text-sm font-semibold hover:bg-[#004d75] transition-colors"
             >
-              Activate Outreach Zone — SGD 600 / mo →
+              Turn On Lead Generation →
             </a>
             <p className="text-xs text-[#94afd5] mt-3">
               3-month minimum · human-supervised first 30 days · cancel anytime after
