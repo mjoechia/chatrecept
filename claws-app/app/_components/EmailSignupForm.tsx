@@ -72,8 +72,12 @@ export default function EmailSignupForm() {
         <p className="text-sm font-semibold text-[#12304f]">Check your email</p>
         <p className="text-xs text-[#425d7f] leading-snug">
           We sent a confirmation link to{' '}
-          <span className="font-semibold text-[#12304f]">{email}</span>. Click it
-          to finish creating your account.
+          <span className="font-semibold text-[#12304f]">{email}</span>. Open it
+          in <span className="font-semibold">this same browser</span> to finish
+          creating your account.
+        </p>
+        <p className="text-[11px] text-[#94afd5] leading-snug">
+          Didn&apos;t arrive in a minute? Check spam.
         </p>
         <p className="text-[11px] text-[#94afd5] pt-1">
           Wrong email?{' '}
