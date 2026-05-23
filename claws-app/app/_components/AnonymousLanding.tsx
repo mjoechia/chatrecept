@@ -1,3 +1,4 @@
+import EmailSignupForm from './EmailSignupForm'
 import GoogleSignInButton from './GoogleSignInButton'
 
 export default function AnonymousLanding() {
@@ -43,10 +44,16 @@ export default function AnonymousLanding() {
 
       {/* Sign up */}
       <section className="bg-white rounded-xl border border-[#dde8f5] p-6 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wider text-[#94afd5] mb-3 text-center">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[#94afd5] mb-4 text-center">
           Get started
         </p>
-        <div className="max-w-xs mx-auto">
+        <div className="max-w-xs mx-auto space-y-4">
+          <EmailSignupForm />
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-[#dde8f5]" />
+            <span className="text-[10px] uppercase tracking-wider text-[#94afd5]">or</span>
+            <div className="flex-1 h-px bg-[#dde8f5]" />
+          </div>
           <GoogleSignInButton label="Sign up with Google" />
         </div>
         <p className="mt-5 text-xs text-[#94afd5] text-center leading-snug">
