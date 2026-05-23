@@ -29,7 +29,7 @@ export default function EmailSignupForm() {
 
     setStatus('loading')
     const supabase = createClient()
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -44,6 +44,25 @@ export default function EmailSignupForm() {
       setError(signUpError.message)
       return
     }
+
+    // Case 1: Supabase returned a session inline → "Confirm email" is OFF in
+    // the project, the user is already logged in, no email was sent.
+    // Reload so the server-side auth gate on / renders AuthedHome.
+    if (data.session) {
+      window.location.reload()
+      return
+    }
+
+    // Case 2: Email already registered. Supabase's anti-enumeration design
+    // returns success with an empty identities array instead of erroring.
+    // Surface a sensible message instead of telling them to check email.
+    if (data.user && data.user.identities && data.user.identities.length === 0) {
+      setStatus('error')
+      setError('That email is already registered. Try signing in instead.')
+      return
+    }
+
+    // Case 3: Legit pending confirmation.
     setStatus('success')
   }
 
