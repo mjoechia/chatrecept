@@ -20,6 +20,7 @@ interface ClawsUser {
   is_master:        boolean
   spend_today_sgd:  number
   spend_day:        string | null
+  welcome_sent_at:  string | null
   created_at:       string
 }
 
@@ -77,6 +78,28 @@ export default function AdminPage() {
     setUsers(users.map(x => x.id === u.id ? { ...x, ...updated } : x))
   }
 
+  async function sendWelcome(u: ClawsUser): Promise<{ ok: boolean }> {
+    if (!users) return { ok: false }
+    setError('')
+    const res = await fetch(`/api/admin/users/${u.id}/send-welcome`, {
+      method: 'POST',
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      setError(j.error ?? 'Send failed')
+      return { ok: false }
+    }
+    const json = await res.json() as { ok: true; user?: ClawsUser; warning?: string }
+    if (json.user) {
+      setUsers(users.map(x => x.id === u.id ? { ...x, ...json.user! } : x))
+    } else {
+      // No row returned but email sent — stamp client-side optimistically
+      setUsers(users.map(x => x.id === u.id ? { ...x, welcome_sent_at: new Date().toISOString() } : x))
+    }
+    if (json.warning) setError(json.warning)
+    return { ok: true }
+  }
+
   const pending = (users ?? []).filter(u => u.tier === 'pending').length
 
   return (
@@ -108,11 +131,12 @@ export default function AdminPage() {
                 <th className="px-4 py-3">Tier</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-center">Admin</th>
+                <th className="px-4 py-3">Welcome</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#dde8f5]">
               {users.map(u => (
-                <UserRow key={u.id} user={u} onPatch={patchUser} />
+                <UserRow key={u.id} user={u} onPatch={patchUser} onSendWelcome={sendWelcome} />
               ))}
             </tbody>
           </table>
@@ -122,9 +146,10 @@ export default function AdminPage() {
   )
 }
 
-function UserRow({ user: u, onPatch }: {
-  user:    ClawsUser
-  onPatch: (u: ClawsUser, body: { tier?: Tier; trial_days?: number; is_admin?: boolean }) => Promise<void>
+function UserRow({ user: u, onPatch, onSendWelcome }: {
+  user:          ClawsUser
+  onPatch:       (u: ClawsUser, body: { tier?: Tier; trial_days?: number; is_admin?: boolean }) => Promise<void>
+  onSendWelcome: (u: ClawsUser) => Promise<{ ok: boolean }>
 }) {
   const [trialDays, setTrialDays] = useState(14)
   const today = new Date().toISOString().slice(0, 10)
@@ -217,7 +242,62 @@ function UserRow({ user: u, onPatch }: {
           onClick={() => onPatch(u, { is_admin: !u.is_admin })}
         />
       </td>
+
+      <td className="px-4 py-3 align-top">
+        <SendWelcomeButton user={u} onSend={onSendWelcome} />
+      </td>
     </tr>
+  )
+}
+
+function SendWelcomeButton({ user: u, onSend }: {
+  user:   ClawsUser
+  onSend: (u: ClawsUser) => Promise<{ ok: boolean }>
+}) {
+  const [state, setState] = useState<'idle' | 'confirming' | 'sending'>('idle')
+  const sent = u.welcome_sent_at ? new Date(u.welcome_sent_at) : null
+
+  // Master is locked from any modification (mirrors the tier dropdown / admin
+  // toggle behavior). Resending wouldn't break anything but it's noise.
+  if (u.is_master) {
+    return <span className="text-[11px] text-[#94afd5]">—</span>
+  }
+
+  async function handleClick() {
+    if (state === 'idle') { setState('confirming'); return }
+    if (state === 'confirming') {
+      setState('sending')
+      await onSend(u)
+      setState('idle')
+    }
+  }
+
+  const baseLabel = sent ? 'Resend' : 'Send welcome'
+  const label =
+    state === 'sending'    ? 'Sending…' :
+    state === 'confirming' ? (sent ? 'Click to resend' : 'Click to confirm') :
+    baseLabel
+
+  return (
+    <div className="flex flex-col gap-1">
+      <button
+        onClick={handleClick}
+        onBlur={() => state === 'confirming' && setState('idle')}
+        disabled={state === 'sending'}
+        className={`text-[11px] font-semibold px-2.5 py-1 rounded border transition-colors w-fit ${
+          state === 'confirming'
+            ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
+            : 'border-[#dde8f5] bg-white text-[#006092] hover:bg-[#f3f6ff]'
+        } ${state === 'sending' ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+      >
+        {label}
+      </button>
+      {sent && (
+        <span className="text-[10px] text-[#94afd5]">
+          Last sent {sent.toLocaleDateString('en-SG', { day: '2-digit', month: 'short' })}
+        </span>
+      )}
+    </div>
   )
 }
 

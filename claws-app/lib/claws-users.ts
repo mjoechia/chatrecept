@@ -17,6 +17,7 @@ export interface ClawsUser {
   is_admin:         boolean
   spend_today_sgd:  number
   spend_day:        string | null
+  welcome_sent_at:  string | null
   created_at:       string
   updated_at:       string
 }

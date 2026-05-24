@@ -37,10 +37,18 @@ export default function EmailSignInForm() {
       return
     }
 
-    // Session cookie is now set client-side. Hard-navigate so the server
-    // auth gate on / (or wherever next points) picks it up.
-    const next = new URLSearchParams(window.location.search).get('next') ?? '/'
-    window.location.href = next
+    // Session cookie is now set client-side. If the caller specified a
+    // `next`, honour it. Otherwise route admins to /admin and everyone
+    // else to /.
+    const rawNext = new URLSearchParams(window.location.search).get('next')
+    let dest = rawNext ?? '/'
+    if (!rawNext) {
+      try {
+        const me = await fetch('/api/me').then(r => r.json()) as { is_admin?: boolean }
+        if (me.is_admin) dest = '/admin'
+      } catch { /* fall back to / */ }
+    }
+    window.location.href = dest
   }
 
   return (

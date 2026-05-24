@@ -28,19 +28,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent(error.message)}`)
   }
 
-  // Upsert the claws user record now that the session is established
+  // Upsert the claws user record now that the session is established.
+  // Capture the row so we can route admins to /admin by default.
+  let isAdmin = false
   const { data: { user } } = await supabase.auth.getUser()
   if (user?.email) {
     try {
-      await upsertUser({
+      const claws = await upsertUser({
         authUserId: user.id,
         email:      user.email,
         name:       (user.user_metadata?.full_name as string | undefined) ?? null,
       })
+      isAdmin = claws.is_admin
     } catch (e) {
       console.error('[auth/callback] upsertUser failed', e)
     }
   }
 
-  return NextResponse.redirect(`${origin}${next}`)
+  // Admin default landing — only when `next` is the bare home route; any
+  // explicit destination (e.g. /auth/set-password, /?p=...&autorun=1) wins.
+  const destination = isAdmin && next === '/' ? '/admin' : next
+  return NextResponse.redirect(`${origin}${destination}`)
 }
