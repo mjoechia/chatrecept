@@ -3,8 +3,12 @@
 // (confirm signup, reset password) on its own — this is for app-driven
 // sends where we want full control over the timing and content.
 
-const DEFAULT_FROM =
-  process.env.RESEND_FROM_EMAIL ?? 'JC CLAWs <onboarding@resend.dev>'
+// Read env at call time, not module load — Railway-style deploys may have
+// already-loaded module instances with stale values, and `||` lets us fall
+// back when the env is set to an empty string (a common Railway mishap).
+function resolveFrom(): string {
+  return process.env.RESEND_FROM_EMAIL || 'JC CLAWs <onboarding@resend.dev>'
+}
 
 export interface SendEmailArgs {
   to:      string
@@ -15,12 +19,15 @@ export interface SendEmailArgs {
 
 // Posts the email to Resend's REST API and returns the message id on
 // success. Throws with the upstream response body on failure so callers
-// can surface a useful error to the admin.
+// can surface a useful error to the admin. The thrown error includes the
+// `from` address actually used, which is critical for diagnosing whether
+// RESEND_FROM_EMAIL took effect.
 export async function sendEmail(args: SendEmailArgs): Promise<{ id: string }> {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) {
     throw new Error('RESEND_API_KEY is not configured — set it in Railway env')
   }
+  const from = args.from ?? resolveFrom()
 
   const res = await fetch('https://api.resend.com/emails', {
     method:  'POST',
@@ -29,7 +36,7 @@ export async function sendEmail(args: SendEmailArgs): Promise<{ id: string }> {
       'Content-Type':  'application/json',
     },
     body: JSON.stringify({
-      from:    args.from ?? DEFAULT_FROM,
+      from,
       to:      args.to,
       subject: args.subject,
       html:    args.html,
@@ -38,7 +45,7 @@ export async function sendEmail(args: SendEmailArgs): Promise<{ id: string }> {
 
   if (!res.ok) {
     const body = await res.text()
-    throw new Error(`Resend ${res.status}: ${body}`)
+    throw new Error(`Resend ${res.status} (from=${from}): ${body}`)
   }
   return res.json() as Promise<{ id: string }>
 }
