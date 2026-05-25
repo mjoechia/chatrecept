@@ -35,9 +35,10 @@ export async function GET(req: NextRequest) {
   if (user?.email) {
     try {
       const claws = await upsertUser({
-        authUserId: user.id,
-        email:      user.email,
-        name:       (user.user_metadata?.full_name as string | undefined) ?? null,
+        authUserId:     user.id,
+        email:          user.email,
+        name:           (user.user_metadata?.full_name      as string | undefined) ?? null,
+        whatsappNumber: (user.user_metadata?.whatsapp_number as string | undefined) ?? null,
       })
       isAdmin = claws.is_admin
     } catch (e) {

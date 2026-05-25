@@ -12,6 +12,7 @@ interface ClawsUser {
   auth_user_id:     string
   email:            string
   name:             string | null
+  whatsapp_number:  string | null
   tier:             Tier
   trial_ends_at:    string | null
   daily_map_count:  number
@@ -171,6 +172,12 @@ function UserRow({ user: u, onPatch, onSendWelcome }: {
           )}
         </div>
         {u.name && <p className="text-xs text-[#94afd5]">{u.email}</p>}
+        {u.whatsapp_number && (
+          <p className="text-xs text-[#94afd5] font-mono mt-0.5">
+            <span className="text-[10px] uppercase tracking-wider mr-1">WA</span>
+            {u.whatsapp_number}
+          </p>
+        )}
       </td>
 
       <td className="px-4 py-3 align-top text-xs text-[#425d7f]">

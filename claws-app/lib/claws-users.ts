@@ -10,6 +10,7 @@ export interface ClawsUser {
   auth_user_id:     string
   email:            string
   name:             string | null
+  whatsapp_number:  string | null
   tier:             Tier
   trial_ends_at:    string | null
   daily_map_count:  number
@@ -109,14 +110,18 @@ export async function consumeDailyMapAttempt(authUserId: string): Promise<void> 
 
 // ── Upsert on sign-in ───────────────────────────────────────────────────────
 
-// Get an existing user record OR create one for a first-time Google sign-in.
+// Get an existing user record OR create one for a first-time sign-in.
 // New users default to tier='pending' — they need admin approval before any
 // live lookup. Master admin and bootstrap admins from ADMIN_EMAILS are
 // promoted (is_admin=true) which bypasses the tier gate.
+//
+// whatsapp_number is captured at signup (email/password form) and stored
+// here on first sight; it can later drive WhatsApp OTP verification.
 export async function upsertUser(args: {
-  authUserId: string
-  email:      string
-  name?:      string | null
+  authUserId:      string
+  email:           string
+  name?:           string | null
+  whatsappNumber?: string | null
 }): Promise<ClawsUser> {
   const svc = createServiceClient()
   const master = isMasterAdmin(args.email)
@@ -131,18 +136,20 @@ export async function upsertUser(args: {
   if (existing) {
     // Master + bootstrap admins should always have is_admin=true. Promote on
     // every login (cheap and self-healing if someone toggled them off).
+    // If a whatsapp_number was passed and we don't have one yet, fill it.
     const needsPromotion = (master || admin) && !existing.is_admin
-    if (needsPromotion) {
-      const { data: promoted } = await svc
+    const needsWhatsApp  = !existing.whatsapp_number && args.whatsappNumber
+    if (needsPromotion || needsWhatsApp) {
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
+      if (needsPromotion) updates.is_admin = true
+      if (needsWhatsApp)  updates.whatsapp_number = args.whatsappNumber
+      const { data: updated } = await svc
         .from('users')
-        .update({
-          is_admin:   true,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updates)
         .eq('auth_user_id', args.authUserId)
         .select('*')
         .single()
-      return promoted as ClawsUser
+      return updated as ClawsUser
     }
     return existing as ClawsUser
   }
@@ -150,13 +157,14 @@ export async function upsertUser(args: {
   const { data: created, error } = await svc
     .from('users')
     .insert({
-      auth_user_id: args.authUserId,
-      email:        args.email.toLowerCase(),
-      name:         args.name ?? null,
+      auth_user_id:    args.authUserId,
+      email:           args.email.toLowerCase(),
+      name:            args.name ?? null,
+      whatsapp_number: args.whatsappNumber ?? null,
       // Bootstrap admins land with is_admin=true so they don't need to be
       // self-approved. Everyone else defaults to tier='pending' (set by
       // the column default) and is_admin=false.
-      is_admin:     admin,
+      is_admin:        admin,
     })
     .select('*')
     .single()
