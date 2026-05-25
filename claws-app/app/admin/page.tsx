@@ -116,6 +116,8 @@ export default function AdminPage() {
         </div>
       )}
 
+      <WhatsAppTestPanel />
+
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm mb-4">{error}</div>}
 
       {users === null ? (
@@ -321,5 +323,86 @@ function Toggle({ on, onClick, disabled }: { on: boolean; onClick: () => void; d
         className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${on ? 'translate-x-5' : 'translate-x-1'}`}
       />
     </button>
+  )
+}
+
+// Smoke-test panel for the Meta WhatsApp Cloud API integration. Defaults
+// to the built-in `hello_world` template (auto-approved on every WABA),
+// so it works the moment env vars are set — no custom template approval
+// required. Once we wire OTPs, this panel stays as a useful "is Meta
+// still healthy?" probe.
+function WhatsAppTestPanel() {
+  const [to,       setTo]       = useState('+65 ')
+  const [template, setTemplate] = useState('hello_world')
+  const [status,   setStatus]   = useState<'idle' | 'sending'>('idle')
+  const [result,   setResult]   = useState<{ ok: true; wamid: string } | { ok: false; error: string } | null>(null)
+
+  async function handleSend() {
+    setResult(null)
+    setStatus('sending')
+    try {
+      const res = await fetch('/api/admin/whatsapp/test', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ to: to.trim(), template: template.trim() || 'hello_world' }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setResult({ ok: false, error: json.error ?? `HTTP ${res.status}` })
+      } else {
+        setResult({ ok: true, wamid: json.wamid })
+      }
+    } catch (e) {
+      setResult({ ok: false, error: e instanceof Error ? e.message : String(e) })
+    } finally {
+      setStatus('idle')
+    }
+  }
+
+  return (
+    <div className="mb-4 bg-white border border-[#dde8f5] rounded-xl p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-[#94afd5]">
+            Test WhatsApp send (Meta Cloud API)
+          </p>
+          <p className="text-[11px] text-[#94afd5] mt-0.5">
+            Sends a template to any WhatsApp number. Default <span className="font-mono">hello_world</span> is auto-approved by Meta — useful for verifying the integration before custom templates.
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <input
+          type="tel"
+          value={to}
+          onChange={e => setTo(e.target.value)}
+          placeholder="+65 9123 4567"
+          className="flex-1 border border-[#dde8f5] rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#006092]"
+        />
+        <input
+          type="text"
+          value={template}
+          onChange={e => setTemplate(e.target.value)}
+          placeholder="hello_world"
+          className="sm:w-40 border border-[#dde8f5] rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#006092]"
+        />
+        <button
+          onClick={handleSend}
+          disabled={status === 'sending' || !to.trim()}
+          className="bg-[#006092] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#004d75] disabled:opacity-50 transition-colors"
+        >
+          {status === 'sending' ? 'Sending…' : 'Send test'}
+        </button>
+      </div>
+      {result && (
+        <div className={`mt-3 text-xs rounded-lg px-3 py-2 ${result.ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+          {result.ok ? (
+            <>Sent. WAMID <span className="font-mono">{result.wamid}</span></>
+          ) : (
+            <>Failed: {result.error}</>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
