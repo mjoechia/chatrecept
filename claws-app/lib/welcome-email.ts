@@ -82,22 +82,22 @@ export function buildWelcomeEmail(args: WelcomeEmailArgs): { subject: string; ht
                 <td width="33%" valign="top" style="padding:14px 10px;text-align:center;background-color:#f3f6ff;border-radius:8px;">
                   <div style="font-size:11px;font-weight:700;color:#94afd5;letter-spacing:2px;">01</div>
                   <div style="font-size:30px;line-height:1;margin:8px 0;">📍</div>
-                  <div style="font-size:14px;font-weight:600;color:#12304f;">Enter postcode</div>
+                  <div style="font-size:14px;font-weight:600;color:#12304f;">Enter Postcode</div>
                   <div style="font-size:12px;color:#425d7f;margin-top:4px;line-height:1.4;">Any SG postal — Orchard, Tampines, Tuas.</div>
                 </td>
                 <td width="8" style="font-size:0;line-height:0;">&nbsp;</td>
                 <td width="33%" valign="top" style="padding:14px 10px;text-align:center;background-color:#f3f6ff;border-radius:8px;">
                   <div style="font-size:11px;font-weight:700;color:#94afd5;letter-spacing:2px;">02</div>
                   <div style="font-size:30px;line-height:1;margin:8px 0;">🏢</div>
-                  <div style="font-size:14px;font-weight:600;color:#12304f;">See the businesses</div>
+                  <div style="font-size:14px;font-weight:600;color:#12304f;">See Businesses</div>
                   <div style="font-size:12px;color:#425d7f;margin-top:4px;line-height:1.4;">Phone, email, IG, FB, WhatsApp — scored by reachability.</div>
                 </td>
                 <td width="8" style="font-size:0;line-height:0;">&nbsp;</td>
                 <td width="33%" valign="top" style="padding:14px 10px;text-align:center;background-color:#f3f6ff;border-radius:8px;">
                   <div style="font-size:11px;font-weight:700;color:#94afd5;letter-spacing:2px;">03</div>
                   <div style="font-size:30px;line-height:1;margin:8px 0;">💬</div>
-                  <div style="font-size:14px;font-weight:600;color:#12304f;">Daily CLAWs reports</div>
-                  <div style="font-size:12px;color:#425d7f;margin-top:4px;line-height:1.4;">Every morning on WhatsApp: who replied, who needs you.</div>
+                  <div style="font-size:14px;font-weight:600;color:#12304f;">Get Report</div>
+                  <div style="font-size:12px;color:#425d7f;margin-top:4px;line-height:1.4;">WhatsApp report on outreach: who replied, who needs you.</div>
                 </td>
               </tr>
             </table>

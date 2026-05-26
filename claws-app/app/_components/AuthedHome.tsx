@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { EXAMPLE_ZONES } from '@/lib/example-zones'
 import type { TerritoryReport } from '@/lib/demo-report'
+import HowItWorks from './HowItWorks'
 
 interface UtmTags {
   src?:      string
@@ -148,6 +149,8 @@ export default function AuthedHome() {
           in the area and score them in 30 seconds.
         </p>
       </section>
+
+      <HowItWorks />
 
       {/* Input form */}
       <form onSubmit={handleMap} className="bg-white rounded-xl border border-[#dde8f5] p-6 mb-4 shadow-sm">
