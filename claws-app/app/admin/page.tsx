@@ -106,6 +106,19 @@ export default function AdminPage() {
     return { ok: true }
   }
 
+  async function resetDaily(u: ClawsUser): Promise<void> {
+    if (!users) return
+    setError('')
+    const res = await fetch(`/api/admin/users/${u.id}/reset-daily`, { method: 'POST' })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      setError(j.error ?? 'Reset failed')
+      return
+    }
+    const updated = await res.json() as ClawsUser
+    setUsers(users.map(x => x.id === u.id ? { ...x, ...updated } : x))
+  }
+
   const pending = (users ?? []).filter(u => u.tier === 'pending').length
 
   return (
@@ -167,7 +180,7 @@ export default function AdminPage() {
             </thead>
             <tbody className="divide-y divide-[#dde8f5]">
               {users.map(u => (
-                <UserRow key={u.id} user={u} onPatch={patchUser} onSendWelcome={sendWelcome} />
+                <UserRow key={u.id} user={u} onPatch={patchUser} onSendWelcome={sendWelcome} onResetDaily={resetDaily} />
               ))}
             </tbody>
           </table>
@@ -177,10 +190,11 @@ export default function AdminPage() {
   )
 }
 
-function UserRow({ user: u, onPatch, onSendWelcome }: {
+function UserRow({ user: u, onPatch, onSendWelcome, onResetDaily }: {
   user:          ClawsUser
   onPatch:       (u: ClawsUser, body: { tier?: Tier; trial_days?: number; is_admin?: boolean }) => Promise<void>
   onSendWelcome: (u: ClawsUser, tier: 'map_once_daily' | 'trial') => Promise<{ ok: boolean }>
+  onResetDaily:  (u: ClawsUser) => Promise<void>
 }) {
   const [trialDays, setTrialDays] = useState(14)
   const today = new Date().toISOString().slice(0, 10)
@@ -256,9 +270,12 @@ function UserRow({ user: u, onPatch, onSendWelcome }: {
         {u.tier === 'pending' && <span className="text-amber-700">Awaiting approval</span>}
         {u.tier === 'none'    && <span className="text-gray-500">Denied</span>}
         {u.tier === 'map_once_daily' && (
-          <span className={todayMaps >= 1 ? 'text-gray-500' : 'text-sky-700'}>
-            {todayMaps}/1 today
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={todayMaps >= 1 ? 'text-gray-500' : 'text-sky-700'}>
+              {todayMaps}/1 today
+            </span>
+            {!u.is_master && <ResetDailyButton user={u} usedToday={todayMaps >= 1} onReset={onResetDaily} />}
+          </div>
         )}
         {u.tier === 'trial' && u.trial_ends_at && (
           <span className={trialExpired ? 'text-red-600 font-semibold' : 'text-emerald-700'}>
@@ -284,6 +301,54 @@ function UserRow({ user: u, onPatch, onSendWelcome }: {
         <SendWelcomeButton user={u} onSend={onSendWelcome} />
       </td>
     </tr>
+  )
+}
+
+// Inline reset for a map_once_daily user's daily quota. Click-twice
+// pattern: first click arms (button switches to "Confirm"), second
+// commits and fires the API. Click anywhere else (blur) disarms.
+function ResetDailyButton({ user: u, usedToday, onReset }: {
+  user:      ClawsUser
+  usedToday: boolean
+  onReset:   (u: ClawsUser) => Promise<void>
+}) {
+  const [state, setState] = useState<'idle' | 'confirming' | 'resetting'>('idle')
+
+  async function handleClick() {
+    if (state === 'idle') { setState('confirming'); return }
+    if (state === 'confirming') {
+      setState('resetting')
+      await onReset(u)
+      setState('idle')
+    }
+  }
+
+  const label =
+    state === 'resetting'  ? '…' :
+    state === 'confirming' ? 'Confirm' :
+    'Reset'
+
+  // De-emphasise when there's nothing to reset (user hasn't mapped
+  // today), but still allow it — admin may want to proactively clear an
+  // old daily_map_day that's about to roll.
+  const muted = state === 'idle' && !usedToday
+
+  return (
+    <button
+      onClick={handleClick}
+      onBlur={() => state === 'confirming' && setState('idle')}
+      disabled={state === 'resetting'}
+      title={usedToday ? 'Give this user another lookup today' : 'Already at 0/1 — reset anyway'}
+      className={`text-[10px] font-semibold px-2 py-0.5 rounded border transition-colors ${
+        state === 'confirming'
+          ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
+          : muted
+            ? 'border-[#dde8f5] bg-white text-[#94afd5] hover:text-[#006092] hover:border-[#94afd5]'
+            : 'border-[#dde8f5] bg-white text-[#006092] hover:bg-[#f3f6ff]'
+      } ${state === 'resetting' ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+    >
+      {label}
+    </button>
   )
 }
 
