@@ -141,10 +141,10 @@ export default function AuthedHome() {
 
   async function handleExampleZone(postal: string) {
     setPostalCode(postal)
-    // Example zones are usually warm in cache (free + instant), but if the
-    // cache has expired we fall back to a live lookup rather than surfacing
-    // the "preparing" error — user just wants to see the report.
-    await runLookup(postal)
+    // Sample zones are operator-curated examples, not the user's own
+    // exploration. Treat them like history re-opens: even if the cache
+    // has rolled and we have to run live, don't burn today's allowance.
+    await runLookup(postal, { fromHistory: true })
   }
 
   async function handleRecentSearch(postal: string) {

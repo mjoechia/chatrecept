@@ -185,11 +185,12 @@ export async function POST(req: NextRequest) {
   )
   // For tier=map_once_daily, burn the daily allowance only after we
   // confirm the lookup actually succeeded — failures don't cost a quota.
-  // Skipped when from_history=true so that re-opening a zone from the
-  // user's own Recent Searches panel doesn't burn today's try just
-  // because the in-memory cache rolled (TTL or Railway redeploy). The
-  // user already paid for that zone once; spend tracking still fires
-  // above so our budget protection stays accurate.
+  // Skipped when from_history=true so that:
+  //   - re-opening a zone from the user's own Recent Searches panel, OR
+  //   - clicking an operator-curated Sample zone
+  // doesn't burn today's try just because the in-memory cache rolled
+  // (TTL or Railway redeploy). Spend tracking still fires above so our
+  // per-user SGD cap continues to bound worst-case abuse.
   if (!body.from_history) {
     await consumeDailyMapAttempt(claws.auth_user_id).catch(e =>
       console.error('[map] consumeDailyMapAttempt failed', e)
