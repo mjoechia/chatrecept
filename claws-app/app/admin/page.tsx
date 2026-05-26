@@ -80,11 +80,13 @@ export default function AdminPage() {
     setUsers(users.map(x => x.id === u.id ? { ...x, ...updated } : x))
   }
 
-  async function sendWelcome(u: ClawsUser): Promise<{ ok: boolean }> {
+  async function sendWelcome(u: ClawsUser, tier: 'map_once_daily' | 'trial'): Promise<{ ok: boolean }> {
     if (!users) return { ok: false }
     setError('')
     const res = await fetch(`/api/admin/users/${u.id}/send-welcome`, {
-      method: 'POST',
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ tier, trial_days: tier === 'trial' ? 14 : undefined }),
     })
     if (!res.ok) {
       const j = await res.json().catch(() => ({}))
@@ -96,7 +98,9 @@ export default function AdminPage() {
       setUsers(users.map(x => x.id === u.id ? { ...x, ...json.user! } : x))
     } else {
       // No row returned but email sent — stamp client-side optimistically
-      setUsers(users.map(x => x.id === u.id ? { ...x, welcome_sent_at: new Date().toISOString() } : x))
+      setUsers(users.map(x => x.id === u.id
+        ? { ...x, welcome_sent_at: new Date().toISOString(), tier }
+        : x))
     }
     if (json.warning) setError(json.warning)
     return { ok: true }
@@ -176,7 +180,7 @@ export default function AdminPage() {
 function UserRow({ user: u, onPatch, onSendWelcome }: {
   user:          ClawsUser
   onPatch:       (u: ClawsUser, body: { tier?: Tier; trial_days?: number; is_admin?: boolean }) => Promise<void>
-  onSendWelcome: (u: ClawsUser) => Promise<{ ok: boolean }>
+  onSendWelcome: (u: ClawsUser, tier: 'map_once_daily' | 'trial') => Promise<{ ok: boolean }>
 }) {
   const [trialDays, setTrialDays] = useState(14)
   const today = new Date().toISOString().slice(0, 10)
@@ -285,9 +289,9 @@ function UserRow({ user: u, onPatch, onSendWelcome }: {
 
 function SendWelcomeButton({ user: u, onSend }: {
   user:   ClawsUser
-  onSend: (u: ClawsUser) => Promise<{ ok: boolean }>
+  onSend: (u: ClawsUser, tier: 'map_once_daily' | 'trial') => Promise<{ ok: boolean }>
 }) {
-  const [state, setState] = useState<'idle' | 'confirming' | 'sending'>('idle')
+  const [state, setState] = useState<'idle' | 'choosing' | 'sending'>('idle')
   const sent = u.welcome_sent_at ? new Date(u.welcome_sent_at) : null
 
   // Master is locked from any modification (mirrors the tier dropdown / admin
@@ -296,34 +300,56 @@ function SendWelcomeButton({ user: u, onSend }: {
     return <span className="text-[11px] text-[#94afd5]">—</span>
   }
 
-  async function handleClick() {
-    if (state === 'idle') { setState('confirming'); return }
-    if (state === 'confirming') {
-      setState('sending')
-      await onSend(u)
-      setState('idle')
-    }
+  async function pick(tier: 'map_once_daily' | 'trial') {
+    setState('sending')
+    await onSend(u, tier)
+    setState('idle')
   }
 
-  const baseLabel = sent ? 'Resend' : 'Send welcome'
-  const label =
-    state === 'sending'    ? 'Sending…' :
-    state === 'confirming' ? (sent ? 'Click to resend' : 'Click to confirm') :
-    baseLabel
+  if (state === 'choosing') {
+    return (
+      <div className="flex flex-col gap-1">
+        <p className="text-[10px] uppercase tracking-wider text-[#94afd5]">
+          Grant tier + send
+        </p>
+        <div className="flex gap-1 items-center">
+          <button
+            onClick={() => pick('map_once_daily')}
+            title="One fresh lookup per day, no expiry"
+            className="text-[11px] font-semibold px-2 py-1 rounded border border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100 transition-colors"
+          >
+            Map daily
+          </button>
+          <button
+            onClick={() => pick('trial')}
+            title="Full mapping access for 14 days"
+            className="text-[11px] font-semibold px-2 py-1 rounded border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition-colors"
+          >
+            Trial 14d
+          </button>
+          <button
+            onClick={() => setState('idle')}
+            aria-label="Cancel"
+            className="text-[#94afd5] hover:text-[#425d7f] text-base leading-none px-1"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (state === 'sending') {
+    return <span className="text-[11px] text-[#94afd5]">Sending…</span>
+  }
 
   return (
     <div className="flex flex-col gap-1">
       <button
-        onClick={handleClick}
-        onBlur={() => state === 'confirming' && setState('idle')}
-        disabled={state === 'sending'}
-        className={`text-[11px] font-semibold px-2.5 py-1 rounded border transition-colors w-fit ${
-          state === 'confirming'
-            ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
-            : 'border-[#dde8f5] bg-white text-[#006092] hover:bg-[#f3f6ff]'
-        } ${state === 'sending' ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+        onClick={() => setState('choosing')}
+        className="text-[11px] font-semibold px-2.5 py-1 rounded border border-[#dde8f5] bg-white text-[#006092] hover:bg-[#f3f6ff] transition-colors w-fit cursor-pointer"
       >
-        {label}
+        {sent ? 'Resend' : 'Send welcome'}
       </button>
       {sent && (
         <span className="text-[10px] text-[#94afd5]">
