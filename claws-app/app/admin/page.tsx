@@ -43,6 +43,7 @@ export default function AdminPage() {
   const router = useRouter()
   const [users, setUsers] = useState<ClawsUser[] | null>(null)
   const [error, setError] = useState('')
+  const [showAdd, setShowAdd] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -107,11 +108,31 @@ export default function AdminPage() {
     <main className="max-w-6xl mx-auto px-6 py-12">
       <div className="flex items-baseline justify-between mb-1">
         <h1 className="text-2xl font-bold text-[#12304f]">JC CLAWs · Admin · Users</h1>
-        <a href="/admin/lookups" className="text-sm text-[#006092] hover:underline">Lookups →</a>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowAdd(true)}
+            className="text-sm bg-[#006092] hover:bg-[#004d75] text-white px-3 py-1.5 rounded-lg font-semibold transition-colors"
+          >
+            + Add user
+          </button>
+          <a href="/admin/lookups" className="text-sm text-[#006092] hover:underline">Lookups →</a>
+        </div>
       </div>
       <p className="text-sm text-[#425d7f] mb-6">
         Approve new sign-ins, assign tiers, and grant admin powers. Mapping access depends on tier + admin flag.
       </p>
+
+      {showAdd && (
+        <AddUserModal
+          onClose={() => setShowAdd(false)}
+          onCreated={u => {
+            // Prepend so the new row is immediately visible, even if the
+            // server returns them sorted pending-first (which they will be).
+            setUsers(prev => prev ? [u, ...prev] : [u])
+            setShowAdd(false)
+          }}
+        />
+      )}
 
       {pending > 0 && (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -326,6 +347,150 @@ function Toggle({ on, onClick, disabled }: { on: boolean; onClick: () => void; d
         className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${on ? 'translate-x-5' : 'translate-x-1'}`}
       />
     </button>
+  )
+}
+
+// Modal for admin-initiated user creation. Captures Name / Email /
+// WhatsApp number; POSTs to /api/admin/users which creates both the
+// auth.users row (with a random password the admin never sees) and the
+// app_claws.users row (tier=pending). The admin then uses the existing
+// "Send welcome" button to deliver a set-password link.
+function AddUserModal({ onClose, onCreated }: {
+  onClose:   () => void
+  onCreated: (u: ClawsUser) => void
+}) {
+  const [name,     setName]     = useState('')
+  const [email,    setEmail]    = useState('')
+  const [whatsapp, setWhatsapp] = useState('+65 ')
+  const [status,   setStatus]   = useState<'idle' | 'loading'>('idle')
+  const [error,    setError]    = useState('')
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    if (!name.trim())     return setError('Name is required')
+    if (!email.trim())    return setError('Email is required')
+    if (!whatsapp.trim()) return setError('WhatsApp number is required')
+
+    setStatus('loading')
+    try {
+      const res = await fetch('/api/admin/users', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ name, email, whatsapp_number: whatsapp }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setError(json.error ?? `HTTP ${res.status}`)
+        setStatus('idle')
+        return
+      }
+      onCreated(json as ClawsUser)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setStatus('idle')
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl border border-[#dde8f5] shadow-xl w-full max-w-md p-6"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-baseline justify-between mb-4">
+          <h2 className="text-lg font-bold text-[#12304f]">Add a new user</h2>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="text-[#94afd5] hover:text-[#425d7f] transition-colors text-xl leading-none"
+          >
+            ×
+          </button>
+        </div>
+
+        <p className="text-xs text-[#94afd5] mb-4 leading-snug">
+          Creates the account in <span className="font-mono">pending</span> tier. Click <span className="font-semibold">Send welcome</span> on
+          their row afterwards to email them a set-password link.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <Field
+            label="Name"
+            type="text"
+            autoComplete="name"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            required
+            autoFocus
+          />
+          <Field
+            label="Email"
+            type="email"
+            autoComplete="off"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            required
+          />
+          <Field
+            label="WhatsApp number"
+            type="tel"
+            autoComplete="off"
+            inputMode="tel"
+            placeholder="+65 9123 4567"
+            value={whatsapp}
+            onChange={e => setWhatsapp(e.target.value)}
+            hint="Include country code"
+            required
+          />
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={status === 'loading'}
+              className="flex-1 border border-[#dde8f5] text-[#425d7f] hover:bg-[#f3f6ff] px-4 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={status === 'loading'}
+              className="flex-1 bg-[#006092] hover:bg-[#004d75] text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+            >
+              {status === 'loading' ? 'Creating…' : 'Create user'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// Light-weight field component for the modal. Mirrors the shape used by
+// AuthFormFields but without the required-asterisk styling and with
+// support for autoFocus on the first field.
+function Field({
+  label,
+  hint,
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium mb-1 text-[#425d7f]">
+        {label} <span className="text-[#006092]">*</span>
+      </label>
+      <input
+        {...props}
+        className="w-full px-3 py-2.5 rounded-lg text-[#12304f] text-sm outline-none transition-all placeholder:text-[#94afd5] bg-white border border-[#dde8f5] focus:border-[#006092] focus:ring-2 focus:ring-[#006092]/20"
+      />
+      {hint && <p className="mt-1 text-[11px] text-[#94afd5]">{hint}</p>}
+    </div>
   )
 }
 
