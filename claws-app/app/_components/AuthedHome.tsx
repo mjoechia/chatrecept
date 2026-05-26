@@ -73,7 +73,7 @@ export default function AuthedHome() {
     }
   }, [])
 
-  async function runLookup(postal: string, opts: { cacheOnly?: boolean } = {}) {
+  async function runLookup(postal: string, opts: { cacheOnly?: boolean; fromHistory?: boolean } = {}) {
     setError(''); setReport(null); setEmailCaptured(false)
     setLoading(true)
     setStage(opts.cacheOnly ? 'Loading your zone…' : 'Locating zone…')
@@ -96,10 +96,11 @@ export default function AuthedHome() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          postal_code: postal,
-          cache_only:  opts.cacheOnly === true,
-          session_id:  sessionId,
-          utm:         utmRef.current,
+          postal_code:  postal,
+          cache_only:   opts.cacheOnly === true,
+          from_history: opts.fromHistory === true,
+          session_id:   sessionId,
+          utm:          utmRef.current,
         }),
       })
       // 401 → session expired. Bounce to / (the anonymous landing) with the
@@ -148,10 +149,11 @@ export default function AuthedHome() {
 
   async function handleRecentSearch(postal: string) {
     setPostalCode(postal)
-    // Past searches are almost always cached (we mapped them recently —
-    // 90 day TTL). If cache has rolled, fall back to live so we never
-    // greet the user with the "preparing" error on their own history.
-    await runLookup(postal)
+    // Re-opening from history: the user already paid for this zone once,
+    // so even if the cache has rolled and we have to run live again, we
+    // don't burn today's allowance. Animation + report rendering stays
+    // identical to a fresh lookup.
+    await runLookup(postal, { fromHistory: true })
   }
 
   async function handleEmailCapture(e: React.FormEvent) {

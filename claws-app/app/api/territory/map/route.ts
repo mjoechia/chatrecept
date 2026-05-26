@@ -18,9 +18,10 @@ import type { TerritoryReport } from '@/lib/demo-report'
 export const dynamic = 'force-dynamic'
 
 interface MapRequestBody {
-  postal_code?: string
-  cache_only?:  boolean    // if true, never run live lookup — return 503 if uncached
-  session_id?:  string     // lookup_session cookie value — groups multi-zone sessions
+  postal_code?:  string
+  cache_only?:   boolean   // if true, never run live lookup — return 503 if uncached
+  from_history?: boolean   // true when re-opened from the user's "Recent searches" panel
+  session_id?:   string    // lookup_session cookie value — groups multi-zone sessions
   utm?: {
     src?:      string
     medium?:   string
@@ -184,9 +185,16 @@ export async function POST(req: NextRequest) {
   )
   // For tier=map_once_daily, burn the daily allowance only after we
   // confirm the lookup actually succeeded — failures don't cost a quota.
-  await consumeDailyMapAttempt(claws.auth_user_id).catch(e =>
-    console.error('[map] consumeDailyMapAttempt failed', e)
-  )
+  // Skipped when from_history=true so that re-opening a zone from the
+  // user's own Recent Searches panel doesn't burn today's try just
+  // because the in-memory cache rolled (TTL or Railway redeploy). The
+  // user already paid for that zone once; spend tracking still fires
+  // above so our budget protection stays accurate.
+  if (!body.from_history) {
+    await consumeDailyMapAttempt(claws.auth_user_id).catch(e =>
+      console.error('[map] consumeDailyMapAttempt failed', e)
+    )
+  }
   recordLookup({
     postcode:  postalCode,
     cached:    false,
