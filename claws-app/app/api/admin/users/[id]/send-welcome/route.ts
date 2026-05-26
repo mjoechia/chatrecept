@@ -38,29 +38,42 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     ? `${forwardedProto}://${forwardedHost}`
     : new URL(req.url).origin
 
-  // After Supabase verifies the recovery token, send the user through our
-  // /auth/callback (which will exchange the code for a session) and then
-  // on to /auth/set-password so they can pick a real password.
-  const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent('/auth/set-password')}`
-
-  // Generate the one-time recovery link. supabase-js exposes the action
-  // link on data.properties.action_link.
+  // Generate the one-time recovery link. We only need the hashed_token
+  // off it — we'll build our own URL pointing at /auth/callback so the
+  // user lands directly in our app's session flow (the action_link goes
+  // through Supabase's verify endpoint first, which requires a PKCE
+  // code_verifier cookie that doesn't exist for admin-generated links).
+  const setPasswordPath = '/auth/set-password'
   const { data: linkData, error: linkErr } = await svc.auth.admin.generateLink({
-    type:    'recovery',
-    email:   target.email,
-    options: { redirectTo },
+    type:  'recovery',
+    email: target.email,
+    options: {
+      // redirectTo is the final destination Supabase puts in the action_link;
+      // we pass /auth/set-password so even if a user clicks an old-style
+      // action_link from a previous build it still ends up in the right place.
+      redirectTo: `${origin}${setPasswordPath}`,
+    },
   })
-  if (linkErr || !linkData?.properties?.action_link) {
+  if (linkErr || !linkData?.properties?.hashed_token) {
     return NextResponse.json(
       { error: `Failed to generate set-password link: ${linkErr?.message ?? 'unknown'}` },
       { status: 500 },
     )
   }
 
+  // Build our own URL that points at /auth/callback with the token hash
+  // and type — callback will call verifyOtp (no PKCE) and then redirect
+  // to /auth/set-password.
+  const setPasswordUrl =
+    `${origin}/auth/callback` +
+    `?token_hash=${encodeURIComponent(linkData.properties.hashed_token)}` +
+    `&type=recovery` +
+    `&next=${encodeURIComponent(setPasswordPath)}`
+
   const { subject, html } = buildWelcomeEmail({
     name:           target.name,
     email:          target.email,
-    setPasswordUrl: linkData.properties.action_link,
+    setPasswordUrl,
   })
 
   try {
