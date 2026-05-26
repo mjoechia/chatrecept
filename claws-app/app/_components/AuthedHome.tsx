@@ -65,12 +65,14 @@ export default function AuthedHome() {
     }
 
     try {
+      const sessionId = ensureLookupSession()
       const res = await fetch('/api/territory/map', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           postal_code: postal,
           cache_only:  opts.cacheOnly === true,
+          session_id:  sessionId,
           utm:         utmRef.current,
         }),
       })
@@ -442,6 +444,27 @@ export default function AuthedHome() {
       )}
     </main>
   )
+}
+
+// Returns the current lookup_session cookie value, creating it if missing.
+// Each call refreshes the 60-minute idle expiry — sessions span as long as
+// the user keeps mapping but die after an hour of inactivity. UUID so the
+// server can store it directly in lookup_session_id (uuid column).
+function ensureLookupSession(): string {
+  if (typeof document === 'undefined') return ''
+  const COOKIE   = 'lookup_session'
+  const MAX_AGE  = 60 * 60   // 60 minutes
+  const existing = document.cookie
+    .split('; ')
+    .find(c => c.startsWith(`${COOKIE}=`))
+    ?.split('=')[1]
+  const id = existing && /^[0-9a-f-]{36}$/i.test(existing)
+    ? existing
+    : (typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`)
+  document.cookie = `${COOKIE}=${id}; Path=/; Max-Age=${MAX_AGE}; SameSite=Lax`
+  return id
 }
 
 function BreakdownStat({ label, value, sub }: { label: string; value: string; sub: string }) {

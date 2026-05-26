@@ -105,7 +105,10 @@ export default function AdminPage() {
 
   return (
     <main className="max-w-6xl mx-auto px-6 py-12">
-      <h1 className="text-2xl font-bold text-[#12304f] mb-1">JC CLAWs · Admin · Users</h1>
+      <div className="flex items-baseline justify-between mb-1">
+        <h1 className="text-2xl font-bold text-[#12304f]">JC CLAWs · Admin · Users</h1>
+        <a href="/admin/lookups" className="text-sm text-[#006092] hover:underline">Lookups →</a>
+      </div>
       <p className="text-sm text-[#425d7f] mb-6">
         Approve new sign-ins, assign tiers, and grant admin powers. Mapping access depends on tier + admin flag.
       </p>

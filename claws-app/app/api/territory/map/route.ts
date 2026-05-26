@@ -12,6 +12,7 @@ import {
 } from '@/lib/spend-tracker'
 import { requireUser } from '@/lib/admin'
 import { recordUserSpend, getPerUserDailyCap, checkAccess, consumeDailyMapAttempt } from '@/lib/claws-users'
+import { recordLookup } from '@/lib/lookup-log'
 import type { TerritoryReport } from '@/lib/demo-report'
 
 export const dynamic = 'force-dynamic'
@@ -19,6 +20,7 @@ export const dynamic = 'force-dynamic'
 interface MapRequestBody {
   postal_code?: string
   cache_only?:  boolean    // if true, never run live lookup — return 503 if uncached
+  session_id?:  string     // lookup_session cookie value — groups multi-zone sessions
   utm?: {
     src?:      string
     medium?:   string
@@ -48,7 +50,17 @@ export async function POST(req: NextRequest) {
   const cacheKey = `territory:${postalCode}`
   const cached = await cacheGet<TerritoryReport>(cacheKey)
   if (cached) {
-    logLookup({ postalCode, ip, cached: true, utm: body.utm })
+    recordLookup({
+      postcode:  postalCode,
+      cached:    true,
+      report:    cached,
+      ip,
+      userAgent: req.headers.get('user-agent'),
+      sessionId: body.session_id ?? null,
+      utm:       body.utm,
+      // user not resolved on cache path (no auth check yet) — admin will
+      // see this row anonymised, which is correct for prospect-link hits.
+    }).catch(e => console.error('[map] recordLookup (cached) failed', e))
     return NextResponse.json({ ...cached, cached: true })
   }
 
@@ -175,29 +187,17 @@ export async function POST(req: NextRequest) {
   await consumeDailyMapAttempt(claws.auth_user_id).catch(e =>
     console.error('[map] consumeDailyMapAttempt failed', e)
   )
-  logLookup({ postalCode, ip, cached: false, utm: body.utm, userEmail: claws.email })
+  recordLookup({
+    postcode:  postalCode,
+    cached:    false,
+    report,
+    user:      claws,
+    ip,
+    userAgent: req.headers.get('user-agent'),
+    sessionId: body.session_id ?? null,
+    utm:       body.utm,
+  }).catch(e => console.error('[map] recordLookup (fresh) failed', e))
 
   console.log(`[map ${postalCode}] TOTAL ${Date.now() - t0}ms`)
   return NextResponse.json(report)
-}
-
-function logLookup(args: {
-  postalCode: string
-  ip: string
-  cached: boolean
-  utm?: MapRequestBody['utm']
-  userEmail?: string
-}): void {
-  // TODO: persist to Supabase demo_lookups table once schema lands
-  console.log('[demo lookup]', {
-    ts: new Date().toISOString(),
-    postal_code: args.postalCode,
-    ip: args.ip,
-    cached: args.cached,
-    user:         args.userEmail   ?? null,
-    utm_src:      args.utm?.src      ?? null,
-    utm_medium:   args.utm?.medium   ?? null,
-    utm_campaign: args.utm?.campaign ?? null,
-    prospect:     args.utm?.prospect ?? null,
-  })
 }
