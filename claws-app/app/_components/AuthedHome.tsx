@@ -12,6 +12,17 @@ interface UtmTags {
   prospect?: string
 }
 
+interface RecentSearch {
+  id:                      string
+  created_at:              string
+  postcode:                string
+  district_label:          string | null
+  top_sector:              string | null
+  high_opportunity_count:  number | null
+  total_businesses:        number | null
+  cached:                  boolean
+}
+
 export default function AuthedHome() {
   const [postalCode, setPostalCode] = useState('')
   const [loading, setLoading]       = useState(false)
@@ -25,8 +36,21 @@ export default function AuthedHome() {
   const [emailError, setEmailError]     = useState('')
   const [emailCaptured, setEmailCaptured] = useState(false)
 
+  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([])
+
   const utmRef    = useRef<UtmTags>({})
   const didAutoRun = useRef(false)
+
+  async function loadRecentSearches() {
+    try {
+      const res = await fetch('/api/me/lookups')
+      if (!res.ok) return
+      const json = await res.json() as { rows: RecentSearch[] }
+      setRecentSearches(json.rows ?? [])
+    } catch {
+      // Silent — recent searches is a soft feature, never block the page on it
+    }
+  }
 
   // Capture URL params on mount: ?p=238802 auto-submits; utm_* stored for attribution
   useEffect(() => {
@@ -38,6 +62,7 @@ export default function AuthedHome() {
       campaign: params.get('utm_campaign') ?? undefined,
       prospect: params.get('prospect')     ?? undefined,
     }
+    loadRecentSearches()
     const pre = params.get('p')
     const autoRun = params.get('autorun') === '1'
     if (pre && /^\d{6}$/.test(pre) && !didAutoRun.current) {
@@ -97,6 +122,8 @@ export default function AuthedHome() {
         return
       }
       setReport(json as unknown as TerritoryReport)
+      // Refresh recent searches in the background — fire-and-forget.
+      loadRecentSearches()
     } catch (e) {
       setError(String(e))
     } finally {
@@ -113,8 +140,18 @@ export default function AuthedHome() {
 
   async function handleExampleZone(postal: string) {
     setPostalCode(postal)
-    // Example zones are pre-warmed → always hit cache, never spend budget
-    await runLookup(postal, { cacheOnly: true })
+    // Example zones are usually warm in cache (free + instant), but if the
+    // cache has expired we fall back to a live lookup rather than surfacing
+    // the "preparing" error — user just wants to see the report.
+    await runLookup(postal)
+  }
+
+  async function handleRecentSearch(postal: string) {
+    setPostalCode(postal)
+    // Past searches are almost always cached (we mapped them recently —
+    // 90 day TTL). If cache has rolled, fall back to live so we never
+    // greet the user with the "preparing" error on their own history.
+    await runLookup(postal)
   }
 
   async function handleEmailCapture(e: React.FormEvent) {
@@ -185,9 +222,9 @@ export default function AuthedHome() {
 
       {/* Example zones */}
       {!report && (
-        <div className="bg-white rounded-xl border border-[#dde8f5] p-4 mb-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-[#dde8f5] p-4 mb-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wider text-[#94afd5] mb-2">
-            Or try a sample zone (instant — no API call)
+            Or try a sample zone
           </p>
           <div className="flex flex-wrap gap-2">
             {EXAMPLE_ZONES.map(z => (
@@ -199,6 +236,49 @@ export default function AuthedHome() {
                 title={z.hint}
               >
                 {z.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recent searches — your past zones, click to re-open */}
+      {!report && recentSearches.length > 0 && (
+        <div className="bg-white rounded-xl border border-[#dde8f5] p-4 mb-6 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[#94afd5] mb-3">
+            Your recent searches
+          </p>
+          <div className="divide-y divide-[#dde8f5] -mx-1">
+            {recentSearches.map(s => (
+              <button
+                key={s.id}
+                onClick={() => handleRecentSearch(s.postcode)}
+                disabled={loading}
+                className="w-full text-left px-2 py-2 hover:bg-[#f3f6ff] rounded transition-colors disabled:opacity-50 flex items-center justify-between gap-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm">
+                    <span className="font-mono text-[#12304f] font-semibold">{s.postcode}</span>
+                    {s.district_label && (
+                      <>
+                        <span className="text-[#dde8f5] mx-2">·</span>
+                        <span className="text-[#425d7f]">{s.district_label}</span>
+                      </>
+                    )}
+                  </p>
+                  <p className="text-[11px] text-[#94afd5] mt-0.5">
+                    {s.top_sector && <span className="capitalize">{s.top_sector}</span>}
+                    {s.top_sector && s.high_opportunity_count !== null && (
+                      <span className="text-[#dde8f5] mx-1.5">·</span>
+                    )}
+                    {s.high_opportunity_count !== null && (
+                      <span>{s.high_opportunity_count} high-opp{s.total_businesses !== null ? ` of ${s.total_businesses}` : ''}</span>
+                    )}
+                    <span className="text-[#dde8f5] mx-1.5">·</span>
+                    <span>{relativeTime(s.created_at)}</span>
+                  </p>
+                </div>
+                <span className="text-[#94afd5] text-xs shrink-0">↻ Reopen</span>
               </button>
             ))}
           </div>
@@ -447,6 +527,18 @@ export default function AuthedHome() {
       )}
     </main>
   )
+}
+
+// Short relative-time formatter for the Recent searches list. Designed
+// to be glanceable, not precise — "2h ago" is what the user cares about,
+// not the exact second.
+function relativeTime(iso: string): string {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000
+  if (diff < 60)            return 'just now'
+  if (diff < 3600)          return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400)         return `${Math.floor(diff / 3600)}h ago`
+  if (diff < 7 * 86400)     return `${Math.floor(diff / 86400)}d ago`
+  return new Date(iso).toLocaleDateString('en-SG', { day: '2-digit', month: 'short' })
 }
 
 // Returns the current lookup_session cookie value, creating it if missing.
