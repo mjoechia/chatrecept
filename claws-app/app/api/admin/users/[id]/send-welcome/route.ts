@@ -123,6 +123,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     daily_map_day:   null,
     updated_at:      new Date().toISOString(),
   }
+  // Reset monthly SGD bucket on trial grant only — gives the user a fresh
+  // SGD 150 month aligned to the customer-conversation moment.
+  if (grantTier === 'trial') {
+    updates.spend_month_sgd = 0
+  }
 
   const { data: updated, error: stampErr } = await svc
     .from('users')

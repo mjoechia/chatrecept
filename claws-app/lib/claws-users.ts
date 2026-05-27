@@ -18,6 +18,8 @@ export interface ClawsUser {
   is_admin:         boolean
   spend_today_sgd:  number
   spend_day:        string | null
+  spend_month_sgd:  number
+  spend_month:      string | null      // 'YYYY-MM'
   welcome_sent_at:  string | null
   created_at:       string
   updated_at:       string
@@ -42,62 +44,23 @@ function isBootstrapAdmin(email: string): boolean {
 }
 
 // ── Access decisions ────────────────────────────────────────────────────────
+// The Phase 1 policy engine in lib/limits.ts now owns gating. checkAccess
+// and canMap were replaced by evaluateLookupPolicy — call that from
+// map/route.ts and /api/me.
 
-export interface AccessDenied {
-  ok: false
-  reason: 'pending' | 'none' | 'trial_expired' | 'daily_limit_reached'
-  message: string
-}
-export type AccessResult = { ok: true } | AccessDenied
-
-// Decide whether this user can run a live map lookup *right now*. For
-// map_once_daily this only checks the daily quota; consumeDailyMapAttempt
-// must be called separately once the lookup actually succeeds, so we don't
-// burn a user's only daily attempt on a failure.
-export function checkAccess(u: ClawsUser, now: Date = new Date()): AccessResult {
-  if (u.is_admin) return { ok: true }
-
-  if (u.tier === 'pending') {
-    return { ok: false, reason: 'pending', message: 'Your account is pending admin approval.' }
-  }
-  if (u.tier === 'none') {
-    return { ok: false, reason: 'none', message: 'Your account does not have mapping access. Contact admin to request it.' }
-  }
-  if (u.tier === 'trial') {
-    if (u.trial_ends_at && new Date(u.trial_ends_at) <= now) {
-      return { ok: false, reason: 'trial_expired', message: 'Your trial has ended. Contact admin to renew.' }
-    }
-    return { ok: true }
-  }
-  if (u.tier === 'map_once_daily') {
-    const today = now.toISOString().slice(0, 10)
-    const count = u.daily_map_day === today ? u.daily_map_count : 0
-    if (count >= 1) {
-      return { ok: false, reason: 'daily_limit_reached', message: "You've used today's lookup. Come back tomorrow." }
-    }
-    return { ok: true }
-  }
-  // Unreachable for current Tier union, but keep a safe default
-  return { ok: false, reason: 'none', message: 'No access.' }
-}
-
-// Convenience — true iff checkAccess would return ok. Used by /api/me.
-export function canMap(u: ClawsUser, now: Date = new Date()): boolean {
-  return checkAccess(u, now).ok
-}
-
-// Bump the daily map counter for tier=map_once_daily. No-op for any other
-// tier (so it's safe to always call after a successful lookup).
+// Bump the daily map counter. As of Phase 1 (Lever 1) this is the
+// fresh-lookup count for ALL tiers, not just map_once_daily — the daily
+// count cap on `trial` users (default 20/day) reads the same field.
+// Caller MUST gate on policy first; this is fire-and-record only.
 export async function consumeDailyMapAttempt(authUserId: string): Promise<void> {
-  const svc = createServiceClient()
+  const svc   = createServiceClient()
   const today = new Date().toISOString().slice(0, 10)
   const { data: u } = await svc
     .from('users')
-    .select('tier, daily_map_count, daily_map_day')
+    .select('daily_map_count, daily_map_day')
     .eq('auth_user_id', authUserId)
     .single()
-  if (!u || u.tier !== 'map_once_daily') return
-  const current = u.daily_map_day === today ? Number(u.daily_map_count ?? 0) : 0
+  const current = u?.daily_map_day === today ? Number(u.daily_map_count ?? 0) : 0
   await svc
     .from('users')
     .update({
@@ -175,28 +138,87 @@ export async function upsertUser(args: {
 
 // ── Spend tracking ──────────────────────────────────────────────────────────
 
+// Records SGD spent against both daily and monthly buckets. Rolls each
+// bucket independently — when spend_day/spend_month don't match the
+// current period, treat the stored value as 0 before adding costSgd.
+// Returns the post-update totals so callers can decide what to do next.
+//
+// Also fires a fire-and-forget Slack alert when the user crosses 50% /
+// 80% / 100% of the monthly cap for the first time in the month. The
+// import is intentionally inlined to avoid a top-of-file import cycle
+// between claws-users → slack → (anything that imports claws-users).
 export async function recordUserSpend(
   authUserId: string,
   costSgd: number,
-): Promise<{ spent_today: number }> {
-  const svc = createServiceClient()
+): Promise<{ spent_today: number; spent_month: number }> {
+  const svc   = createServiceClient()
   const today = new Date().toISOString().slice(0, 10)
+  const month = today.slice(0, 7)
 
   const { data: u } = await svc
     .from('users')
-    .select('spend_today_sgd, spend_day')
+    .select('email, name, spend_today_sgd, spend_day, spend_month_sgd, spend_month')
     .eq('auth_user_id', authUserId)
     .single()
 
-  const base = (u?.spend_day === today) ? Number(u.spend_today_sgd ?? 0) : 0
-  const next = base + costSgd
+  const baseToday = (u?.spend_day   === today) ? Number(u.spend_today_sgd ?? 0) : 0
+  const baseMonth = (u?.spend_month === month) ? Number(u.spend_month_sgd ?? 0) : 0
+  const nextToday = baseToday + costSgd
+  const nextMonth = baseMonth + costSgd
 
   await svc
     .from('users')
-    .update({ spend_today_sgd: next, spend_day: today, updated_at: new Date().toISOString() })
+    .update({
+      spend_today_sgd: nextToday,
+      spend_day:       today,
+      spend_month_sgd: nextMonth,
+      spend_month:     month,
+      updated_at:      new Date().toISOString(),
+    })
     .eq('auth_user_id', authUserId)
 
-  return { spent_today: next }
+  // Threshold-crossing Slack alerts (Lever 6). Compare pre vs post against
+  // 50% / 80% / 100% of monthly cap. Single alert per cross — only fires
+  // when the post value crosses a threshold the pre value hadn't yet.
+  void notifyThresholdsCrossed({
+    email:  u?.email ?? '',
+    name:   u?.name  ?? null,
+    before: baseMonth,
+    after:  nextMonth,
+  })
+
+  return { spent_today: nextToday, spent_month: nextMonth }
+}
+
+// Internal: fire-and-forget Slack alert when crossing 50/80/100% of cap.
+// Inlined here (not in slack.ts) so the threshold logic stays next to
+// the data it reads.
+const MONTHLY_THRESHOLDS = [0.5, 0.8, 1.0] as const
+
+async function notifyThresholdsCrossed(args: {
+  email:  string
+  name:   string | null
+  before: number
+  after:  number
+}): Promise<void> {
+  const cap = Number(process.env.MAX_MONTHLY_SPEND_PER_USER_SGD ?? 150)
+  if (cap <= 0) return
+  const pctBefore = args.before / cap
+  const pctAfter  = args.after  / cap
+  const crossed   = MONTHLY_THRESHOLDS.find(t => pctBefore < t && pctAfter >= t)
+  if (!crossed) return
+  try {
+    const { sendSpendAlert } = await import('./slack')
+    await sendSpendAlert({
+      email: args.email,
+      name:  args.name,
+      pct:   crossed,
+      spent: args.after,
+      cap,
+    })
+  } catch (e) {
+    console.error('[notifyThresholdsCrossed]', e)
+  }
 }
 
 export async function getUserSpend(authUserId: string): Promise<number> {

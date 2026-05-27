@@ -21,9 +21,13 @@ interface ClawsUser {
   is_master:        boolean
   spend_today_sgd:  number
   spend_day:        string | null
+  spend_month_sgd:  number
+  spend_month:      string | null
   welcome_sent_at:  string | null
   created_at:       string
 }
+
+const MONTHLY_CAP_SGD = Number(process.env.NEXT_PUBLIC_MAX_MONTHLY_SPEND_PER_USER_SGD ?? 150)
 
 const TIER_LABEL: Record<Tier, string> = {
   pending:        'Pending',
@@ -284,7 +288,17 @@ function UserRow({ user: u, onPatch, onSendWelcome, onResetDaily }: {
         )}
         {Number(u.spend_today_sgd) > 0 && (
           <div className="text-[10px] text-[#94afd5] mt-0.5">
-            SGD {Number(u.spend_today_sgd).toFixed(2)} spent today
+            SGD {Number(u.spend_today_sgd).toFixed(2)} today
+          </div>
+        )}
+        {Number(u.spend_month_sgd ?? 0) > 0 && (
+          <div className="text-[10px] text-[#94afd5] mt-0.5">
+            SGD {Number(u.spend_month_sgd).toFixed(2)} / {MONTHLY_CAP_SGD} this month
+          </div>
+        )}
+        {u.tier !== 'pending' && u.tier !== 'none' && u.tier !== 'map_once_daily' && (
+          <div className="text-[10px] text-[#94afd5] mt-0.5">
+            {todayMaps} fresh lookup{todayMaps === 1 ? '' : 's'} today
           </div>
         )}
       </td>

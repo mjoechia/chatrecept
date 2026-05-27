@@ -11,8 +11,10 @@ import {
   isIpOverBudget, getIpSpend, getIpDailyCap,
 } from '@/lib/spend-tracker'
 import { requireUser } from '@/lib/admin'
-import { recordUserSpend, getPerUserDailyCap, checkAccess, consumeDailyMapAttempt } from '@/lib/claws-users'
-import { recordLookup } from '@/lib/lookup-log'
+import { recordUserSpend, consumeDailyMapAttempt } from '@/lib/claws-users'
+import { evaluateLookupPolicy } from '@/lib/limits'
+import { checkBurst, recordBurst } from '@/lib/burst-limit'
+import { recordLookup, hasRecentLookup } from '@/lib/lookup-log'
 import type { TerritoryReport } from '@/lib/demo-report'
 
 export const dynamic = 'force-dynamic'
@@ -80,25 +82,40 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) return auth.error
   const claws = auth.user
 
-  const access = checkAccess(claws)
-  if (!access.ok) {
+  // ── Policy engine (Phase 1: tier + daily count + daily SGD + monthly SGD) ──
+  // Dedup window first (Lever 5): same user + same postcode within 24h gets
+  // the same free-pass treatment as from_history. Caller-driven dedup also
+  // applies via body.from_history (Recent Searches + Sample zones).
+  const dedupHit = body.from_history === true
+    ? true
+    : await hasRecentLookup({ userId: claws.id, postcode: postalCode })
+
+  const policy = evaluateLookupPolicy(claws, {
+    postcode: postalCode,
+    dedupHit,
+  })
+  if (!policy.allowed) {
     return NextResponse.json({
-      error:          access.message,
-      access_blocked: true,
-      reason:         access.reason,
-    }, { status: 403 })
+      error:          policy.copy,
+      access_blocked: policy.status === 403,
+      capped:         policy.status === 429,
+      reason:         policy.reason,
+      detail:         policy.detail,
+    }, { status: policy.status })
   }
 
-  // ── Per-user daily SGD cap ──────────────────────────────────────────────
-  const userCap   = getPerUserDailyCap()
-  const userSpent = Number(claws.spend_today_sgd ?? 0)
-  if (userSpent >= userCap) {
-    return NextResponse.json({
-      error: "You've used your daily mapping budget. Try a sample zone below, or come back tomorrow.",
-      user_spend_capped: true,
-      user_cap_sgd:      userCap,
-      user_spent_sgd:    Number(userSpent.toFixed(2)),
-    }, { status: 429 })
+  // ── Burst limit (Lever 4) — only after policy decides we'd run live ────
+  // Read-only check first; recording happens once we commit to the pipeline
+  // (after the IP / global caps below).
+  if (!dedupHit) {
+    const burst = checkBurst(claws.id)
+    if (!burst.ok) {
+      return NextResponse.json({
+        error:  `Whoa — that's a lot of zones in a few minutes. Try again in ~${burst.retryAfterSec}s.`,
+        reason: 'burst',
+        retry_after_sec: burst.retryAfterSec,
+      }, { status: 429 })
+    }
   }
 
   // ── Per-IP daily SGD cap (defence-in-depth) ─────────────────────────────
@@ -179,22 +196,25 @@ export async function POST(req: NextRequest) {
 
   await cacheSet(cacheKey, report, ttlForPostal(postalCode))
   recordLookupSpend(ip)
-  // Persist per-user spend so the cap survives Railway redeploys
-  await recordUserSpend(claws.auth_user_id, 0.95).catch(e =>
-    console.error('[map] recordUserSpend failed', e)
-  )
-  // For tier=map_once_daily, burn the daily allowance only after we
-  // confirm the lookup actually succeeded — failures don't cost a quota.
-  // Skipped when from_history=true so that:
-  //   - re-opening a zone from the user's own Recent Searches panel, OR
-  //   - clicking an operator-curated Sample zone
-  // doesn't burn today's try just because the in-memory cache rolled
-  // (TTL or Railway redeploy). Spend tracking still fires above so our
-  // per-user SGD cap continues to bound worst-case abuse.
-  if (!body.from_history) {
-    await consumeDailyMapAttempt(claws.auth_user_id).catch(e =>
-      console.error('[map] consumeDailyMapAttempt failed', e)
+
+  // Dedup-hit lookups don't charge the user at all (the same zone was
+  // recently paid for — Lever 5). The cache was just cold; the user
+  // shouldn't pay twice. Non-dedup live lookups consume spend + daily
+  // count + burst slot.
+  if (!dedupHit) {
+    recordBurst(claws.id)
+    await recordUserSpend(claws.auth_user_id, 0.95).catch(e =>
+      console.error('[map] recordUserSpend failed', e)
     )
+    // Daily count bumped for ALL tiers now (Phase 1 / Lever 1) — trial
+    // users get a fresh-count cap too, not just map_once_daily.
+    // Skipped when from_history=true: Sample zones and Recent Searches
+    // re-opens stay free even on cache miss.
+    if (!body.from_history) {
+      await consumeDailyMapAttempt(claws.auth_user_id).catch(e =>
+        console.error('[map] consumeDailyMapAttempt failed', e)
+      )
+    }
   }
   recordLookup({
     postcode:  postalCode,

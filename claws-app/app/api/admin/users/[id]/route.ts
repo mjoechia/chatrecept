@@ -34,6 +34,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     if (body.tier === 'trial') {
       const days = Math.max(1, Math.min(365, Math.floor(body.trial_days ?? 14)))
       updates.trial_ends_at = new Date(Date.now() + days * 86400000).toISOString()
+      // Grant / extend trial → reset monthly SGD bucket so the user gets
+      // a fresh SGD 150 budget for the new trial period. Daily count also
+      // wipes (below) so they start at 0/20 today.
+      updates.spend_month_sgd = 0
     } else {
       // Switching away from trial clears the expiry, and switching off of
       // map_once_daily clears the daily counter — keeps the row tidy.

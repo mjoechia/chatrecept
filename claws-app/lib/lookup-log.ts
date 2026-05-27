@@ -72,3 +72,35 @@ export async function recordLookup(args: RecordLookupArgs): Promise<void> {
     throw new Error(`demo_lookups insert failed: ${error.message}`)
   }
 }
+
+// Returns true if the same user mapped the same postcode within the
+// dedup window (default 24h). Used by the policy engine to skip every
+// cap (Lever 5) — the user already paid for this zone recently. Only
+// counts non-cached rows: a previous cache hit shouldn't extend the
+// window because the user didn't really "pay" for that one.
+export async function hasRecentLookup(args: {
+  userId:   string
+  postcode: string
+  windowH?: number    // default 24 hours
+}): Promise<boolean> {
+  const svc    = createServiceClient()
+  const window = args.windowH ?? 24
+  const since  = new Date(Date.now() - window * 3600 * 1000).toISOString()
+
+  const { data, error } = await svc
+    .from('demo_lookups')
+    .select('id')
+    .eq('user_id',  args.userId)
+    .eq('postcode', args.postcode)
+    .eq('cached',   false)
+    .gte('created_at', since)
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    // Don't block the lookup on a query failure — just treat as no dedup.
+    console.error('[hasRecentLookup]', error)
+    return false
+  }
+  return !!data
+}
