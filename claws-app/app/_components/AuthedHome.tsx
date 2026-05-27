@@ -12,6 +12,17 @@ interface UtmTags {
   prospect?: string
 }
 
+interface MeResponse {
+  authenticated:    boolean
+  email?:           string
+  tier?:            'pending' | 'none' | 'map_once_daily' | 'trial'
+  trial_ends_at?:   string | null
+  is_admin?:        boolean
+  can_map?:         boolean
+  spend_today_sgd?: number
+  spend_cap_sgd?:   number
+}
+
 interface RecentSearch {
   id:                      string
   created_at:              string
@@ -37,9 +48,21 @@ export default function AuthedHome() {
   const [emailCaptured, setEmailCaptured] = useState(false)
 
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([])
+  const [me, setMe]                         = useState<MeResponse | null>(null)
 
   const utmRef    = useRef<UtmTags>({})
   const didAutoRun = useRef(false)
+
+  async function loadMe() {
+    try {
+      const res = await fetch('/api/me')
+      if (!res.ok) return
+      const json = await res.json() as MeResponse
+      setMe(json)
+    } catch {
+      // Banner is non-essential — never block the page if /api/me hiccups.
+    }
+  }
 
   async function loadRecentSearches() {
     try {
@@ -63,6 +86,7 @@ export default function AuthedHome() {
       prospect: params.get('prospect')     ?? undefined,
     }
     loadRecentSearches()
+    loadMe()
     const pre = params.get('p')
     const autoRun = params.get('autorun') === '1'
     if (pre && /^\d{6}$/.test(pre) && !didAutoRun.current) {
@@ -123,8 +147,9 @@ export default function AuthedHome() {
         return
       }
       setReport(json as unknown as TerritoryReport)
-      // Refresh recent searches in the background — fire-and-forget.
+      // Refresh recent searches + usage in the background — fire-and-forget.
       loadRecentSearches()
+      loadMe()
     } catch (e) {
       setError(String(e))
     } finally {
@@ -179,7 +204,7 @@ export default function AuthedHome() {
   return (
     <main className="max-w-3xl mx-auto px-6 py-12">
       {/* Hero */}
-      <section className="text-center mb-10">
+      <section className="text-center mb-6">
         <h1 className="text-3xl md:text-4xl font-bold text-[#12304f] mb-3">
           JC CLAWs — AI Territory Intelligence
         </h1>
@@ -188,6 +213,8 @@ export default function AuthedHome() {
           in the area and score them in 30 seconds.
         </p>
       </section>
+
+      {me && <UsageBanner me={me} />}
 
       <HowItWorks />
 
@@ -528,6 +555,60 @@ export default function AuthedHome() {
         </section>
       )}
     </main>
+  )
+}
+
+// Small status strip shown above the postcode form so users can see, at
+// a glance, what their account currently allows: trial days remaining,
+// daily lookups consumed (for map_once_daily), today's SGD spend.
+// Pulls from /api/me — no extra schema needed.
+function UsageBanner({ me }: { me: MeResponse }) {
+  const spend = Number(me.spend_today_sgd ?? 0)
+  const cap   = Number(me.spend_cap_sgd   ?? 0)
+
+  let primary: { label: string; tone: 'amber' | 'sky' | 'emerald' | 'gray' } | null = null
+
+  if (me.tier === 'pending') {
+    primary = { label: 'Account pending admin approval — live lookups unlock once granted.', tone: 'amber' }
+  } else if (me.tier === 'none') {
+    primary = { label: 'No mapping access on this account. Reply on WhatsApp to discuss.', tone: 'gray' }
+  } else if (me.tier === 'trial' && me.trial_ends_at) {
+    const daysLeft = Math.max(0, Math.ceil((new Date(me.trial_ends_at).getTime() - Date.now()) / 86400000))
+    if (daysLeft === 0) {
+      primary = { label: 'Trial wraps today — reach out on WhatsApp to extend.', tone: 'amber' }
+    } else if (daysLeft === 1) {
+      primary = { label: 'Trial · 1 day left', tone: 'amber' }
+    } else {
+      primary = { label: `Trial · ${daysLeft} days left`, tone: 'emerald' }
+    }
+  } else if (me.tier === 'map_once_daily') {
+    primary = { label: 'Map-daily plan · one fresh lookup per day, cached zones always free', tone: 'sky' }
+  } else if (me.is_admin) {
+    primary = { label: 'Admin account', tone: 'sky' }
+  }
+
+  if (!primary) return null
+
+  const toneClasses: Record<'amber' | 'sky' | 'emerald' | 'gray', string> = {
+    amber:   'bg-amber-50 border-amber-200 text-amber-800',
+    sky:     'bg-sky-50 border-sky-200 text-sky-800',
+    emerald: 'bg-emerald-50 border-emerald-200 text-emerald-800',
+    gray:    'bg-gray-50 border-gray-200 text-gray-700',
+  }
+
+  const showSpend = cap > 0 && me.tier !== 'pending' && me.tier !== 'none'
+
+  return (
+    <div className={`rounded-xl border px-4 py-2.5 mb-6 shadow-sm ${toneClasses[primary.tone]}`}>
+      <div className="flex items-center justify-between gap-3 flex-wrap text-sm">
+        <span className="font-medium">{primary.label}</span>
+        {showSpend && (
+          <span className="text-xs font-mono">
+            SGD {spend.toFixed(2)} of SGD {cap.toFixed(0)} today
+          </span>
+        )}
+      </div>
+    </div>
   )
 }
 

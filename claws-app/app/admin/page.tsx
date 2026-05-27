@@ -80,13 +80,13 @@ export default function AdminPage() {
     setUsers(users.map(x => x.id === u.id ? { ...x, ...updated } : x))
   }
 
-  async function sendWelcome(u: ClawsUser, tier: 'map_once_daily' | 'trial'): Promise<{ ok: boolean }> {
+  async function sendWelcome(u: ClawsUser, tier: 'map_once_daily' | 'trial', trialDays?: number): Promise<{ ok: boolean }> {
     if (!users) return { ok: false }
     setError('')
     const res = await fetch(`/api/admin/users/${u.id}/send-welcome`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ tier, trial_days: tier === 'trial' ? 14 : undefined }),
+      body:    JSON.stringify({ tier, trial_days: tier === 'trial' ? (trialDays ?? 14) : undefined }),
     })
     if (!res.ok) {
       const j = await res.json().catch(() => ({}))
@@ -193,7 +193,7 @@ export default function AdminPage() {
 function UserRow({ user: u, onPatch, onSendWelcome, onResetDaily }: {
   user:          ClawsUser
   onPatch:       (u: ClawsUser, body: { tier?: Tier; trial_days?: number; is_admin?: boolean }) => Promise<void>
-  onSendWelcome: (u: ClawsUser, tier: 'map_once_daily' | 'trial') => Promise<{ ok: boolean }>
+  onSendWelcome: (u: ClawsUser, tier: 'map_once_daily' | 'trial', trialDays?: number) => Promise<{ ok: boolean }>
   onResetDaily:  (u: ClawsUser) => Promise<void>
 }) {
   const [trialDays, setTrialDays] = useState(14)
@@ -354,7 +354,7 @@ function ResetDailyButton({ user: u, usedToday, onReset }: {
 
 function SendWelcomeButton({ user: u, onSend }: {
   user:   ClawsUser
-  onSend: (u: ClawsUser, tier: 'map_once_daily' | 'trial') => Promise<{ ok: boolean }>
+  onSend: (u: ClawsUser, tier: 'map_once_daily' | 'trial', trialDays?: number) => Promise<{ ok: boolean }>
 }) {
   const [state, setState] = useState<'idle' | 'choosing' | 'sending'>('idle')
   const sent = u.welcome_sent_at ? new Date(u.welcome_sent_at) : null
@@ -365,9 +365,9 @@ function SendWelcomeButton({ user: u, onSend }: {
     return <span className="text-[11px] text-[#94afd5]">—</span>
   }
 
-  async function pick(tier: 'map_once_daily' | 'trial') {
+  async function pick(tier: 'map_once_daily' | 'trial', trialDays?: number) {
     setState('sending')
-    await onSend(u, tier)
+    await onSend(u, tier, trialDays)
     setState('idle')
   }
 
@@ -377,7 +377,7 @@ function SendWelcomeButton({ user: u, onSend }: {
         <p className="text-[10px] uppercase tracking-wider text-[#94afd5]">
           Grant tier + send
         </p>
-        <div className="flex gap-1 items-center">
+        <div className="flex flex-wrap gap-1 items-center">
           <button
             onClick={() => pick('map_once_daily')}
             title="One fresh lookup per day, no expiry"
@@ -386,7 +386,14 @@ function SendWelcomeButton({ user: u, onSend }: {
             Map daily
           </button>
           <button
-            onClick={() => pick('trial')}
+            onClick={() => pick('trial', 1)}
+            title="Full mapping access for 1 day — quick prospect demo"
+            className="text-[11px] font-semibold px-2 py-1 rounded border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 transition-colors"
+          >
+            Trial 1d
+          </button>
+          <button
+            onClick={() => pick('trial', 14)}
             title="Full mapping access for 14 days"
             className="text-[11px] font-semibold px-2 py-1 rounded border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition-colors"
           >
