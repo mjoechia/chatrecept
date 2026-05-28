@@ -45,9 +45,10 @@ const TIER_BADGE: Record<Tier, string> = {
 
 export default function AdminPage() {
   const router = useRouter()
-  const [users, setUsers] = useState<ClawsUser[] | null>(null)
-  const [error, setError] = useState('')
+  const [users,   setUsers]   = useState<ClawsUser[] | null>(null)
+  const [error,   setError]   = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const [editing, setEditing] = useState<ClawsUser | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -155,6 +156,17 @@ export default function AdminPage() {
         />
       )}
 
+      {editing && (
+        <EditUserModal
+          user={editing}
+          onClose={() => setEditing(null)}
+          onSaved={updated => {
+            setUsers(prev => prev?.map(x => x.id === updated.id ? { ...x, ...updated } : x) ?? prev)
+            setEditing(null)
+          }}
+        />
+      )}
+
       {pending > 0 && (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <span className="font-semibold">{pending} pending</span> {pending === 1 ? 'user is' : 'users are'} waiting for approval.
@@ -184,7 +196,14 @@ export default function AdminPage() {
             </thead>
             <tbody className="divide-y divide-[#dde8f5]">
               {users.map(u => (
-                <UserRow key={u.id} user={u} onPatch={patchUser} onSendWelcome={sendWelcome} onResetDaily={resetDaily} />
+                <UserRow
+                  key={u.id}
+                  user={u}
+                  onPatch={patchUser}
+                  onSendWelcome={sendWelcome}
+                  onResetDaily={resetDaily}
+                  onEdit={setEditing}
+                />
               ))}
             </tbody>
           </table>
@@ -194,11 +213,12 @@ export default function AdminPage() {
   )
 }
 
-function UserRow({ user: u, onPatch, onSendWelcome, onResetDaily }: {
+function UserRow({ user: u, onPatch, onSendWelcome, onResetDaily, onEdit }: {
   user:          ClawsUser
   onPatch:       (u: ClawsUser, body: { tier?: Tier; trial_days?: number; is_admin?: boolean }) => Promise<void>
   onSendWelcome: (u: ClawsUser, tier: 'map_once_daily' | 'trial', trialDays?: number) => Promise<{ ok: boolean }>
   onResetDaily:  (u: ClawsUser) => Promise<void>
+  onEdit:        (u: ClawsUser) => void
 }) {
   const today = new Date().toISOString().slice(0, 10)
   const todayMaps = u.daily_map_day === today ? u.daily_map_count : 0
@@ -216,6 +236,14 @@ function UserRow({ user: u, onPatch, onSendWelcome, onResetDaily }: {
             <span className="text-[9px] font-bold tracking-widest text-[#8a6d00] bg-[#fef3c7] border border-[#fde68a] px-1.5 py-0.5 rounded uppercase">
               Master
             </span>
+          )}
+          {!u.is_master && (
+            <button
+              onClick={() => onEdit(u)}
+              className="text-[10px] text-[#94afd5] hover:text-[#006092] hover:underline"
+            >
+              Edit
+            </button>
           )}
         </div>
         {u.name && <p className="text-xs text-[#94afd5]">{u.email}</p>}
@@ -585,6 +613,149 @@ function Field({
         className="w-full px-3 py-2.5 rounded-lg text-[#12304f] text-sm outline-none transition-all placeholder:text-[#94afd5] bg-white border border-[#dde8f5] focus:border-[#006092] focus:ring-2 focus:ring-[#006092]/20"
       />
       {hint && <p className="mt-1 text-[11px] text-[#94afd5]">{hint}</p>}
+    </div>
+  )
+}
+
+// Modal for admin to edit a user's identity — Name, Email, WhatsApp
+// number. Email changes update auth.users so the user can still sign in
+// with the new address. Master admin row is non-editable (Edit link not
+// rendered for them in UserRow). Uses PATCH /api/admin/users/:id.
+function EditUserModal({ user, onClose, onSaved }: {
+  user:    ClawsUser
+  onClose: () => void
+  onSaved: (u: ClawsUser) => void
+}) {
+  // Split the stored name on the first space — first word becomes first
+  // name, remainder (if any) becomes last name. Mirrors how AddUserModal
+  // joins them on the way in.
+  const initialFirst = (user.name ?? '').split(' ')[0] ?? ''
+  const initialLast  = (user.name ?? '').split(' ').slice(1).join(' ')
+
+  const [firstName, setFirstName] = useState(initialFirst)
+  const [lastName,  setLastName]  = useState(initialLast)
+  const [email,     setEmail]     = useState(user.email)
+  const [whatsapp,  setWhatsapp]  = useState(user.whatsapp_number ?? '')
+  const [status,    setStatus]    = useState<'idle' | 'loading'>('idle')
+  const [error,     setError]     = useState('')
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    if (!firstName.trim()) return setError('First name is required')
+    if (!email.trim())     return setError('Email is required')
+
+    const name = [firstName.trim(), lastName.trim()].filter(Boolean).join(' ')
+    // Whatsapp: explicit empty string clears (server treats it as null).
+    const waPayload = whatsapp.trim() === '' || whatsapp.trim() === '+65'
+      ? null
+      : whatsapp
+
+    setStatus('loading')
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ name, email, whatsapp_number: waPayload }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setError(json.error ?? `HTTP ${res.status}`)
+        setStatus('idle')
+        return
+      }
+      onSaved(json as ClawsUser)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setStatus('idle')
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl border border-[#dde8f5] shadow-xl w-full max-w-md p-6"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-baseline justify-between mb-4">
+          <h2 className="text-lg font-bold text-[#12304f]">Edit user</h2>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="text-[#94afd5] hover:text-[#425d7f] transition-colors text-xl leading-none"
+          >
+            ×
+          </button>
+        </div>
+
+        <p className="text-xs text-[#94afd5] mb-4 leading-snug">
+          Changes to <span className="font-semibold">Email</span> update the
+          sign-in identity in Supabase Auth. WhatsApp can be cleared by
+          leaving the field blank.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label="First name"
+              type="text"
+              autoComplete="given-name"
+              value={firstName}
+              onChange={e => setFirstName(e.target.value)}
+              required
+              autoFocus
+            />
+            <Field
+              label="Last name"
+              type="text"
+              autoComplete="family-name"
+              value={lastName}
+              onChange={e => setLastName(e.target.value)}
+            />
+          </div>
+          <Field
+            label="Email"
+            type="email"
+            autoComplete="off"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            required
+          />
+          <Field
+            label="WhatsApp number"
+            type="tel"
+            autoComplete="off"
+            inputMode="tel"
+            placeholder="+65 9123 4567"
+            value={whatsapp}
+            onChange={e => setWhatsapp(e.target.value)}
+            hint="Optional — leave blank to clear"
+          />
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={status === 'loading'}
+              className="flex-1 border border-[#dde8f5] text-[#425d7f] hover:bg-[#f3f6ff] px-4 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={status === 'loading'}
+              className="flex-1 bg-[#006092] hover:bg-[#004d75] text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+            >
+              {status === 'loading' ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }
