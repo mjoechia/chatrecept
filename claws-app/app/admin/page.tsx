@@ -200,7 +200,6 @@ function UserRow({ user: u, onPatch, onSendWelcome, onResetDaily }: {
   onSendWelcome: (u: ClawsUser, tier: 'map_once_daily' | 'trial', trialDays?: number) => Promise<{ ok: boolean }>
   onResetDaily:  (u: ClawsUser) => Promise<void>
 }) {
-  const [trialDays, setTrialDays] = useState(14)
   const today = new Date().toISOString().slice(0, 10)
   const todayMaps = u.daily_map_day === today ? u.daily_map_count : 0
 
@@ -233,41 +232,12 @@ function UserRow({ user: u, onPatch, onSendWelcome, onResetDaily }: {
       </td>
 
       <td className="px-4 py-3 align-top">
-        <div className="flex flex-col gap-1.5">
-          <select
-            value={u.tier}
-            disabled={u.is_master}
-            onChange={e => {
-              const tier = e.target.value as Tier
-              onPatch(u, tier === 'trial' ? { tier, trial_days: trialDays } : { tier })
-            }}
-            className={`text-xs rounded-md border px-2 py-1.5 ${TIER_BADGE[u.tier]} ${u.is_master ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-          >
-            <option value="pending">{TIER_LABEL.pending}</option>
-            <option value="none">{TIER_LABEL.none}</option>
-            <option value="map_once_daily">{TIER_LABEL.map_once_daily}</option>
-            <option value="trial">{TIER_LABEL.trial}</option>
-          </select>
-          {u.tier === 'trial' && !u.is_master && (
-            <div className="flex items-center gap-1 text-[11px] text-[#425d7f]">
-              <input
-                type="number"
-                min={1}
-                max={365}
-                value={trialDays}
-                onChange={e => setTrialDays(Number(e.target.value))}
-                className="w-14 border border-[#dde8f5] rounded px-1.5 py-0.5 text-xs font-mono"
-              />
-              <span className="text-[#94afd5]">days</span>
-              <button
-                onClick={() => onPatch(u, { tier: 'trial', trial_days: trialDays })}
-                className="ml-1 text-[10px] font-semibold uppercase tracking-wider text-[#006092] hover:underline"
-              >
-                Set
-              </button>
-            </div>
-          )}
-        </div>
+        {/* Tier is now read-only — set exclusively via Send Welcome /
+            Resend, so there's exactly one path that always notifies the
+            customer. Same TIER_BADGE colouring the select pill had. */}
+        <span className={`text-xs rounded-md border px-2 py-1.5 inline-block ${TIER_BADGE[u.tier]}`}>
+          {TIER_LABEL[u.tier]}
+        </span>
       </td>
 
       <td className="px-4 py-3 align-top text-xs text-[#425d7f]">
