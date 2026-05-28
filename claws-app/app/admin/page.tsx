@@ -471,17 +471,23 @@ function AddUserModal({ onClose, onCreated }: {
   onClose:   () => void
   onCreated: (u: ClawsUser) => void
 }) {
-  const [name,     setName]     = useState('')
-  const [email,    setEmail]    = useState('')
-  const [whatsapp, setWhatsapp] = useState('+65 ')
-  const [status,   setStatus]   = useState<'idle' | 'loading'>('idle')
-  const [error,    setError]    = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName,  setLastName]  = useState('')
+  const [email,     setEmail]     = useState('')
+  const [whatsapp,  setWhatsapp]  = useState('+65 ')
+  const [status,    setStatus]    = useState<'idle' | 'loading'>('idle')
+  const [error,     setError]     = useState('')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    if (!name.trim())  return setError('Name is required')
-    if (!email.trim()) return setError('Email is required')
+    if (!firstName.trim()) return setError('First name is required')
+    if (!email.trim())     return setError('Email is required')
+
+    // Combine into the single `name` column the server already expects.
+    // Last name is optional — trim so single-name entries don't ship a
+    // trailing space.
+    const name = [firstName.trim(), lastName.trim()].filter(Boolean).join(' ')
 
     setStatus('loading')
     try {
@@ -529,15 +535,24 @@ function AddUserModal({ onClose, onCreated }: {
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-3">
-          <Field
-            label="Name"
-            type="text"
-            autoComplete="name"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            required
-            autoFocus
-          />
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label="First name"
+              type="text"
+              autoComplete="given-name"
+              value={firstName}
+              onChange={e => setFirstName(e.target.value)}
+              required
+              autoFocus
+            />
+            <Field
+              label="Last name"
+              type="text"
+              autoComplete="family-name"
+              value={lastName}
+              onChange={e => setLastName(e.target.value)}
+            />
+          </div>
           <Field
             label="Email"
             type="email"
