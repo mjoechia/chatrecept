@@ -14,6 +14,44 @@ function normaliseWhatsApp(raw: string): string {
   return '+' + trimmed.slice(1).replace(/\D/g, '')
 }
 
+// Detects and repairs the half-done state where auth.users has the
+// email but app_claws.users doesn't (e.g. a prior Add User attempt
+// failed mid-flight, leaving an orphan auth row). Returns the now-
+// complete ClawsUser on heal, or null if the auth+claws pair is
+// genuinely complete (i.e. legit duplicate) or no orphan found.
+type ServiceClient = ReturnType<typeof createServiceClient>
+async function healOrphanedAuthUser(
+  svc: ServiceClient,
+  email: string,
+  name: string,
+  whatsappNumber: string | null,
+): Promise<ClawsUser | null> {
+  // Find the matching auth.users row. listUsers paginates at 50 rows by
+  // default — fine for current scale; revisit if user count grows.
+  const { data: authList, error: listErr } = await svc.auth.admin.listUsers()
+  if (listErr || !authList?.users) return null
+  const orphan = authList.users.find(u => u.email?.toLowerCase() === email)
+  if (!orphan) return null
+
+  // If app_claws already has a row for this auth user, it's a real
+  // duplicate — don't heal, let the caller surface the original error.
+  const { data: existingClaws } = await svc
+    .from('users')
+    .select('id')
+    .eq('auth_user_id', orphan.id)
+    .maybeSingle()
+  if (existingClaws) return null
+
+  // True orphan. Run the same upsert the happy path uses to seed the
+  // app_claws row from the existing auth identity.
+  return upsertUser({
+    authUserId: orphan.id,
+    email,
+    name,
+    whatsappNumber,
+  })
+}
+
 // GET /api/admin/users — list all claws users (admin only).
 // Sorted pending-first so brand-new users land at the top of the dashboard.
 // is_master is annotated for the UI so it can lock the master row.
@@ -95,8 +133,22 @@ export async function POST(req: NextRequest) {
       : { name, full_name: name },
   })
   if (createErr || !created.user) {
-    // Most common error: duplicate email. Surface verbatim — Supabase's
-    // message is already clear enough for the admin.
+    // Most common path: legit duplicate email. But the same Supabase
+    // error fires when a previous Add-user attempt left an orphaned
+    // auth row (e.g. the app_claws insert failed mid-flight). Try to
+    // self-heal first — look up the auth user, check if app_claws has
+    // them, and if not, finish the half-done creation.
+    if (createErr && /already.+(registered|exists)/i.test(createErr.message)) {
+      const healed = await healOrphanedAuthUser(svc, email, name, wa)
+      if (healed) {
+        return NextResponse.json(
+          { ...healed, is_master: isMasterAdmin(healed.email), self_healed: true },
+          { status: 201 },
+        )
+      }
+      // Heal returned null → both auth and app_claws rows exist → real
+      // duplicate. Fall through to surface the original error verbatim.
+    }
     return NextResponse.json(
       { error: createErr?.message ?? 'Failed to create user' },
       { status: 400 },
