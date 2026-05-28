@@ -64,11 +64,21 @@ export async function POST(req: NextRequest) {
 
   const name  = (body.name ?? '').trim()
   const email = (body.email ?? '').trim().toLowerCase()
-  const wa    = normaliseWhatsApp(body.whatsapp_number ?? '')
+  // WhatsApp is optional. The modal prefills "+65 " as a hint — treat
+  // anything shorter than +<5 digits> as "not provided" so the admin
+  // can leave the default and still create the user.
+  const waNorm = normaliseWhatsApp(body.whatsapp_number ?? '')
+  const hasWa  = waNorm.length >= 6
+  const wa     = hasWa ? waNorm : null
 
-  if (!name)                       return NextResponse.json({ error: 'Name is required' },              { status: 400 })
-  if (!EMAIL_PATTERN.test(email))  return NextResponse.json({ error: 'Valid email is required' },       { status: 400 })
-  if (!WHATSAPP_PATTERN.test(wa))  return NextResponse.json({ error: 'WhatsApp number must include country code, e.g. +65 9123 4567' }, { status: 400 })
+  if (!name)                            return NextResponse.json({ error: 'Name is required' },        { status: 400 })
+  if (!EMAIL_PATTERN.test(email))       return NextResponse.json({ error: 'Valid email is required' }, { status: 400 })
+  if (hasWa && !WHATSAPP_PATTERN.test(waNorm)) {
+    return NextResponse.json(
+      { error: 'WhatsApp number must include country code, e.g. +65 9123 4567 (or leave it blank)' },
+      { status: 400 },
+    )
+  }
 
   const svc = createServiceClient()
 
@@ -80,7 +90,9 @@ export async function POST(req: NextRequest) {
     email,
     password:        randomPassword,
     email_confirm:   true,       // admin has vouched — skip the confirmation email
-    user_metadata:   { name, full_name: name, whatsapp_number: wa },
+    user_metadata:   wa
+      ? { name, full_name: name, whatsapp_number: wa }
+      : { name, full_name: name },
   })
   if (createErr || !created.user) {
     // Most common error: duplicate email. Surface verbatim — Supabase's
@@ -99,7 +111,7 @@ export async function POST(req: NextRequest) {
       authUserId:     created.user.id,
       email,
       name,
-      whatsappNumber: wa,
+      whatsappNumber: wa,  // null when admin left the WhatsApp field blank
     })
     return NextResponse.json({ ...claws, is_master: isMasterAdmin(claws.email) }, { status: 201 })
   } catch (e) {

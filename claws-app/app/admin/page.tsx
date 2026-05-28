@@ -480,9 +480,8 @@ function AddUserModal({ onClose, onCreated }: {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    if (!name.trim())     return setError('Name is required')
-    if (!email.trim())    return setError('Email is required')
-    if (!whatsapp.trim()) return setError('WhatsApp number is required')
+    if (!name.trim())  return setError('Name is required')
+    if (!email.trim()) return setError('Email is required')
 
     setStatus('loading')
     try {
@@ -555,8 +554,7 @@ function AddUserModal({ onClose, onCreated }: {
             placeholder="+65 9123 4567"
             value={whatsapp}
             onChange={e => setWhatsapp(e.target.value)}
-            hint="Include country code"
-            required
+            hint="Optional — include country code if you have it"
           />
 
           {error && <p className="text-sm text-red-600">{error}</p>}
@@ -595,7 +593,7 @@ function Field({
   return (
     <div>
       <label className="block text-xs font-medium mb-1 text-[#425d7f]">
-        {label} <span className="text-[#006092]">*</span>
+        {label} {props.required && <span className="text-[#006092]">*</span>}
       </label>
       <input
         {...props}
