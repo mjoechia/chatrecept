@@ -38,12 +38,13 @@ export async function GET() {
     const policy = evaluateLookupPolicy(claws, { postcode: '', dedupHit: false })
     const limits = getEffectiveLimits(claws)
     const today  = new Date().toISOString().slice(0, 10)
-    const month  = today.slice(0, 7)
 
-    const dailyCount =  claws.daily_map_day   === today ? Number(claws.daily_map_count ?? 0) : 0
-    const spendToday = (claws.spend_day       === today ? Number(claws.spend_today_sgd ?? 0) : 0)
-    const spendMonth = (claws.spend_month     === month ? Number(claws.spend_month_sgd ?? 0) : 0)
+    const dailyCount = claws.daily_map_day === today ? Number(claws.daily_map_count ?? 0) : 0
 
+    // SGD figures are intentionally NOT returned to the client. The
+    // server still evaluates them inside policy.allowed; we just don't
+    // surface the dollar specifics to the user. /admin endpoints have
+    // their own routes for cost visibility.
     return NextResponse.json({
       authenticated:     true,
       email:             claws.email,
@@ -57,17 +58,9 @@ export async function GET() {
       access_reason:     policy.allowed ? null : policy.reason ?? null,
       access_message:    policy.allowed ? null : policy.copy   ?? null,
 
-      // Daily fresh-count
+      // Daily fresh-count (non-monetary, safe to return)
       daily_count:       dailyCount,
       daily_count_max:   limits.dailyCountMax,
-
-      // Daily SGD
-      spend_today_sgd:   spendToday,
-      spend_cap_sgd:     limits.dailySgdMax,
-
-      // Monthly SGD (Phase 1 / Lever 2)
-      spend_month_sgd:   spendMonth,
-      spend_cap_month:   limits.monthlySgdMax,
     })
   } catch (e) {
     console.error('[api/me]', e)

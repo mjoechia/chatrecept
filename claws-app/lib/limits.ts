@@ -58,14 +58,11 @@ export interface PolicyDecision {
   copy?:   string
   status?: 403 | 429
   // Detail values surfaced back to the client so the UI can render
-  // "X / Y today" style breakdowns without re-deriving them.
+  // count-based breakdowns. Intentionally no SGD fields — pricing
+  // detail stays out of user-visible response envelopes.
   detail?: {
-    daily_count?:   number
-    daily_max?:     number
-    daily_sgd?:     number
-    daily_cap_sgd?: number
-    month_sgd?:     number
-    month_cap_sgd?: number
+    daily_count?: number
+    daily_max?:   number
   }
 }
 
@@ -127,35 +124,34 @@ export function evaluateLookupPolicy(
     }
   }
 
-  // Daily SGD (defence layer behind the count cap).
+  // Daily SGD (defence layer behind the count cap). User-facing copy
+  // omits the dollar amount; detail omitted so DevTools can't surface
+  // the figure either.
   const dailySpend = claws.spend_day === today ? Number(claws.spend_today_sgd ?? 0) : 0
   if (dailySpend >= limits.dailySgdMax) {
     return {
       allowed: false, reason: 'daily_sgd', status: 429,
       copy: `Today's data quota's wrapped up. New zones unlock at midnight SGT. Cached zones stay open — keep browsing.`,
-      detail: { daily_sgd: dailySpend, daily_cap_sgd: limits.dailySgdMax },
     }
   }
 
-  // Monthly SGD (the durable ceiling).
+  // Monthly SGD (the durable ceiling). User-facing copy intentionally
+  // omits the dollar amount — pricing detail belongs in /admin only.
   const monthlySpend = claws.spend_month === month ? Number(claws.spend_month_sgd ?? 0) : 0
   if (monthlySpend >= limits.monthlySgdMax) {
     return {
       allowed: false, reason: 'monthly_sgd', status: 429,
-      copy: `This month's mapping budget is wrapped (SGD ${limits.monthlySgdMax}). It refreshes on the 1st. Reply on WhatsApp to extend early.`,
-      detail: { month_sgd: monthlySpend, month_cap_sgd: limits.monthlySgdMax },
+      copy: `This month's mapping is wrapped. It refreshes on the 1st. Reply on WhatsApp to extend early.`,
     }
   }
 
+  // Count-only detail for the "you're fine" path — used nowhere today,
+  // kept minimal so future callers can read N/max without pulling SGD.
   return {
     allowed: true,
     detail: {
-      daily_count:   dailyCount,
-      daily_max:     limits.dailyCountMax,
-      daily_sgd:     dailySpend,
-      daily_cap_sgd: limits.dailySgdMax,
-      month_sgd:     monthlySpend,
-      month_cap_sgd: limits.monthlySgdMax,
+      daily_count: dailyCount,
+      daily_max:   limits.dailyCountMax,
     },
   }
 }

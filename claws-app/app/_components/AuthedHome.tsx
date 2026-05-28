@@ -21,10 +21,6 @@ interface MeResponse {
   can_map?:         boolean
   daily_count?:     number
   daily_count_max?: number
-  spend_today_sgd?: number
-  spend_cap_sgd?:   number
-  spend_month_sgd?: number
-  spend_cap_month?: number
 }
 
 interface RecentSearch {
@@ -563,16 +559,13 @@ export default function AuthedHome() {
 }
 
 // Small status strip shown above the postcode form so users can see, at
-// a glance, what their account currently allows: trial days remaining,
-// fresh-lookup count vs cap, today's SGD spend, monthly SGD progress.
-// Pulls from /api/me — no extra schema needed.
+// a glance, what their account currently allows: trial days remaining
+// and fresh-lookup count vs cap. Pulls from /api/me. Pricing /
+// SGD-burn intentionally omitted — users shouldn't see cost numbers;
+// those live in /admin only.
 function UsageBanner({ me }: { me: MeResponse }) {
   const dailyCount    = me.daily_count     ?? 0
   const dailyCountMax = me.daily_count_max ?? 0
-  const spendToday    = Number(me.spend_today_sgd ?? 0)
-  const dailyCapSgd   = Number(me.spend_cap_sgd   ?? 0)
-  const spendMonth    = Number(me.spend_month_sgd ?? 0)
-  const monthlyCap    = Number(me.spend_cap_month ?? 0)
 
   let primary: { label: string; tone: 'amber' | 'sky' | 'emerald' | 'gray' } | null = null
 
@@ -605,28 +598,14 @@ function UsageBanner({ me }: { me: MeResponse }) {
   }
 
   const hasAccess = me.tier !== 'pending' && me.tier !== 'none'
-  // Monthly progress lights up amber when ≥80% — early visual cue before
-  // the user hits the wall. Below 80% stays muted.
-  const monthlyPct = monthlyCap > 0 ? spendMonth / monthlyCap : 0
-  const monthlyTone = monthlyPct >= 0.8 ? 'text-amber-800 font-semibold' : ''
 
   return (
     <div className={`rounded-xl border px-4 py-2.5 mb-6 shadow-sm ${toneClasses[primary.tone]}`}>
       <div className="flex items-center justify-between gap-3 flex-wrap text-sm">
         <span className="font-medium">{primary.label}</span>
-        {hasAccess && (
-          <span className="text-xs font-mono flex flex-wrap gap-x-3 gap-y-0.5">
-            {dailyCountMax > 0 && (
-              <span>{dailyCount}/{dailyCountMax} today</span>
-            )}
-            {dailyCapSgd > 0 && (
-              <span>SGD {spendToday.toFixed(2)} / {dailyCapSgd.toFixed(0)}</span>
-            )}
-            {monthlyCap > 0 && (
-              <span className={monthlyTone}>
-                SGD {spendMonth.toFixed(0)} / {monthlyCap.toFixed(0)} this month
-              </span>
-            )}
+        {hasAccess && dailyCountMax > 0 && (
+          <span className="text-xs font-mono">
+            {dailyCount}/{dailyCountMax} today
           </span>
         )}
       </div>

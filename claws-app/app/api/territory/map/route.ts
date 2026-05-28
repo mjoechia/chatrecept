@@ -6,10 +6,7 @@ import { scoreBusiness, aggregateZone } from '@/lib/signal-scoring'
 import { generateReport } from '@/lib/demo-report'
 import { cacheGet, cacheSet, ttlForPostal } from '@/lib/cache'
 import { getClientIp } from '@/lib/rate-limit'
-import {
-  isOverBudget, recordLookupSpend, getTodaySpend, getDailyCap,
-  isIpOverBudget, getIpSpend, getIpDailyCap,
-} from '@/lib/spend-tracker'
+import { isOverBudget, recordLookupSpend, isIpOverBudget } from '@/lib/spend-tracker'
 import { requireUser } from '@/lib/admin'
 import { recordUserSpend, consumeDailyMapAttempt } from '@/lib/claws-users'
 import { evaluateLookupPolicy } from '@/lib/limits'
@@ -122,12 +119,12 @@ export async function POST(req: NextRequest) {
   // Each IP gets MAX_DAILY_SPEND_PER_IP_SGD per day. Generous enough that a
   // genuine prospect can try a handful of postal codes; restrictive enough
   // that an abuser hitting 100 codes burns out of their own budget fast.
+  // Response intentionally omits the dollar figures — pricing detail stays
+  // out of user-visible envelopes.
   if (isIpOverBudget(ip)) {
     return NextResponse.json({
       error: "You've used your free demo budget for today. Try a sample zone below, or come back tomorrow.",
       ip_spend_capped: true,
-      ip_cap_sgd:      getIpDailyCap(),
-      ip_spent_sgd:    Number(getIpSpend(ip).toFixed(2)),
     }, { status: 429 })
   }
 
@@ -135,9 +132,7 @@ export async function POST(req: NextRequest) {
   if (isOverBudget()) {
     return NextResponse.json({
       error: 'Our demo is at high demand today — try one of our example zones, or come back tomorrow.',
-      spend_capped:    true,
-      daily_cap_sgd:   getDailyCap(),
-      today_spent_sgd: Number(getTodaySpend().toFixed(2)),
+      spend_capped: true,
     }, { status: 429 })
   }
 
