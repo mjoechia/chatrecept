@@ -7,6 +7,12 @@ export interface WelcomeEmailArgs {
   name:           string | null
   email:          string
   setPasswordUrl: string
+  // Fallback 6-digit OTP — paired with /auth/verify-otp page so the
+  // user has a path when Outlook Safe Links / Defender pre-clicks the
+  // setPasswordUrl and consumes the one-shot token. Codes can't be
+  // auto-clicked, so they survive scanners.
+  emailOtp?:      string | null
+  verifyOtpUrl?:  string  // origin + /auth/verify-otp?email=...
 }
 
 export function buildWelcomeEmail(args: WelcomeEmailArgs): { subject: string; html: string } {
@@ -73,6 +79,42 @@ export function buildWelcomeEmail(args: WelcomeEmailArgs): { subject: string; ht
             </p>
           </td>
         </tr>
+
+        ${args.emailOtp ? `
+        <tr>
+          <td style="padding:20px 32px 0 32px;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+              <tr>
+                <td style="text-align:center;">
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto;">
+                    <tr>
+                      <td style="font-size:11px;color:#94afd5;padding-right:10px;text-transform:uppercase;letter-spacing:1px;">— or —</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:14px 32px 0 32px;">
+            <div style="background-color:#f3f6ff;border:1px solid #dde8f5;border-radius:8px;padding:16px;text-align:center;">
+              <p style="margin:0 0 8px 0;font-size:11px;font-weight:700;color:#94afd5;letter-spacing:2px;text-transform:uppercase;">
+                Link not working? Use this code
+              </p>
+              <p style="margin:0 0 10px 0;font-size:28px;font-weight:700;color:#12304f;font-family:'Courier New',monospace;letter-spacing:6px;">
+                ${escapeHtml(args.emailOtp)}
+              </p>
+              <p style="margin:0;font-size:12px;color:#425d7f;line-height:1.5;">
+                Go to <a href="${escapeHtmlAttr(args.verifyOtpUrl ?? '')}" style="color:#006092;font-weight:600;text-decoration:none;">${args.verifyOtpUrl ? args.verifyOtpUrl.replace(/^https?:\/\//, '') : 'claws.chatrecept.chat/auth/verify-otp'}</a>
+                and enter your email + this 6-digit code.
+              </p>
+            </div>
+          </td>
+        </tr>
+
+        ` : ''}
 
         <tr>
           <td style="padding:24px 24px 4px 24px;">

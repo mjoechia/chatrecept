@@ -94,10 +94,18 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     `&type=recovery` +
     `&next=${encodeURIComponent(setPasswordPath)}`
 
+  // Also surface the 6-digit OTP code Supabase generates alongside the
+  // hashed token. The link can be auto-clicked + consumed by Outlook
+  // Safe Links / Defender / Mimecast / etc. before the real recipient
+  // sees the email; the code can't (it has to be typed). The new
+  // /auth/verify-otp page accepts {email, code} and calls verifyOtp.
+  const verifyOtpUrl = `${origin}/auth/verify-otp?email=${encodeURIComponent(target.email)}`
   const { subject, html } = buildWelcomeEmail({
     name:           target.name,
     email:          target.email,
     setPasswordUrl,
+    emailOtp:       linkData.properties.email_otp ?? null,
+    verifyOtpUrl,
   })
 
   try {
