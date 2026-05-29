@@ -62,49 +62,38 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     ? `${forwardedProto}://${forwardedHost}`
     : new URL(req.url).origin
 
-  // Generate the one-time recovery link. We only need the hashed_token
-  // off it — we'll build our own URL pointing at /auth/callback so the
-  // user lands directly in our app's session flow (the action_link goes
-  // through Supabase's verify endpoint first, which requires a PKCE
-  // code_verifier cookie that doesn't exist for admin-generated links).
-  const setPasswordPath = '/auth/set-password'
+  // Generate the recovery token. We discard the hashed_token / action_link
+  // entirely — those are auto-clickable URLs that get consumed by Outlook
+  // Defender / Safe Links / Mimecast etc. before the human recipient ever
+  // sees the email. The 6-digit email_otp shares the same underlying
+  // token, so once Defender consumes the link the code dies too.
+  //
+  // Solution: keep only the email_otp. The welcome email contains zero
+  // tokenised URLs — just a static link to /auth/verify-otp?email=… (no
+  // token, safe for Defender to pre-fetch) and the printed code (plain
+  // text, can't be auto-clicked).
   const { data: linkData, error: linkErr } = await svc.auth.admin.generateLink({
     type:  'recovery',
     email: target.email,
     options: {
-      // redirectTo is the final destination Supabase puts in the action_link;
-      // we pass /auth/set-password so even if a user clicks an old-style
-      // action_link from a previous build it still ends up in the right place.
-      redirectTo: `${origin}${setPasswordPath}`,
+      redirectTo: `${origin}/auth/set-password`,
     },
   })
-  if (linkErr || !linkData?.properties?.hashed_token) {
+  if (linkErr || !linkData?.properties?.email_otp) {
     return NextResponse.json(
-      { error: `Failed to generate set-password link: ${linkErr?.message ?? 'unknown'}` },
+      { error: `Failed to generate verification code: ${linkErr?.message ?? 'unknown'}` },
       { status: 500 },
     )
   }
 
-  // Build our own URL that points at /auth/callback with the token hash
-  // and type — callback will call verifyOtp (no PKCE) and then redirect
-  // to /auth/set-password.
-  const setPasswordUrl =
-    `${origin}/auth/callback` +
-    `?token_hash=${encodeURIComponent(linkData.properties.hashed_token)}` +
-    `&type=recovery` +
-    `&next=${encodeURIComponent(setPasswordPath)}`
-
-  // Also surface the 6-digit OTP code Supabase generates alongside the
-  // hashed token. The link can be auto-clicked + consumed by Outlook
-  // Safe Links / Defender / Mimecast / etc. before the real recipient
-  // sees the email; the code can't (it has to be typed). The new
-  // /auth/verify-otp page accepts {email, code} and calls verifyOtp.
+  // The only URL in the email body. No token in it; Defender's auto-click
+  // hits a static page with no side effect. User clicks → email param
+  // pre-fills → they type the code → /auth/verify-otp consumes the OTP.
   const verifyOtpUrl = `${origin}/auth/verify-otp?email=${encodeURIComponent(target.email)}`
   const { subject, html } = buildWelcomeEmail({
-    name:           target.name,
-    email:          target.email,
-    setPasswordUrl,
-    emailOtp:       linkData.properties.email_otp ?? null,
+    name:         target.name,
+    email:        target.email,
+    emailOtp:     linkData.properties.email_otp,
     verifyOtpUrl,
   })
 

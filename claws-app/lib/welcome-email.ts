@@ -1,18 +1,25 @@
-// HTML builder for the admin-sent welcome email. Mirrors the Supabase
-// "Confirm signup" template (3-step illustration + brand palette) but
-// targets a one-click set-password link instead of an email-confirmation
-// link, since the admin has already vouched for the user.
+// HTML builder for the admin-sent welcome email.
+//
+// IMPORTANT — this email contains NO tokenised URLs. Earlier versions
+// included a magic-link "Set my password" button containing the
+// hashed_token from Supabase admin.generateLink, but Outlook Safe Links
+// and Microsoft Defender ATP automatically pre-click every URL in
+// incoming email to scan for malware. Because the email_otp (6-digit
+// code) and the hashed_token are two encodings of the same underlying
+// recovery token, Defender's pre-click consumed BOTH paths — the human
+// was then locked out with "invalid or expired".
+//
+// Fix: the only token-bearing thing in the email is the 6-digit code
+// printed as plain text. Defender can't "click" plain text, so the code
+// survives. The primary CTA button is just a plain navigation link to
+// /auth/verify-otp?email=… — a static page Defender can pre-load all
+// day with no side effect.
 
 export interface WelcomeEmailArgs {
-  name:           string | null
-  email:          string
-  setPasswordUrl: string
-  // Fallback 6-digit OTP — paired with /auth/verify-otp page so the
-  // user has a path when Outlook Safe Links / Defender pre-clicks the
-  // setPasswordUrl and consumes the one-shot token. Codes can't be
-  // auto-clicked, so they survive scanners.
-  emailOtp?:      string | null
-  verifyOtpUrl?:  string  // origin + /auth/verify-otp?email=...
+  name:          string | null
+  email:         string
+  emailOtp:      string         // 6-digit code from admin.generateLink
+  verifyOtpUrl:  string         // origin + /auth/verify-otp?email=...
 }
 
 export function buildWelcomeEmail(args: WelcomeEmailArgs): { subject: string; html: string } {
@@ -48,7 +55,8 @@ export function buildWelcomeEmail(args: WelcomeEmailArgs): { subject: string; ht
               ${greeting}
             </h1>
             <p style="margin:0;font-size:15px;line-height:1.5;color:#425d7f;">
-              Your account is ready. Set your password to sign in — the link below logs you in once and lets you pick a password you'll remember.
+              Your account is ready. To set your password, open the page
+              below and type the 6-digit code shown in this email.
             </p>
           </td>
         </tr>
@@ -65,9 +73,25 @@ export function buildWelcomeEmail(args: WelcomeEmailArgs): { subject: string; ht
         </tr>
 
         <tr>
-          <td style="padding:24px 32px 4px 32px;text-align:center;">
-            <a href="${escapeHtmlAttr(args.setPasswordUrl)}" style="display:inline-block;background-color:#006092;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 32px;border-radius:10px;">
-              Set my password →
+          <td style="padding:24px 32px 0 32px;">
+            <div style="background-color:#f3f6ff;border:1px solid #dde8f5;border-radius:8px;padding:20px;text-align:center;">
+              <p style="margin:0 0 8px 0;font-size:11px;font-weight:700;color:#94afd5;letter-spacing:2px;text-transform:uppercase;">
+                Your 6-digit code
+              </p>
+              <p style="margin:0;font-size:32px;font-weight:700;color:#12304f;font-family:'Courier New',monospace;letter-spacing:8px;">
+                ${escapeHtml(args.emailOtp)}
+              </p>
+              <p style="margin:10px 0 0 0;font-size:12px;color:#94afd5;line-height:1.5;">
+                Expires in 24 hours.
+              </p>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:20px 32px 4px 32px;text-align:center;">
+            <a href="${escapeHtmlAttr(args.verifyOtpUrl)}" style="display:inline-block;background-color:#006092;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 32px;border-radius:10px;">
+              Enter code & set password →
             </a>
           </td>
         </tr>
@@ -75,46 +99,10 @@ export function buildWelcomeEmail(args: WelcomeEmailArgs): { subject: string; ht
         <tr>
           <td style="padding:6px 32px 0 32px;text-align:center;">
             <p style="margin:0;font-size:12px;color:#94afd5;line-height:1.5;">
-              Open this link in the same browser to set your password. It expires in 24 hours.
+              Tap the button, type your 6-digit code, then pick a password.
             </p>
           </td>
         </tr>
-
-        ${args.emailOtp ? `
-        <tr>
-          <td style="padding:20px 32px 0 32px;">
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-              <tr>
-                <td style="text-align:center;">
-                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto;">
-                    <tr>
-                      <td style="font-size:11px;color:#94afd5;padding-right:10px;text-transform:uppercase;letter-spacing:1px;">— or —</td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <tr>
-          <td style="padding:14px 32px 0 32px;">
-            <div style="background-color:#f3f6ff;border:1px solid #dde8f5;border-radius:8px;padding:16px;text-align:center;">
-              <p style="margin:0 0 8px 0;font-size:11px;font-weight:700;color:#94afd5;letter-spacing:2px;text-transform:uppercase;">
-                Link not working? Use this code
-              </p>
-              <p style="margin:0 0 10px 0;font-size:28px;font-weight:700;color:#12304f;font-family:'Courier New',monospace;letter-spacing:6px;">
-                ${escapeHtml(args.emailOtp)}
-              </p>
-              <p style="margin:0;font-size:12px;color:#425d7f;line-height:1.5;">
-                Go to <a href="${escapeHtmlAttr(args.verifyOtpUrl ?? '')}" style="color:#006092;font-weight:600;text-decoration:none;">${args.verifyOtpUrl ? args.verifyOtpUrl.replace(/^https?:\/\//, '') : 'claws.chatrecept.chat/auth/verify-otp'}</a>
-                and enter your email + this 6-digit code.
-              </p>
-            </div>
-          </td>
-        </tr>
-
-        ` : ''}
 
         <tr>
           <td style="padding:24px 24px 4px 24px;">
