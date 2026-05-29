@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import TopBarAuth from './TopBarAuth'
+import WelcomeBanner from './WelcomeBanner'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <TopBarAuth />
           </div>
         </div>
+        <WelcomeBanner />
         {children}
       </body>
     </html>

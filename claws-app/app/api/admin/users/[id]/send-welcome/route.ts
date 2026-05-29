@@ -101,7 +101,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   })
 
   try {
-    await sendEmail({ to: target.email, subject, html })
+    // Welcome emails always send from welcome@chatrecept.chat regardless
+    // of the RESEND_FROM_EMAIL default. Keeps the brand consistent and
+    // gives the recipient a sensible Reply-To target.
+    await sendEmail({
+      to:      target.email,
+      subject,
+      html,
+      from:    'JC CLAWs <welcome@chatrecept.chat>',
+    })
   } catch (e) {
     return NextResponse.json(
       { error: `Email send failed: ${e instanceof Error ? e.message : String(e)}` },
