@@ -27,6 +27,12 @@ export function buildWelcomeEmail(args: WelcomeEmailArgs): { subject: string; ht
     ? `Hi ${escapeHtml(args.name)}, welcome to JC CLAWs.`
     : 'Welcome to JC CLAWs.'
 
+  // Derive the literal length from the OTP itself so the copy always
+  // matches what the project's mailer_otp_length setting produced
+  // (currently 8 on this project; if you switch back to 6 or up to 10,
+  // the email reflects it automatically — no code change needed).
+  const codeLength = args.emailOtp.length
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -56,7 +62,7 @@ export function buildWelcomeEmail(args: WelcomeEmailArgs): { subject: string; ht
             </h1>
             <p style="margin:0;font-size:15px;line-height:1.5;color:#425d7f;">
               Your account is ready. To set your password, open the page
-              below and type the verification code shown in this email.
+              below and type the ${codeLength}-digit code shown in this email.
             </p>
           </td>
         </tr>
@@ -76,7 +82,7 @@ export function buildWelcomeEmail(args: WelcomeEmailArgs): { subject: string; ht
           <td style="padding:24px 32px 0 32px;">
             <div style="background-color:#f3f6ff;border:1px solid #dde8f5;border-radius:8px;padding:20px;text-align:center;">
               <p style="margin:0 0 8px 0;font-size:11px;font-weight:700;color:#94afd5;letter-spacing:2px;text-transform:uppercase;">
-                Your verification code
+                Your ${codeLength}-digit code
               </p>
               <p style="margin:0;font-size:32px;font-weight:700;color:#12304f;font-family:'Courier New',monospace;letter-spacing:6px;">
                 ${escapeHtml(args.emailOtp)}
@@ -99,7 +105,7 @@ export function buildWelcomeEmail(args: WelcomeEmailArgs): { subject: string; ht
         <tr>
           <td style="padding:6px 32px 0 32px;text-align:center;">
             <p style="margin:0;font-size:12px;color:#94afd5;line-height:1.5;">
-              Tap the button, type your 6-digit code, then pick a password.
+              Tap the button, type your ${codeLength}-digit code, then pick a password.
             </p>
           </td>
         </tr>
