@@ -56,7 +56,7 @@ export function buildWelcomeEmail(args: WelcomeEmailArgs): { subject: string; ht
             </h1>
             <p style="margin:0;font-size:15px;line-height:1.5;color:#425d7f;">
               Your account is ready. To set your password, open the page
-              below and type the 6-digit code shown in this email.
+              below and type the verification code shown in this email.
             </p>
           </td>
         </tr>
@@ -76,9 +76,9 @@ export function buildWelcomeEmail(args: WelcomeEmailArgs): { subject: string; ht
           <td style="padding:24px 32px 0 32px;">
             <div style="background-color:#f3f6ff;border:1px solid #dde8f5;border-radius:8px;padding:20px;text-align:center;">
               <p style="margin:0 0 8px 0;font-size:11px;font-weight:700;color:#94afd5;letter-spacing:2px;text-transform:uppercase;">
-                Your 6-digit code
+                Your verification code
               </p>
-              <p style="margin:0;font-size:32px;font-weight:700;color:#12304f;font-family:'Courier New',monospace;letter-spacing:8px;">
+              <p style="margin:0;font-size:32px;font-weight:700;color:#12304f;font-family:'Courier New',monospace;letter-spacing:6px;">
                 ${escapeHtml(args.emailOtp)}
               </p>
               <p style="margin:10px 0 0 0;font-size:12px;color:#94afd5;line-height:1.5;">

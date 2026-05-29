@@ -39,8 +39,11 @@ function VerifyOtpInner() {
     e.preventDefault()
     setError('')
 
-    if (!email.trim())            return setError('Email is required')
-    if (!/^\d{6}$/.test(code))    return setError('Enter the 6-digit code from the email')
+    if (!email.trim()) return setError('Email is required')
+    // Supabase OTP length is project-configurable (commonly 6, 8, or
+    // 10). Accept any reasonable digit-only string and let the server
+    // tell us if it's wrong.
+    if (!/^\d{4,10}$/.test(code)) return setError('Enter the verification code from the email')
 
     setStatus('loading')
     const supabase = createClient()
@@ -73,9 +76,8 @@ function VerifyOtpInner() {
       <div className="text-center mb-8">
         <h1 className="text-2xl font-bold text-[#12304f] mb-2">Verify your code</h1>
         <p className="text-sm text-[#425d7f] leading-relaxed">
-          Enter the 6-digit code from your welcome email below. Use this if the
-          {' '}<span className="font-semibold">Set my password</span> button in the email
-          didn&apos;t work for you.
+          Enter the verification code from your welcome email below, then
+          you&apos;ll be sent on to pick a password.
         </p>
       </div>
 
@@ -97,20 +99,20 @@ function VerifyOtpInner() {
 
           <div>
             <label className="block text-xs font-medium mb-1 text-[#425d7f]">
-              6-digit code <span className="text-[#006092]">*</span>
+              Verification code <span className="text-[#006092]">*</span>
             </label>
             <input
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
-              pattern="\d{6}"
-              maxLength={6}
+              pattern="\d{4,10}"
+              maxLength={10}
               value={code}
               onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
-              placeholder="123456"
+              placeholder="from your email"
               required
               autoFocus
-              className="w-full px-3 py-2.5 rounded-lg text-[#12304f] text-2xl font-mono tracking-[0.5em] text-center outline-none transition-all bg-white border border-[#dde8f5] focus:border-[#006092] focus:ring-2 focus:ring-[#006092]/20"
+              className="w-full px-3 py-2.5 rounded-lg text-[#12304f] text-2xl font-mono tracking-[0.4em] text-center outline-none transition-all bg-white border border-[#dde8f5] focus:border-[#006092] focus:ring-2 focus:ring-[#006092]/20"
             />
           </div>
 
