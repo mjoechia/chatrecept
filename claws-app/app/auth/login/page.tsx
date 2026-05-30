@@ -9,36 +9,53 @@ export const dynamic = 'force-dynamic'
 
 // Server-side gate against already-authed visitors. If someone with a
 // live session lands here (old bookmark, accidental click on the header
-// link), bounce them to the dashboard instead of showing a sign-in
-// form they don't need — that was the source of "wait, am I actually
-// signed in?" confusion.
+// link), bounce them to the dashboard instead of showing a sign-in form.
+//
+// CRITICAL: redirect() throws a NEXT_REDIRECT exception that Next.js
+// must be allowed to propagate. If it lands inside a try/catch, the
+// catch silently swallows the redirect and the page renders the form
+// instead. So we do every step that might fail inside try/catches that
+// only set state, then call redirect() at the top level once we know
+// where to go.
 export default async function LoginPage() {
+  let destination: string | null = null
+
   if (authConfigured()) {
+    let userEmail:     string | null = null
+    let authUserId:    string | null = null
+    let userMetadata:  Record<string, unknown> | null = null
+
     try {
       const supabase = await createSessionClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (user?.email) {
-        // upsertUser is the source of truth for is_admin; same lookup
-        // /auth/callback uses to decide the post-login destination.
-        let isAdmin = false
-        try {
-          const claws = await upsertUser({
-            authUserId:     user.id,
-            email:          user.email,
-            name:           (user.user_metadata?.full_name       as string | undefined) ?? null,
-            whatsappNumber: (user.user_metadata?.whatsapp_number as string | undefined) ?? null,
-          })
-          isAdmin = claws.is_admin
-        } catch {
-          // If upsert fails (e.g. migration not applied), fall through to
-          // the safer redirect target — the dashboard, not the admin view.
-        }
-        redirect(isAdmin ? '/admin' : '/')
+        userEmail    = user.email
+        authUserId   = user.id
+        userMetadata = user.user_metadata as Record<string, unknown> | null
       }
     } catch {
-      // Same safe fallback — render the sign-in form below.
+      // Session read failed — render the form below.
+    }
+
+    if (userEmail && authUserId) {
+      let isAdmin = false
+      try {
+        const claws = await upsertUser({
+          authUserId,
+          email:          userEmail,
+          name:           (userMetadata?.full_name       as string | undefined) ?? null,
+          whatsappNumber: (userMetadata?.whatsapp_number as string | undefined) ?? null,
+        })
+        isAdmin = claws.is_admin
+      } catch {
+        // upsert failed (e.g. migration not applied yet) — fall through to
+        // the safer non-admin destination.
+      }
+      destination = isAdmin ? '/admin' : '/'
     }
   }
+
+  if (destination) redirect(destination)
 
   return (
     <main className="min-h-[70vh] max-w-md mx-auto px-6 py-16">
