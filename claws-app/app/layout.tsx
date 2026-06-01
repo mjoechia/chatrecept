@@ -33,6 +33,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <a href="/" className="text-[#425d7f] font-semibold text-sm hover:text-[#12304f] transition-colors">JC CLAWs</a>
           <span className="text-[#dde8f5] font-light text-lg select-none mx-1">·</span>
           <a href="/about" className="text-[#94afd5] text-sm hover:text-[#425d7f] transition-colors">About</a>
+          <span className="text-[#dde8f5] font-light text-lg select-none mx-1">·</span>
+          <a href="/sample" className="text-[#94afd5] text-sm hover:text-[#425d7f] transition-colors">See how it works</a>
           <div className="ml-auto">
             <TopBarAuth />
           </div>
