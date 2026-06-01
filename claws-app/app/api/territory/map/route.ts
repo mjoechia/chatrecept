@@ -160,11 +160,11 @@ export async function POST(req: NextRequest) {
     }, { status: 404 })
   }
 
-  // Enrich the TOP 10 — the UI renders 10 named businesses anyway, and each
-  // Place Details call is the most expensive line item (~SGD 0.023). Dropping
-  // from 20 → 10 cuts per-lookup cost by ~30% (~SGD 0.23) with zero visible
-  // change in the report.
-  const subset = places.slice(0, 10)
+  // Enrich the TOP 20. Each Place Details call is ~SGD 0.023, so per-lookup
+  // cost is ~SGD +0.23 vs the previous 10-cap — accepted in exchange for
+  // doubling the contactable rows shown to the user. UI in TerritoryReportView
+  // renders whatever's returned; no further changes needed downstream.
+  const subset = places.slice(0, 20)
   const tEnrich = Date.now()
   const enriched = await Promise.all(subset.map(async p => {
     const details = await getPlaceDetails(p.place_id)
@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
     const sector = inferSector(details.types)
     return scoreBusiness(details, site, sector)
   }))
-  stage('enrich (parallel x10)', tEnrich)
+  stage('enrich (parallel x20)', tEnrich)
 
   const businesses = enriched.filter(b => b !== null)
   console.log(`[map ${postalCode}] enriched ${businesses.length}/${subset.length}`)

@@ -2,9 +2,24 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import TerritoryReportView from '@/app/_components/TerritoryReportView'
 import type { TerritoryReport } from '@/lib/demo-report'
+
+// Adapts CTA copy + destination based on whether the visitor is signed
+// in. Anonymous → "sign up". Logged-in → "open your dashboard".
+function useAuthState() {
+  const [authed, setAuthed] = useState<boolean | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/me')
+      .then(r => r.json())
+      .then(j => { if (!cancelled) setAuthed(!!j.authenticated) })
+      .catch(() => { if (!cancelled) setAuthed(false) })
+    return () => { cancelled = true }
+  }, [])
+  return authed
+}
 
 // Public sales / storytelling page. Long-scroll, six sections.
 // Hero has a live demo: postcode input calls /api/territory/map with
@@ -28,25 +43,33 @@ const DEMO_ZONES = [
 ]
 
 export default function SamplePage() {
+  const authed = useAuthState()
   return (
     <main className="bg-[#f3f6ff]">
-      <Hero />
+      <Hero authed={authed} />
       <HowItWorks />
       <SampleDashboard />
       <WhoUsesIt />
       <Benefits />
-      <FinalCta />
+      <FinalCta authed={authed} />
     </main>
   )
 }
 
 // ── 1. Hero ────────────────────────────────────────────────────────────
 
-function Hero() {
+function Hero({ authed }: { authed: boolean | null }) {
   const [postcode, setPostcode] = useState('238801')
   const [loading,  setLoading]  = useState(false)
   const [report,   setReport]   = useState<TerritoryReport | null>(null)
   const [error,    setError]    = useState<string | null>(null)
+
+  // CTA copy adapts: anonymous → conversion-focused; logged-in → open-
+  // dashboard, since they're already signed up.
+  const ctaLabel = authed ? 'Open your dashboard →' : 'Get your own zones →'
+  const secondaryLink = authed
+    ? { href: '/?ref=tour',   text: 'Skip the tour, open dashboard →' }
+    : { href: '/?ref=sample', text: 'Or jump straight to signup →' }
 
   async function runDemo(p: string) {
     setError(null); setReport(null)
@@ -137,10 +160,10 @@ function Hero() {
 
         <div className="mt-4 text-center">
           <a
-            href="/?ref=sample"
+            href={secondaryLink.href}
             className="text-xs text-[#006092] hover:underline"
           >
-            Or jump straight to signup →
+            {secondaryLink.text}
           </a>
         </div>
       </div>
@@ -153,10 +176,10 @@ function Hero() {
           <TerritoryReportView report={report} />
           <div className="text-center mt-2 mb-8">
             <a
-              href={`/?p=${report.postal_code}&autorun=1&ref=sample`}
+              href={`/?p=${report.postal_code}&autorun=1&ref=${authed ? 'tour' : 'sample'}`}
               className="inline-block bg-[#006092] text-white px-6 py-3 rounded-lg text-sm font-semibold hover:bg-[#004d75] transition-colors"
             >
-              Get your own zones →
+              {ctaLabel}
             </a>
           </div>
         </div>
@@ -482,7 +505,7 @@ function Benefits() {
 
 // ── 6. Final CTA ───────────────────────────────────────────────────────
 
-function FinalCta() {
+function FinalCta({ authed }: { authed: boolean | null }) {
   const ladder = [
     'Enter a postcode.',
     'Discover nearby businesses.',
@@ -492,11 +515,25 @@ function FinalCta() {
     'Grow revenue.',
   ]
 
+  // Headline + button copy adapt: anonymous gets the conversion-focused
+  // pitch, logged-in users get a "ready when you are" version that goes
+  // straight to the dashboard.
+  const heading = authed
+    ? 'Ready to Map Your Next Zone?'
+    : 'Turn Any Singapore Postcode Into New Business Opportunities'
+  const buttonLabel = authed
+    ? 'Open your dashboard →'
+    : 'Start Prospecting with JC CLAWs Today →'
+  const ctaHref = authed ? '/?ref=tour' : '/?ref=sample'
+  const subtitle = authed
+    ? 'You\'re already signed in — pick a postcode and go.'
+    : 'Free trial. No credit card. Just a Singapore postcode.'
+
   return (
     <section className="bg-[#12304f] text-white py-20">
       <div className="max-w-3xl mx-auto px-6 text-center">
         <h2 className="text-3xl md:text-4xl font-bold mb-6">
-          Turn Any Singapore Postcode Into New Business Opportunities
+          {heading}
         </h2>
         <ul className="text-base text-[#94afd5] mb-8 space-y-1">
           {ladder.map(l => (
@@ -504,13 +541,13 @@ function FinalCta() {
           ))}
         </ul>
         <a
-          href="/?ref=sample"
+          href={ctaHref}
           className="inline-block bg-[#006092] hover:bg-[#0a7ab8] text-white px-8 py-4 rounded-xl text-base font-semibold transition-colors shadow-lg"
         >
-          Start Prospecting with JC CLAWs Today →
+          {buttonLabel}
         </a>
         <p className="text-xs text-[#94afd5] mt-4">
-          Free trial. No credit card. Just a Singapore postcode.
+          {subtitle}
         </p>
       </div>
     </section>

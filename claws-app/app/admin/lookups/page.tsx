@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import AdminTabs from '../AdminTabs'
 
 type Range  = 'today' | '7d' | '30d' | 'all'
 type Status = 'new' | 'contacted' | 'meeting_booked' | 'meeting_done' | 'won' | 'lost' | 'dropped'
@@ -113,10 +114,11 @@ export default function AdminLookupsPage() {
 
   return (
     <main className="max-w-7xl mx-auto px-6 py-12">
-      <div className="flex items-baseline justify-between mb-1">
-        <h1 className="text-2xl font-bold text-[#12304f]">JC CLAWs · Admin · Lookups</h1>
-        <a href="/admin" className="text-sm text-[#006092] hover:underline">← Users</a>
-      </div>
+      <h1 className="text-2xl font-bold text-[#12304f] mb-4">JC CLAWs · Admin</h1>
+
+      <AdminTabs active="lookups" />
+
+      <h2 className="text-lg font-semibold text-[#12304f] mb-1">Lookups</h2>
       <p className="text-sm text-[#425d7f] mb-6">
         Every postcode search, with engagement state. The unlock for everything downstream — repeated zones, sector trends, hook→conversion correlation.
       </p>

@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import AdminTabs from './AdminTabs'
 
 type Tier = 'pending' | 'none' | 'map_once_daily' | 'trial'
 
@@ -128,17 +129,18 @@ export default function AdminPage() {
 
   return (
     <main className="max-w-6xl mx-auto px-6 py-12">
+      <h1 className="text-2xl font-bold text-[#12304f] mb-4">JC CLAWs · Admin</h1>
+
+      <AdminTabs active="users" />
+
       <div className="flex items-baseline justify-between mb-1">
-        <h1 className="text-2xl font-bold text-[#12304f]">JC CLAWs · Admin · Users</h1>
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => setShowAdd(true)}
-            className="text-sm bg-[#006092] hover:bg-[#004d75] text-white px-3 py-1.5 rounded-lg font-semibold transition-colors"
-          >
-            + Add user
-          </button>
-          <a href="/admin/lookups" className="text-sm text-[#006092] hover:underline">Lookups →</a>
-        </div>
+        <h2 className="text-lg font-semibold text-[#12304f]">Users</h2>
+        <button
+          onClick={() => setShowAdd(true)}
+          className="text-sm bg-[#006092] hover:bg-[#004d75] text-white px-3 py-1.5 rounded-lg font-semibold transition-colors"
+        >
+          + Add user
+        </button>
       </div>
       <p className="text-sm text-[#425d7f] mb-6">
         Approve new sign-ins, assign tiers, and grant admin powers. Mapping access depends on tier + admin flag.
