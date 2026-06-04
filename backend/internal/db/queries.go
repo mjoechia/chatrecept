@@ -270,6 +270,54 @@ const (
 		ORDER BY issued_at DESC
 		LIMIT 100`
 
+	// ── Billing: monthly message cap + top-ups ─────────────────────────────────
+	// Phase 1 frontdesk bot. Per-tenant per-month bucket.
+	// See migration 021_chatrecept_kb_and_usage.sql.
+
+	// Read the current month's row + the tenant's plan quota in one round trip.
+	// Returns zero counts if no row exists for this month yet (LEFT JOIN).
+	// $1=tenant_id $2=current month ('YYYY-MM').
+	QueryGetMonthlyUsage = `
+		SELECT
+		    COALESCE(mu.message_count, 0)   AS message_count,
+		    COALESCE(mu.topup_credits, 0)   AS topup_credits,
+		    t.monthly_message_quota         AS quota
+		FROM tenants t
+		LEFT JOIN monthly_usage mu
+		    ON mu.tenant_id = t.id
+		   AND mu.month     = $2
+		WHERE t.id = $1`
+
+	// Atomic increment of the current month's message_count. Upserts the row
+	// if missing. $1=tenant_id $2=month $3=delta (typically 1 or 2).
+	QueryIncrementMonthlyUsage = `
+		INSERT INTO monthly_usage (tenant_id, month, message_count)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (tenant_id, month) DO UPDATE
+		SET message_count = monthly_usage.message_count + EXCLUDED.message_count,
+		    updated_at    = NOW()
+		RETURNING message_count`
+
+	// Add top-up credits to the current month. Same upsert pattern.
+	// $1=tenant_id $2=month $3=credits.
+	QueryApplyMonthlyTopup = `
+		INSERT INTO monthly_usage (tenant_id, month, topup_credits)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (tenant_id, month) DO UPDATE
+		SET topup_credits = monthly_usage.topup_credits + EXCLUDED.topup_credits,
+		    updated_at    = NOW()
+		RETURNING topup_credits`
+
+	// Audit row for a successful Stripe top-up. UNIQUE on stripe_payment_id
+	// makes the insert idempotent — duplicate webhook deliveries return
+	// ErrNoRows on the second attempt and the caller can skip the credit add.
+	// $1=tenant_id $2=stripe_payment_id $3=amount_sgd $4=credits.
+	QueryInsertTopupTransaction = `
+		INSERT INTO topup_transactions (tenant_id, stripe_payment_id, amount_sgd, credits)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (stripe_payment_id) DO NOTHING
+		RETURNING id`
+
 	// ── Dashboard summary ──────────────────────────────────────────────────────
 
 	QueryDashboardSummary = `

@@ -17,6 +17,7 @@ import (
 	"github.com/jc/pabot/internal/adminbot"
 	"github.com/jc/pabot/internal/affiliate"
 	"github.com/jc/pabot/internal/ai"
+	"github.com/jc/pabot/internal/billing"
 	"github.com/jc/pabot/internal/config"
 	"github.com/jc/pabot/internal/webchat"
 	"github.com/jc/pabot/internal/webbot"
@@ -69,6 +70,7 @@ func main() {
 	// ── Services ──────────────────────────────────────────────────────────────
 	tenantSvc := tenants.NewService(database)
 	walletSvc := wallet.NewService(database, cfg.ConversationCreditCost)
+	billingSvc := billing.NewService(database) // frontdesk-bot monthly-message cap + top-ups (Phase 1)
 	convSvc := conversations.NewService(database, walletSvc)
 	claudeSvc := ai.NewClaudeProvider(cfg.AnthropicAPIKey, cfg.AIModel)
 	glmSvc := ai.NewGLMProvider(cfg.ZhipuAPIKey)
@@ -113,7 +115,7 @@ func main() {
 		cfg.StripeSecretKey, cfg.StripeWebhookSecret,
 		cfg.StripeSuccessURL, cfg.StripeCancelURL,
 		walletSvc, affiliateSvc,
-	)
+	).WithBilling(billingSvc)
 
 	// ── Webhook handler ───────────────────────────────────────────────────────
 	webhookHandler := webhook.NewHandler(webhook.HandlerDeps{
