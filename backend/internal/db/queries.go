@@ -318,6 +318,99 @@ const (
 		ON CONFLICT (stripe_payment_id) DO NOTHING
 		RETURNING id`
 
+	// ── Frontdesk bot ─────────────────────────────────────────────────────────
+	// See migration 021_chatrecept_kb_and_usage.sql for the knowledge_base_entries
+	// and tenants column additions used here.
+
+	// Fetch the fields the frontdesk handler needs from the tenant row.
+	// Returns no rows if the tenant doesn't exist or is not active.
+	// $1=tenant_id.
+	QueryGetTenantForFrontdesk = `
+		SELECT company_name,
+		       COALESCE(system_prompt, ''),
+		       COALESCE(low_confidence_threshold, 0.6)
+		FROM tenants
+		WHERE id = $1 AND status = 'active'`
+
+	// Fetch up to 20 KB entries for a tenant, oldest-first per kind so FAQs
+	// come before long docs. Used by assistant.Service to build the augmented
+	// system prompt.
+	// $1=tenant_id.
+	QueryGetKnowledgeBase = `
+		SELECT COALESCE(question, ''), answer
+		FROM knowledge_base_entries
+		WHERE tenant_id = $1
+		ORDER BY kind, created_at
+		LIMIT 20`
+
+	// ── Owner-facing tenant lookup (chatrecept-app) ────────────────────────────
+
+	// Return the tenant owned by the given Supabase auth user. Used by GET
+	// /api/me/tenant in the chatrecept-app dashboard.
+	// $1 = owner_user_id (Supabase auth UUID from JWT sub).
+	QueryGetTenantByOwner = `
+		SELECT id, company_name, COALESCE(system_prompt, ''),
+		       COALESCE(low_confidence_threshold, 0.6),
+		       plan_type, status,
+		       monthly_message_quota
+		FROM tenants
+		WHERE owner_user_id = $1
+		LIMIT 1`
+
+	// Create a new tenant owned by a Supabase user. Called from POST
+	// /api/me/tenant during onboarding.
+	// $1=company_name $2=system_prompt $3=owner_user_id $4=language.
+	QueryCreateTenant = `
+		INSERT INTO tenants (company_name, system_prompt, owner_user_id, language,
+		                     plan_type, status, monthly_message_quota)
+		VALUES ($1, $2, $3, $4, 'free', 'active', 100)
+		RETURNING id, company_name, COALESCE(system_prompt,''),
+		          COALESCE(low_confidence_threshold, 0.6),
+		          plan_type, status, monthly_message_quota`
+
+	// Update tenant settings from the Settings page.
+	// $1=company_name $2=system_prompt $3=low_confidence_threshold $4=owner_user_id.
+	QueryUpdateTenantByOwner = `
+		UPDATE tenants
+		SET company_name              = $1,
+		    system_prompt             = $2,
+		    low_confidence_threshold  = $3
+		WHERE owner_user_id = $4`
+
+	// ── Knowledge base CRUD (chatrecept-app) ───────────────────────────────────
+
+	// List all KB entries for a tenant, ordered for display.
+	// $1=tenant_id.
+	QueryListKBEntries = `
+		SELECT id, kind, COALESCE(question,''), answer, COALESCE(source,'manual'),
+		       created_at
+		FROM knowledge_base_entries
+		WHERE tenant_id = $1
+		ORDER BY kind, created_at`
+
+	// Insert a new KB entry.
+	// $1=tenant_id $2=kind $3=question $4=answer $5=source.
+	QueryInsertKBEntry = `
+		INSERT INTO knowledge_base_entries (tenant_id, kind, question, answer, source)
+		VALUES ($1, $2, NULLIF($3,''), $4, $5)
+		RETURNING id`
+
+	// Update an existing KB entry.
+	// $1=kind $2=question $3=answer $4=id $5=tenant_id (ownership check).
+	QueryUpdateKBEntry = `
+		UPDATE knowledge_base_entries
+		SET kind     = $1,
+		    question = NULLIF($2,''),
+		    answer   = $3,
+		    updated_at = NOW()
+		WHERE id = $4 AND tenant_id = $5`
+
+	// Delete a KB entry scoped to the tenant.
+	// $1=id $2=tenant_id.
+	QueryDeleteKBEntry = `
+		DELETE FROM knowledge_base_entries
+		WHERE id = $1 AND tenant_id = $2`
+
 	// ── Dashboard summary ──────────────────────────────────────────────────────
 
 	QueryDashboardSummary = `

@@ -118,3 +118,18 @@ func (s *Service) createWindow(ctx context.Context, tenantID, userID uuid.UUID, 
 	}
 	return c, nil
 }
+
+// GetOrCreateForWeb returns the active conversation for a web-widget visitor,
+// or creates a new one if none exists (or the existing window has expired).
+// Unlike GetOrCreateWindow, this path does NOT deduct a wallet credit —
+// frontdesk billing is tracked via the monthly_usage table instead.
+func (s *Service) GetOrCreateForWeb(ctx context.Context, tenantID, userID uuid.UUID) (*Conversation, error) {
+	conv, err := s.getActive(ctx, userID, tenantID)
+	if err == nil {
+		return conv, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("get active web conversation: %w", err)
+	}
+	return s.createWindow(ctx, tenantID, userID, "web")
+}

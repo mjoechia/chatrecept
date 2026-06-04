@@ -17,8 +17,10 @@ import (
 	"github.com/jc/pabot/internal/adminbot"
 	"github.com/jc/pabot/internal/affiliate"
 	"github.com/jc/pabot/internal/ai"
+	"github.com/jc/pabot/internal/assistant"
 	"github.com/jc/pabot/internal/billing"
 	"github.com/jc/pabot/internal/config"
+	"github.com/jc/pabot/internal/frontdesk"
 	"github.com/jc/pabot/internal/webchat"
 	"github.com/jc/pabot/internal/webbot"
 	"github.com/jc/pabot/internal/conversations"
@@ -73,11 +75,13 @@ func main() {
 	billingSvc := billing.NewService(database) // frontdesk-bot monthly-message cap + top-ups (Phase 1)
 	convSvc := conversations.NewService(database, walletSvc)
 	claudeSvc := ai.NewClaudeProvider(cfg.AnthropicAPIKey, cfg.AIModel)
+	assistantSvc := assistant.NewService(database, claudeSvc) // KB retrieval + grounded answers for frontdesk bot
 	glmSvc := ai.NewGLMProvider(cfg.ZhipuAPIKey)
 	aiRouter := ai.NewRouter(claudeSvc, glmSvc)
 	waSvc := whatsapp.NewClient()
 	msgSvc := messages.NewService(database)
 	leadSvc := leads.NewService(database, claudeSvc)
+	frontdeskHandler := frontdesk.NewHandler(database, assistantSvc, billingSvc, convSvc, msgSvc)
 	affiliateSvc := affiliate.NewService(database)
 
 	// HTML generator: Gemini 2.5 Flash if key present, Claude fallback otherwise.
@@ -172,6 +176,21 @@ func main() {
 		r.Post("/api/tenants/{id}/wallet/topup", makeTopUpHandler(walletSvc))
 		r.Post("/api/tenants/{id}/stripe/checkout", makeStripeCheckoutHandler(paymentSvc))
 
+		// Frontdesk billing: usage snapshot + monthly-message top-up checkout
+		r.Get("/api/tenants/{id}/billing/usage", frontdesk.BillingUsageHandler(billingSvc))
+		r.Post("/api/tenants/{id}/billing/message-topup", makeMessageTopupCheckoutHandler(paymentSvc))
+
+		// Owner self-service: tenant lookup / creation (chatrecept-app onboarding)
+		r.Get("/api/me/tenant", makeGetMyTenantHandler(database))
+		r.Post("/api/me/tenant", makeCreateTenantHandler(database))
+		r.Patch("/api/me/tenant", makeUpdateMyTenantHandler(database))
+
+		// Knowledge base CRUD (chatrecept-app /knowledge page)
+		r.Get("/api/tenants/{id}/knowledge", makeListKBHandler(database))
+		r.Post("/api/tenants/{id}/knowledge", makeCreateKBEntryHandler(database))
+		r.Put("/api/tenants/{id}/knowledge/{entryId}", makeUpdateKBEntryHandler(database))
+		r.Delete("/api/tenants/{id}/knowledge/{entryId}", makeDeleteKBEntryHandler(database))
+
 		// Affiliate
 		r.Get("/api/tenants/{id}/affiliate", makeAffiliateStatsHandler(affiliateSvc))
 		r.Get("/api/tenants/{id}/affiliate/credits", makeAffiliateCreditsHandler(database))
@@ -198,6 +217,13 @@ func main() {
 			r.With(middleware.RequireAuth(jwks.Keyfunc)).Get("/session", webchatHandler.Session)
 		})
 	}
+
+	// Public: Frontdesk bot — no JWT, widget is embedded on third-party sites.
+	r.Route("/frontdesk/{tenantID}", func(r chi.Router) {
+		r.Use(frontdeskHandler.CORSMiddleware)
+		r.Options("/*", func(w http.ResponseWriter, r *http.Request) {})
+		r.Post("/chat", frontdeskHandler.Chat)
+	})
 
 	// Public: AdminBot Telegram webhook
 	if cfg.TelegramAdminBotToken != "" {
@@ -681,7 +707,48 @@ func makeAnalyticsHandler(database *db.DB) http.HandlerFunc {
 	}
 }
 
-// ── Stripe checkout handler ───────────────────────────────────────────────────
+// ── Stripe checkout handlers ──────────────────────────────────────────────────
+
+// makeMessageTopupCheckoutHandler creates a Stripe checkout session for a
+// monthly-message top-up package (SGD-priced, for the frontdesk bot).
+func makeMessageTopupCheckoutHandler(paymentSvc *payments.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenantID := chi.URLParam(r, "id")
+		if _, err := uuid.Parse(tenantID); err != nil {
+			http.Error(w, "invalid tenant id", http.StatusBadRequest)
+			return
+		}
+
+		var body struct {
+			PackageID string `json:"package_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid body", http.StatusBadRequest)
+			return
+		}
+
+		var pkg payments.MessagePackage
+		for _, p := range payments.MessagePackages {
+			if p.ID == body.PackageID {
+				pkg = p
+				break
+			}
+		}
+		if pkg.ID == "" {
+			http.Error(w, "invalid package_id", http.StatusBadRequest)
+			return
+		}
+
+		url, err := paymentSvc.CreateMessageTopupCheckoutSession(r.Context(), tenantID, pkg)
+		if err != nil {
+			http.Error(w, "checkout failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"url": url})
+	}
+}
 
 func makeStripeCheckoutHandler(paymentSvc *payments.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -838,6 +905,247 @@ func makeRemoveAffiliateCreditHandler(affiliateSvc *affiliate.Service) http.Hand
 		}
 		if err := affiliateSvc.RemoveCredit(r.Context(), creditID, adminID, body.Reason); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	}
+}
+
+// ── Owner self-service + KB CRUD (chatrecept-app) ─────────────────────────────
+
+// tenantResp is the JSON shape returned to the chatrecept-app dashboard.
+type tenantResp struct {
+	ID              string  `json:"id"`
+	CompanyName     string  `json:"company_name"`
+	SystemPrompt    string  `json:"system_prompt"`
+	Threshold       float64 `json:"low_confidence_threshold"`
+	PlanType        string  `json:"plan_type"`
+	Status          string  `json:"status"`
+	MonthlyMsgQuota int     `json:"monthly_message_quota"`
+}
+
+func scanTenantResp(row interface{ Scan(dest ...any) error }) (tenantResp, error) {
+	var t tenantResp
+	err := row.Scan(&t.ID, &t.CompanyName, &t.SystemPrompt, &t.Threshold,
+		&t.PlanType, &t.Status, &t.MonthlyMsgQuota)
+	return t, err
+}
+
+// GET /api/me/tenant
+func makeGetMyTenantHandler(database *db.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ownerID := middleware.UserIDFromClaims(r)
+		if ownerID == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		t, err := scanTenantResp(database.Pool.QueryRow(r.Context(), db.QueryGetTenantByOwner, ownerID))
+		if err != nil {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(t)
+	}
+}
+
+// POST /api/me/tenant — create a tenant during onboarding.
+func makeCreateTenantHandler(database *db.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ownerID := middleware.UserIDFromClaims(r)
+		if ownerID == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		var body struct {
+			CompanyName  string `json:"company_name"`
+			SystemPrompt string `json:"system_prompt"`
+			Language     string `json:"language"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.CompanyName == "" {
+			http.Error(w, "company_name required", http.StatusBadRequest)
+			return
+		}
+		if body.Language == "" {
+			body.Language = "en"
+		}
+		t, err := scanTenantResp(database.Pool.QueryRow(r.Context(), db.QueryCreateTenant,
+			body.CompanyName, body.SystemPrompt, ownerID, body.Language))
+		if err != nil {
+			http.Error(w, "create failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(t)
+	}
+}
+
+// PATCH /api/me/tenant — update settings for the logged-in owner's tenant.
+func makeUpdateMyTenantHandler(database *db.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ownerID := middleware.UserIDFromClaims(r)
+		if ownerID == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		var body struct {
+			CompanyName  string  `json:"company_name"`
+			SystemPrompt string  `json:"system_prompt"`
+			Threshold    float64 `json:"low_confidence_threshold"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.CompanyName == "" {
+			http.Error(w, "company_name required", http.StatusBadRequest)
+			return
+		}
+		if body.Threshold == 0 {
+			body.Threshold = 0.6
+		}
+		if _, err := database.Pool.Exec(r.Context(), db.QueryUpdateTenantByOwner,
+			body.CompanyName, body.SystemPrompt, body.Threshold, ownerID); err != nil {
+			http.Error(w, "update failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	}
+}
+
+type kbEntryResp struct {
+	ID        string `json:"id"`
+	Kind      string `json:"kind"`
+	Question  string `json:"question"`
+	Answer    string `json:"answer"`
+	Source    string `json:"source"`
+	CreatedAt string `json:"created_at"`
+}
+
+// GET /api/tenants/{id}/knowledge
+func makeListKBHandler(database *db.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenantID, err := uuid.Parse(chi.URLParam(r, "id"))
+		if err != nil {
+			http.Error(w, "invalid tenant id", http.StatusBadRequest)
+			return
+		}
+		rows, err := database.Pool.Query(r.Context(), db.QueryListKBEntries, tenantID)
+		if err != nil {
+			http.Error(w, "query failed", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+		results := make([]kbEntryResp, 0)
+		for rows.Next() {
+			var e kbEntryResp
+			var createdAt time.Time
+			if err := rows.Scan(&e.ID, &e.Kind, &e.Question, &e.Answer, &e.Source, &createdAt); err != nil {
+				http.Error(w, "scan failed", http.StatusInternalServerError)
+				return
+			}
+			e.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+			results = append(results, e)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(results)
+	}
+}
+
+// POST /api/tenants/{id}/knowledge
+func makeCreateKBEntryHandler(database *db.DB) http.HandlerFunc {
+	validKinds := map[string]bool{"faq": true, "doc": true, "fact": true}
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenantID, err := uuid.Parse(chi.URLParam(r, "id"))
+		if err != nil {
+			http.Error(w, "invalid tenant id", http.StatusBadRequest)
+			return
+		}
+		var body struct {
+			Kind     string `json:"kind"`
+			Question string `json:"question"`
+			Answer   string `json:"answer"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Answer == "" {
+			http.Error(w, "answer required", http.StatusBadRequest)
+			return
+		}
+		if !validKinds[body.Kind] {
+			body.Kind = "faq"
+		}
+		var id string
+		if err := database.Pool.QueryRow(r.Context(), db.QueryInsertKBEntry,
+			tenantID, body.Kind, body.Question, body.Answer, "manual",
+		).Scan(&id); err != nil {
+			http.Error(w, "insert failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]string{"id": id})
+	}
+}
+
+// PUT /api/tenants/{id}/knowledge/{entryId}
+func makeUpdateKBEntryHandler(database *db.DB) http.HandlerFunc {
+	validKinds := map[string]bool{"faq": true, "doc": true, "fact": true}
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenantID, err := uuid.Parse(chi.URLParam(r, "id"))
+		if err != nil {
+			http.Error(w, "invalid tenant id", http.StatusBadRequest)
+			return
+		}
+		entryID, err := uuid.Parse(chi.URLParam(r, "entryId"))
+		if err != nil {
+			http.Error(w, "invalid entry id", http.StatusBadRequest)
+			return
+		}
+		var body struct {
+			Kind     string `json:"kind"`
+			Question string `json:"question"`
+			Answer   string `json:"answer"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Answer == "" {
+			http.Error(w, "answer required", http.StatusBadRequest)
+			return
+		}
+		if !validKinds[body.Kind] {
+			body.Kind = "faq"
+		}
+		tag, err := database.Pool.Exec(r.Context(), db.QueryUpdateKBEntry,
+			body.Kind, body.Question, body.Answer, entryID, tenantID)
+		if err != nil {
+			http.Error(w, "update failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if tag.RowsAffected() == 0 {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	}
+}
+
+// DELETE /api/tenants/{id}/knowledge/{entryId}
+func makeDeleteKBEntryHandler(database *db.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenantID, err := uuid.Parse(chi.URLParam(r, "id"))
+		if err != nil {
+			http.Error(w, "invalid tenant id", http.StatusBadRequest)
+			return
+		}
+		entryID, err := uuid.Parse(chi.URLParam(r, "entryId"))
+		if err != nil {
+			http.Error(w, "invalid entry id", http.StatusBadRequest)
+			return
+		}
+		tag, err := database.Pool.Exec(r.Context(), db.QueryDeleteKBEntry, entryID, tenantID)
+		if err != nil {
+			http.Error(w, "delete failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if tag.RowsAffected() == 0 {
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
