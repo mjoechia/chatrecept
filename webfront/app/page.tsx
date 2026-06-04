@@ -34,7 +34,7 @@ function Icon({
 
 /* ── Constants ─────────────────────────────────────────────────────────── */
 const SECRETARIAT_URL    = process.env.NEXT_PUBLIC_SECRETARIAT_URL    ?? 'https://corpsec.chatrecept.chat'
-const CHATRECEPT_APP_URL = process.env.NEXT_PUBLIC_CHATRECEPT_APP_URL ?? 'https://app.chatrecept.chat'
+const CHATRECEPT_APP_URL = process.env.NEXT_PUBLIC_CHATRECEPT_APP_URL ?? 'https://frontdesk.chatrecept.chat'
 
 /* ── Data ───────────────────────────────────────────────────────────────── */
 const BENEFITS = [
