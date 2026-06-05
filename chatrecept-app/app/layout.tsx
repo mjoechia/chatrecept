@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import TopBarAuth from './TopBarAuth'
+import IdleSignOut from './IdleSignOut'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </div>
 
+        <IdleSignOut />
         {children}
       </body>
     </html>
