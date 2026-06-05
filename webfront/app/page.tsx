@@ -91,7 +91,8 @@ export default function ComingSoonPage() {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [user, setUser] = useState<User | null>(null);
-  const [secretariatUrl, setSecretariatUrl] = useState<string | null>(null)
+  const [secretariatUrl,  setSecretariatUrl]  = useState<string | null>(null)
+  const [frontdeskUrl,    setFrontdeskUrl]    = useState<string | null>(null)
   const [signupOpen, setSignupOpen] = useState(false);
 
   useEffect(() => {
@@ -106,17 +107,20 @@ export default function ComingSoonPage() {
       setUser(session?.user ?? null)
       if (session?.user) setSignupOpen(false)
       if (session) {
-        const url = `${SECRETARIAT_URL}/auth/set-session#access_token=${session.access_token}&refresh_token=${session.refresh_token}`
-        setSecretariatUrl(url)
+        const tokens = `access_token=${session.access_token}&refresh_token=${session.refresh_token}`
+        setSecretariatUrl(`${SECRETARIAT_URL}/auth/set-session#${tokens}`)
+        setFrontdeskUrl(`${CHATRECEPT_APP_URL}/auth/set-session#${tokens}`)
       } else {
         setSecretariatUrl(null)
+        setFrontdeskUrl(null)
       }
     })
     // Also resolve on initial load
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        const url = `${SECRETARIAT_URL}/auth/set-session#access_token=${session.access_token}&refresh_token=${session.refresh_token}`
-        setSecretariatUrl(url)
+        const tokens = `access_token=${session.access_token}&refresh_token=${session.refresh_token}`
+        setSecretariatUrl(`${SECRETARIAT_URL}/auth/set-session#${tokens}`)
+        setFrontdeskUrl(`${CHATRECEPT_APP_URL}/auth/set-session#${tokens}`)
       }
     })
     return () => subscription.unsubscribe()
@@ -286,15 +290,13 @@ export default function ComingSoonPage() {
                     </div>
                   ))}
                 </div>
-                <a
-                  href={CHATRECEPT_APP_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={() => { window.location.href = frontdeskUrl ?? CHATRECEPT_APP_URL }}
                   className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white transition-colors hover:opacity-90"
                   style={{ background: "linear-gradient(135deg, #16a34a 0%, #22c55e 100%)" }}
                 >
                   Open Frontdesk →
-                </a>
+                </button>
               </div>
 
               {/* AI Secretariat — Coming Soon */}
@@ -724,15 +726,13 @@ export default function ComingSoonPage() {
                   An AI receptionist on your website — answers FAQs, captures leads, and routes enquiries 24/7 from a lightweight chat widget.
                 </p>
               </div>
-              <a
-                href={CHATRECEPT_APP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={() => { window.location.href = frontdeskUrl ?? CHATRECEPT_APP_URL }}
                 className="inline-flex items-center gap-2 font-bold text-sm text-[#16a34a] hover:text-[#15803d] transition-colors self-start"
               >
                 Open dashboard
                 <Icon name="arrow_forward" className="text-[#16a34a]" size={16} />
-              </a>
+              </button>
             </div>
 
             {/* AI Secretariat — Coming Soon */}
