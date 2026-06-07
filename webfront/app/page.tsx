@@ -33,8 +33,11 @@ function Icon({
 }
 
 /* ── Constants ─────────────────────────────────────────────────────────── */
-const SECRETARIAT_URL    = process.env.NEXT_PUBLIC_SECRETARIAT_URL    ?? 'https://corpsec.chatrecept.chat'
-const CHATRECEPT_APP_URL = (process.env.NEXT_PUBLIC_CHATRECEPT_APP_URL ?? 'https://frontdesk.chatrecept.chat').trim()
+// Strip ALL whitespace (not just leading/trailing) so a stray space anywhere
+// in the Railway env var can never produce a "...chat%20/auth" broken link.
+const stripWS = (s: string) => s.replace(/\s/g, '')
+const SECRETARIAT_URL    = stripWS(process.env.NEXT_PUBLIC_SECRETARIAT_URL    ?? 'https://corpsec.chatrecept.chat')
+const CHATRECEPT_APP_URL = stripWS(process.env.NEXT_PUBLIC_CHATRECEPT_APP_URL ?? 'https://frontdesk.chatrecept.chat')
 
 /* ── Data ───────────────────────────────────────────────────────────────── */
 const BENEFITS = [
@@ -132,6 +135,21 @@ export default function ComingSoonPage() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [signupOpen])
+
+  // Build the cross-domain SSO link at click time from the LIVE session, so a
+  // stray pre-computed null (race before getSession resolves) can never send
+  // the user to the token-less login page. Google-signup users have no
+  // password, so landing on the email/password login page would strand them.
+  async function openWithSession(baseUrl: string, fallbackUrl: string) {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      const tokens = `access_token=${session.access_token}&refresh_token=${session.refresh_token}`
+      window.location.href = `${baseUrl}/auth/set-session#${tokens}`
+    } else {
+      // No session — send to the app root; it will gate to its own login.
+      window.location.href = fallbackUrl
+    }
+  }
 
   function handleGoogleLogin() {
     const params = new URLSearchParams(location.search)
@@ -291,7 +309,7 @@ export default function ComingSoonPage() {
                   ))}
                 </div>
                 <button
-                  onClick={() => { window.location.href = frontdeskUrl ?? CHATRECEPT_APP_URL }}
+                  onClick={() => openWithSession(CHATRECEPT_APP_URL, CHATRECEPT_APP_URL)}
                   className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white transition-colors hover:opacity-90"
                   style={{ background: "linear-gradient(135deg, #16a34a 0%, #22c55e 100%)" }}
                 >
@@ -727,7 +745,7 @@ export default function ComingSoonPage() {
                 </p>
               </div>
               <button
-                onClick={() => { window.location.href = frontdeskUrl ?? CHATRECEPT_APP_URL }}
+                onClick={() => openWithSession(CHATRECEPT_APP_URL, CHATRECEPT_APP_URL)}
                 className="inline-flex items-center gap-2 font-bold text-sm text-[#16a34a] hover:text-[#15803d] transition-colors self-start"
               >
                 Open dashboard
