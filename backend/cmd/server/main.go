@@ -20,6 +20,7 @@ import (
 	"github.com/jc/pabot/internal/assistant"
 	"github.com/jc/pabot/internal/billing"
 	"github.com/jc/pabot/internal/config"
+	"github.com/jc/pabot/internal/cron"
 	"github.com/jc/pabot/internal/frontdesk"
 	"github.com/jc/pabot/internal/webchat"
 	"github.com/jc/pabot/internal/webbot"
@@ -82,6 +83,10 @@ func main() {
 	msgSvc := messages.NewService(database)
 	leadSvc := leads.NewService(database, claudeSvc)
 	frontdeskHandler := frontdesk.NewHandler(database, assistantSvc, billingSvc, convSvc, msgSvc)
+
+	// Daily report cron — fires at 09:00 SGT for all active non-free tenants.
+	dailyReport := cron.NewDailyReportService(database, claudeSvc, waSvc)
+	dailyReport.Start(jwksCtx) // shares the jwks context so it stops on shutdown
 	affiliateSvc := affiliate.NewService(database)
 
 	// HTML generator: Gemini 2.5 Flash if key present, Claude fallback otherwise.
@@ -916,19 +921,20 @@ func makeRemoveAffiliateCreditHandler(affiliateSvc *affiliate.Service) http.Hand
 
 // tenantResp is the JSON shape returned to the chatrecept-app dashboard.
 type tenantResp struct {
-	ID              string  `json:"id"`
-	CompanyName     string  `json:"company_name"`
-	SystemPrompt    string  `json:"system_prompt"`
-	Threshold       float64 `json:"low_confidence_threshold"`
-	PlanType        string  `json:"plan_type"`
-	Status          string  `json:"status"`
-	MonthlyMsgQuota int     `json:"monthly_message_quota"`
+	ID                string  `json:"id"`
+	CompanyName       string  `json:"company_name"`
+	SystemPrompt      string  `json:"system_prompt"`
+	Threshold         float64 `json:"low_confidence_threshold"`
+	PlanType          string  `json:"plan_type"`
+	Status            string  `json:"status"`
+	MonthlyMsgQuota   int     `json:"monthly_message_quota"`
+	OwnerReportPhone  string  `json:"owner_report_phone"`
 }
 
 func scanTenantResp(row interface{ Scan(dest ...any) error }) (tenantResp, error) {
 	var t tenantResp
 	err := row.Scan(&t.ID, &t.CompanyName, &t.SystemPrompt, &t.Threshold,
-		&t.PlanType, &t.Status, &t.MonthlyMsgQuota)
+		&t.PlanType, &t.Status, &t.MonthlyMsgQuota, &t.OwnerReportPhone)
 	return t, err
 }
 
@@ -991,9 +997,10 @@ func makeUpdateMyTenantHandler(database *db.DB) http.HandlerFunc {
 			return
 		}
 		var body struct {
-			CompanyName  string  `json:"company_name"`
-			SystemPrompt string  `json:"system_prompt"`
-			Threshold    float64 `json:"low_confidence_threshold"`
+			CompanyName      string  `json:"company_name"`
+			SystemPrompt     string  `json:"system_prompt"`
+			Threshold        float64 `json:"low_confidence_threshold"`
+			OwnerReportPhone string  `json:"owner_report_phone"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.CompanyName == "" {
 			http.Error(w, "company_name required", http.StatusBadRequest)
@@ -1003,7 +1010,8 @@ func makeUpdateMyTenantHandler(database *db.DB) http.HandlerFunc {
 			body.Threshold = 0.6
 		}
 		if _, err := database.Pool.Exec(r.Context(), db.QueryUpdateTenantByOwner,
-			body.CompanyName, body.SystemPrompt, body.Threshold, ownerID); err != nil {
+			body.CompanyName, body.SystemPrompt, body.Threshold,
+			body.OwnerReportPhone, ownerID); err != nil {
 			http.Error(w, "update failed: "+err.Error(), http.StatusInternalServerError)
 			return
 		}

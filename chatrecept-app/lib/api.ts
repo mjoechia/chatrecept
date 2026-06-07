@@ -32,6 +32,7 @@ export type Tenant = {
   plan_type: string
   status: string
   monthly_message_quota: number
+  owner_report_phone: string
 }
 
 export type KBEntry = {
@@ -59,7 +60,8 @@ export type MessagePackage = {
 }
 
 export const MESSAGE_PACKAGES: MessagePackage[] = [
-  { id: 'msg_500',  credits: 500,  price_cents: 1000, label: '500 messages — SGD 10' },
-  { id: 'msg_1100', credits: 1100, price_cents: 2000, label: '1,100 messages — SGD 20 (10% bonus)' },
-  { id: 'msg_3000', credits: 3000, price_cents: 5000, label: '3,000 messages — SGD 50 (20% bonus)' },
+  { id: 'msg_200',  credits:  200, price_cents:  300, label:  '200 messages — $3' },
+  { id: 'msg_500',  credits:  500, price_cents:  700, label:  '500 messages — $7' },
+  { id: 'msg_1500', credits: 1500, price_cents: 1800, label: '1,500 messages — $18' },
+  { id: 'msg_5000', credits: 5000, price_cents: 5000, label: '5,000 messages — $50' },
 ]

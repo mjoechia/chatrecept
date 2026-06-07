@@ -45,3 +45,18 @@ func (s *Service) Store(ctx context.Context, r Record) (uuid.UUID, error) {
 	}
 	return id, nil
 }
+
+// StoreEscalated persists a message and marks it as part of an unresolved
+// escalation. Used by the frontdesk handler when confidence < threshold:
+// both the user's question and the bot's holding reply are flagged so the
+// daily report can surface them to the owner.
+func (s *Service) StoreEscalated(ctx context.Context, tenantID, conversationID uuid.UUID, sender, content string) (uuid.UUID, error) {
+	var id uuid.UUID
+	err := s.db.Pool.QueryRow(ctx, db.QueryInsertEscalatedMessage,
+		tenantID, conversationID, sender, content,
+	).Scan(&id)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("store escalated message: %w", err)
+	}
+	return id, nil
+}

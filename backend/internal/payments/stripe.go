@@ -62,11 +62,12 @@ type MessagePackage struct {
 }
 
 // MessagePackages are the monthly-message top-up options surfaced when a
-// tenant hits their plan quota.
+// tenant hits their plan quota. USD-priced for SG / Vietnam / Taiwan markets.
 var MessagePackages = []MessagePackage{
-	{ID: "msg_500",  Credits: 500,  PriceCents: 1000, Label: "500 messages — SGD 10"},
-	{ID: "msg_1100", Credits: 1100, PriceCents: 2000, Label: "1,100 messages — SGD 20 (10% bonus)"},
-	{ID: "msg_3000", Credits: 3000, PriceCents: 5000, Label: "3,000 messages — SGD 50 (20% bonus)"},
+	{ID: "msg_200",  Credits:  200, PriceCents:  300, Label:  "200 messages — $3"},
+	{ID: "msg_500",  Credits:  500, PriceCents:  700, Label:  "500 messages — $7"},
+	{ID: "msg_1500", Credits: 1500, PriceCents: 1800, Label: "1,500 messages — $18"},
+	{ID: "msg_5000", Credits: 5000, PriceCents: 5000, Label: "5,000 messages — $50"},
 }
 
 type Service struct {
@@ -164,8 +165,8 @@ func (s *Service) CreateMessageTopupCheckoutSession(ctx context.Context, tenantI
 	form.Set("metadata[tenant_id]", tenantID)
 	form.Set("metadata[credits]", strconv.Itoa(pkg.Credits))
 	form.Set("metadata[purpose]", "monthly_messages")
-	form.Set("metadata[amount_sgd]", fmt.Sprintf("%.2f", float64(pkg.PriceCents)/100.0))
-	form.Set("line_items[0][price_data][currency]", "sgd")
+	form.Set("metadata[amount_usd]", fmt.Sprintf("%.2f", float64(pkg.PriceCents)/100.0))
+	form.Set("line_items[0][price_data][currency]", "usd")
 	form.Set("line_items[0][price_data][product_data][name]", fmt.Sprintf("%d ChatRecept Messages", pkg.Credits))
 	form.Set("line_items[0][price_data][product_data][description]", "Monthly message top-up for your AI frontdesk")
 	form.Set("line_items[0][price_data][unit_amount]", strconv.Itoa(pkg.PriceCents))
@@ -232,7 +233,7 @@ func (s *Service) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 					TenantID  string `json:"tenant_id"`
 					Credits   string `json:"credits"`
 					Purpose   string `json:"purpose"`
-					AmountSGD string `json:"amount_sgd"`
+					AmountUSD string `json:"amount_usd"`
 				} `json:"metadata"`
 			} `json:"object"`
 		} `json:"data"`
@@ -261,7 +262,7 @@ func (s *Service) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "billing service not wired", http.StatusServiceUnavailable)
 			return
 		}
-		amountSgd, _ := strconv.ParseFloat(obj.Metadata.AmountSGD, 64)
+		amountSgd, _ := strconv.ParseFloat(obj.Metadata.AmountUSD, 64)
 		if _, err := s.billingSvc.ApplyTopupByIDString(r.Context(),
 			obj.Metadata.TenantID, obj.ID, amountSgd, credits,
 		); err != nil {

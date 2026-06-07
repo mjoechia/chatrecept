@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react'
 import { apiFetch, type Tenant } from '@/lib/api'
 
 export default function SettingsPage() {
-  const [companyName,  setCompanyName]  = useState('')
-  const [systemPrompt, setSystemPrompt] = useState('')
-  const [threshold,    setThreshold]    = useState(0.6)
+  const [companyName,       setCompanyName]       = useState('')
+  const [systemPrompt,      setSystemPrompt]      = useState('')
+  const [threshold,         setThreshold]         = useState(0.6)
+  const [ownerReportPhone,  setOwnerReportPhone]  = useState('')
   const [loading, setLoading] = useState(true)
   const [status,  setStatus]  = useState<'idle' | 'saving' | 'saved'>('idle')
   const [error,   setError]   = useState('')
@@ -17,6 +18,7 @@ export default function SettingsPage() {
         setCompanyName(t.company_name)
         setSystemPrompt(t.system_prompt)
         setThreshold(t.low_confidence_threshold)
+        setOwnerReportPhone(t.owner_report_phone ?? '')
         setLoading(false)
       })
       .catch(() => { window.location.href = '/onboarding' })
@@ -33,6 +35,7 @@ export default function SettingsPage() {
           company_name: companyName,
           system_prompt: systemPrompt,
           low_confidence_threshold: threshold,
+          owner_report_phone: ownerReportPhone,
         }),
       })
       setStatus('saved')
@@ -73,6 +76,23 @@ export default function SettingsPage() {
               placeholder="Leave blank for the default receptionist persona."
               className="w-full px-3 py-2.5 border border-[#E5E7EB] rounded-lg text-sm outline-none focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 resize-none"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-[#374151] mb-1">
+              Daily report WhatsApp number
+            </label>
+            <input
+              type="tel"
+              value={ownerReportPhone}
+              onChange={e => setOwnerReportPhone(e.target.value)}
+              placeholder="+6591234567"
+              className="w-full px-3 py-2.5 border border-[#E5E7EB] rounded-lg text-sm outline-none focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20"
+            />
+            <p className="text-xs text-[#9CA3AF] mt-1">
+              Your personal WhatsApp number. The daily morning report will be sent here.
+              Format: +country code + number (e.g. +6591234567).
+            </p>
           </div>
 
           <div>

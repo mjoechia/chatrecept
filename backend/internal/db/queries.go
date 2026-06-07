@@ -106,6 +106,16 @@ const (
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id`
 
+	// Same as above but also sets is_escalated = true. Used by the frontdesk
+	// handler when confidence < low_confidence_threshold.
+	// $1=tenant_id $2=conversation_id $3=sender $4=content.
+	QueryInsertEscalatedMessage = `
+		INSERT INTO messages (tenant_id, conversation_id, sender, content,
+		                      token_input, token_output, model_used, estimated_cost,
+		                      is_escalated)
+		VALUES ($1, $2, $3, $4, 0, 0, '', 0, true)
+		RETURNING id`
+
 	// ── Wallet ─────────────────────────────────────────────────────────────────
 
 	// Atomic deduction: decrement balance and insert transaction log in one CTE
@@ -352,7 +362,8 @@ const (
 		SELECT id, company_name, COALESCE(system_prompt, ''),
 		       COALESCE(low_confidence_threshold, 0.6),
 		       plan_type, status,
-		       monthly_message_quota
+		       monthly_message_quota,
+		       COALESCE(owner_report_phone, '')
 		FROM tenants
 		WHERE owner_user_id = $1
 		LIMIT 1`
@@ -363,19 +374,22 @@ const (
 	QueryCreateTenant = `
 		INSERT INTO tenants (company_name, system_prompt, owner_user_id, language,
 		                     plan_type, status, monthly_message_quota)
-		VALUES ($1, $2, $3, $4, 'free', 'active', 100)
+		VALUES ($1, $2, $3, $4, 'free', 'active', 50)
 		RETURNING id, company_name, COALESCE(system_prompt,''),
 		          COALESCE(low_confidence_threshold, 0.6),
-		          plan_type, status, monthly_message_quota`
+		          plan_type, status, monthly_message_quota,
+		          COALESCE(owner_report_phone, '')`
 
 	// Update tenant settings from the Settings page.
-	// $1=company_name $2=system_prompt $3=low_confidence_threshold $4=owner_user_id.
+	// $1=company_name $2=system_prompt $3=low_confidence_threshold
+	// $4=owner_report_phone $5=owner_user_id.
 	QueryUpdateTenantByOwner = `
 		UPDATE tenants
 		SET company_name              = $1,
 		    system_prompt             = $2,
-		    low_confidence_threshold  = $3
-		WHERE owner_user_id = $4`
+		    low_confidence_threshold  = $3,
+		    owner_report_phone        = NULLIF($4, '')
+		WHERE owner_user_id = $5`
 
 	// ── Knowledge base CRUD (chatrecept-app) ───────────────────────────────────
 
@@ -410,6 +424,69 @@ const (
 	QueryDeleteKBEntry = `
 		DELETE FROM knowledge_base_entries
 		WHERE id = $1 AND tenant_id = $2`
+
+	// ── Daily report cron ─────────────────────────────────────────────────────
+
+	// Tenants eligible for the daily report: active, non-free plan, report
+	// phone configured. Includes WhatsApp credentials so the cron can send
+	// without a separate tenant lookup.
+	QueryGetTenantsForDailyReport = `
+		SELECT id, company_name, whatsapp_phone_number_id,
+		       meta_access_token_encrypted, plan_type, owner_report_phone,
+		       COALESCE(low_confidence_threshold, 0.6)
+		FROM tenants
+		WHERE status = 'active'
+		  AND plan_type != 'free'
+		  AND owner_report_phone IS NOT NULL
+		  AND owner_report_phone != ''`
+
+	// Yesterday's user messages for a tenant, newest-first, capped at 200 to
+	// keep the Claude prompt bounded. Used to build the daily report content.
+	// $1=tenant_id.
+	QueryGetYesterdayMessages = `
+		SELECT m.sender, m.content, m.is_escalated,
+		       u.phone_number AS visitor_phone
+		FROM messages m
+		JOIN conversations c ON c.id = m.conversation_id
+		JOIN users u ON u.id = c.user_id
+		WHERE m.tenant_id = $1
+		  AND m.created_at >= NOW() AT TIME ZONE 'UTC' - INTERVAL '24 hours'
+		  AND m.created_at <  NOW() AT TIME ZONE 'UTC'
+		ORDER BY m.created_at DESC
+		LIMIT 200`
+
+	// Escalated questions from the last 24h: the user messages that triggered
+	// the "We'll get back to you" holding reply. Used in the Growth+ report
+	// section for suggested replies.
+	// $1=tenant_id.
+	QueryGetYesterdayEscalations = `
+		SELECT m.content AS question, u.phone_number AS visitor_phone
+		FROM messages m
+		JOIN conversations c ON c.id = m.conversation_id
+		JOIN users u ON u.id = c.user_id
+		WHERE m.tenant_id = $1
+		  AND m.sender = 'user'
+		  AND m.is_escalated = true
+		  AND m.created_at >= NOW() AT TIME ZONE 'UTC' - INTERVAL '24 hours'
+		ORDER BY m.created_at DESC
+		LIMIT 20`
+
+	// Quick stats for the report header: total enquiries, escalated count,
+	// monthly usage so far.
+	// $1=tenant_id $2=current month 'YYYY-MM'.
+	QueryGetDailyStats = `
+		SELECT
+		    COUNT(DISTINCT c.id)                                             AS total_convs,
+		    COUNT(DISTINCT c.id) FILTER (WHERE m.is_escalated = true)       AS escalated_convs,
+		    COALESCE(mu.message_count, 0)                                    AS monthly_msgs,
+		    t.monthly_message_quota                                          AS monthly_quota
+		FROM tenants t
+		LEFT JOIN conversations c  ON c.tenant_id = t.id
+		    AND c.created_at >= NOW() AT TIME ZONE 'UTC' - INTERVAL '24 hours'
+		LEFT JOIN messages m       ON m.conversation_id = c.id
+		LEFT JOIN monthly_usage mu ON mu.tenant_id = t.id AND mu.month = $2
+		WHERE t.id = $1
+		GROUP BY mu.message_count, t.monthly_message_quota`
 
 	// ── Dashboard summary ──────────────────────────────────────────────────────
 

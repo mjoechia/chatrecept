@@ -159,25 +159,40 @@ func (h *Handler) Chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Persist user message + bot reply.
-	saveMsg := func(sender, content string) {
+	const holdingMessage = "Thank you for your question! We'll get back to you within 24 hours."
+
+	if result.Escalate {
+		// Mark both the user question and the holding reply as escalated so
+		// the daily report can surface them to the owner for follow-up.
+		_, _ = h.msgSvc.StoreEscalated(ctx, tenantID, conv.ID, "user", req.Message)
+		_, _ = h.msgSvc.StoreEscalated(ctx, tenantID, conv.ID, "bot", holdingMessage)
+	} else {
 		_, _ = h.msgSvc.Store(ctx, messages.Record{
 			TenantID:       tenantID,
 			ConversationID: conv.ID,
-			Sender:         sender,
-			Content:        content,
+			Sender:         "user",
+			Content:        req.Message,
+		})
+		_, _ = h.msgSvc.Store(ctx, messages.Record{
+			TenantID:       tenantID,
+			ConversationID: conv.ID,
+			Sender:         "bot",
+			Content:        result.Answer,
 		})
 	}
-	saveMsg("user", req.Message)
-	saveMsg("bot", result.Answer)
 
 	// Increment monthly usage (1 user + 1 bot = 2 messages per round trip).
 	if _, err := h.billingSvc.IncrementUsage(ctx, tenantID, 2); err != nil {
 		slog.Warn("frontdesk: increment usage", "tenant", tenantID, "err", err)
 	}
 
+	reply := result.Answer
+	if result.Escalate {
+		reply = holdingMessage
+	}
+
 	writeJSON(w, chatResponse{
-		Reply:      result.Answer,
+		Reply:      reply,
 		Confidence: result.Confidence,
 		Escalated:  result.Escalate,
 	})
