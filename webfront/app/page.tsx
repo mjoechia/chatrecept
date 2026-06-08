@@ -39,6 +39,16 @@ const stripWS = (s: string) => s.replace(/\s/g, '')
 const SECRETARIAT_URL    = stripWS(process.env.NEXT_PUBLIC_SECRETARIAT_URL    ?? 'https://corpsec.chatrecept.chat')
 const CHATRECEPT_APP_URL = stripWS(process.env.NEXT_PUBLIC_CHATRECEPT_APP_URL ?? 'https://frontdesk.chatrecept.chat')
 
+// Debug: log constants so we can see env var values in console
+if (typeof window !== 'undefined') {
+  console.log('[webfront constants]', {
+    SECRETARIAT_URL,
+    CHATRECEPT_APP_URL,
+    env_secretariat: process.env.NEXT_PUBLIC_SECRETARIAT_URL,
+    env_frontdesk: process.env.NEXT_PUBLIC_CHATRECEPT_APP_URL,
+  })
+}
+
 /* ── Data ───────────────────────────────────────────────────────────────── */
 const BENEFITS = [
   "Free website via WebsiteBot on Telegram — instant",
@@ -141,12 +151,29 @@ export default function ComingSoonPage() {
   // the user to the token-less login page. Google-signup users have no
   // password, so landing on the email/password login page would strand them.
   async function openWithSession(baseUrl: string, fallbackUrl: string) {
+    // Validate base URL is not empty (catches misconfiguration)
+    const cleanBase = (baseUrl || '').trim()
+    if (!cleanBase) {
+      console.error('openWithSession: baseUrl is empty, using fallback', { baseUrl, fallbackUrl })
+      window.location.href = fallbackUrl
+      return
+    }
+
     const { data: { session } } = await supabase.auth.getSession()
     if (session) {
-      const tokens = `access_token=${session.access_token}&refresh_token=${session.refresh_token}`
-      window.location.href = `${baseUrl}/auth/set-session#${tokens}`
+      try {
+        const tokens = `access_token=${session.access_token}&refresh_token=${session.refresh_token}`
+        const url = `${cleanBase}/auth/set-session#${tokens}`
+        // Validate URL is parseable before navigation
+        new URL(url)
+        window.location.href = url
+      } catch (err) {
+        console.error('openWithSession: invalid URL constructed', { cleanBase, err })
+        window.location.href = fallbackUrl
+      }
     } else {
       // No session — send to the app root; it will gate to its own login.
+      console.warn('openWithSession: no session, using fallback', { fallbackUrl })
       window.location.href = fallbackUrl
     }
   }
