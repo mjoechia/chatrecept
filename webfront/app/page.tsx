@@ -163,9 +163,12 @@ export default function ComingSoonPage() {
     if (session) {
       try {
         const tokens = `access_token=${session.access_token}&refresh_token=${session.refresh_token}`
-        const url = `${cleanBase}/auth/set-session#${tokens}`
+        // Remove trailing slash and any remaining whitespace to be bulletproof
+        const baseNormalized = cleanBase.replace(/\/+$/, '').replace(/\s+/g, '')
+        const url = `${baseNormalized}/auth/set-session#${tokens}`
         // Validate URL is parseable before navigation
         new URL(url)
+        console.log('openWithSession: navigating to', { baseNormalized, url })
         window.location.href = url
       } catch (err) {
         console.error('openWithSession: invalid URL constructed', { cleanBase, err })
