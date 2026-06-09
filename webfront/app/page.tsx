@@ -33,11 +33,14 @@ function Icon({
 }
 
 /* ── Constants ─────────────────────────────────────────────────────────── */
-// Strip ALL whitespace (not just leading/trailing) so a stray space anywhere
-// in the Railway env var can never produce a "...chat%20/auth" broken link.
-const stripWS = (s: string) => s.replace(/\s/g, '')
-const SECRETARIAT_URL    = stripWS(process.env.NEXT_PUBLIC_SECRETARIAT_URL    ?? 'https://corpsec.chatrecept.chat')
-const CHATRECEPT_APP_URL = stripWS(process.env.NEXT_PUBLIC_CHATRECEPT_APP_URL ?? 'https://frontdesk.chatrecept.chat')
+// Normalize URLs: trim, remove ALL internal/trailing whitespace, remove trailing slash
+// so a stray space anywhere in the Railway env var can never produce a broken link
+const normalizeUrl = (s: string) => {
+  const trimmed = (s || '').trim()
+  return trimmed.replace(/\s+/g, '').replace(/\/+$/, '')
+}
+const SECRETARIAT_URL    = normalizeUrl(process.env.NEXT_PUBLIC_SECRETARIAT_URL    ?? 'https://corpsec.chatrecept.chat')
+const CHATRECEPT_APP_URL = normalizeUrl(process.env.NEXT_PUBLIC_CHATRECEPT_APP_URL ?? 'https://frontdesk.chatrecept.chat')
 
 // Debug: log constants so we can see env var values in console
 if (typeof window !== 'undefined') {
@@ -151,8 +154,8 @@ export default function ComingSoonPage() {
   // the user to the token-less login page. Google-signup users have no
   // password, so landing on the email/password login page would strand them.
   async function openWithSession(baseUrl: string, fallbackUrl: string) {
-    // Validate base URL is not empty (catches misconfiguration)
-    const cleanBase = (baseUrl || '').trim()
+    // Normalize and validate base URL: trim, strip all whitespace, remove trailing slashes
+    const cleanBase = (baseUrl || '').trim().replace(/\s+/g, '').replace(/\/+$/, '')
     if (!cleanBase) {
       console.error('openWithSession: baseUrl is empty, using fallback', { baseUrl, fallbackUrl })
       window.location.href = fallbackUrl
@@ -163,12 +166,10 @@ export default function ComingSoonPage() {
     if (session) {
       try {
         const tokens = `access_token=${session.access_token}&refresh_token=${session.refresh_token}`
-        // Remove trailing slash and any remaining whitespace to be bulletproof
-        const baseNormalized = cleanBase.replace(/\/+$/, '').replace(/\s+/g, '')
-        const url = `${baseNormalized}/auth/set-session#${tokens}`
+        const url = `${cleanBase}/auth/set-session#${tokens}`
         // Validate URL is parseable before navigation
         new URL(url)
-        console.log('openWithSession: navigating to', { baseNormalized, url })
+        console.log('openWithSession: navigating to', { cleanBase, url })
         window.location.href = url
       } catch (err) {
         console.error('openWithSession: invalid URL constructed', { cleanBase, err })
