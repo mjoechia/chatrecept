@@ -6,19 +6,27 @@ import { buildWelcomeEmail } from '@/lib/welcome-email'
 
 export const dynamic = 'force-dynamic'
 
-type GrantTier = 'map_once_daily' | 'trial'
+type GrantTier = 'map_once_daily' | 'trial' | 'trial_limited'
 
 interface SendWelcomeBody {
-  tier?:       GrantTier   // required — admin must elect to lift them out of pending
-  trial_days?: number      // only used when tier='trial', clamped to [1, 365]
+  tier?:                     GrantTier   // required — admin must elect to lift them out of pending
+  trial_days?:               number      // only used when tier='trial', clamped to [1, 365]
+  trial_limited_count?:      number      // only used when tier='trial_limited', clamped to [1, 100]
+  trial_limited_window_days?: number     // only used when tier='trial_limited', clamped to [1, 90]
 }
 
-// POST /api/admin/users/:id/send-welcome { tier, trial_days? }
+// POST /api/admin/users/:id/send-welcome
+// { tier, trial_days?, trial_limited_count?, trial_limited_window_days? }
+//
 // Sends the welcome / set-password email AND lifts the user out of
 // 'pending' tier in the same operation, so they can actually use the app
-// after picking a password. Two valid tier choices: 'map_once_daily'
-// (conservative, no expiry, one fresh lookup/day) or 'trial' (full
-// mapping until trial_ends_at).
+// after picking a password.
+//
+// Tier choices:
+// - 'map_once_daily': one fresh lookup/day, no expiry
+// - 'trial': full mapping access for N days (trial_days, default 14)
+// - 'trial_limited': N lookups over M days (trial_limited_count and
+//   trial_limited_window_days; defaults 10 lookups over 7 days)
 //
 // Non-destructive on the auth side — the user's existing password is
 // only replaced if they click the link and pick a new one. The tier is
@@ -32,14 +40,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   let body: SendWelcomeBody = {}
   try { body = await req.json() } catch { /* empty body — handled below */ }
-  if (body.tier !== 'map_once_daily' && body.tier !== 'trial') {
+  if (body.tier !== 'map_once_daily' && body.tier !== 'trial' && body.tier !== 'trial_limited') {
     return NextResponse.json(
-      { error: 'tier is required (map_once_daily or trial)' },
+      { error: 'tier is required (map_once_daily, trial, or trial_limited)' },
       { status: 400 },
     )
   }
   const grantTier = body.tier
   const trialDays = Math.max(1, Math.min(365, Math.floor(body.trial_days ?? 14)))
+  const trialLimitedCount = Math.max(1, Math.min(100, Math.floor(body.trial_limited_count ?? 10)))
+  const trialLimitedWindowDays = Math.max(1, Math.min(90, Math.floor(body.trial_limited_window_days ?? 7)))
 
   const svc = createServiceClient()
 
@@ -116,21 +126,24 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   // Stamp the send AND grant access in one update so the user isn't left
   // stuck in 'pending' after picking their password. trial_ends_at is
-  // computed when granting trial; cleared otherwise so old trial expiry
-  // dates don't linger when downgrading to map_once_daily.
+  // computed when granting trial; trial_limited_window_start is computed
+  // when granting trial_limited. Both cleared otherwise.
   const updates: Record<string, unknown> = {
     welcome_sent_at: new Date().toISOString(),
     tier:            grantTier,
     trial_ends_at:   grantTier === 'trial'
       ? new Date(Date.now() + trialDays * 86400000).toISOString()
       : null,
+    trial_limited_count_max:    grantTier === 'trial_limited' ? trialLimitedCount : null,
+    trial_limited_window_days:  grantTier === 'trial_limited' ? trialLimitedWindowDays : null,
+    trial_limited_window_start: grantTier === 'trial_limited' ? new Date().toISOString() : null,
     daily_map_count: 0,
     daily_map_day:   null,
     updated_at:      new Date().toISOString(),
   }
-  // Reset monthly SGD bucket on trial grant only — gives the user a fresh
-  // SGD 150 month aligned to the customer-conversation moment.
-  if (grantTier === 'trial') {
+  // Reset monthly SGD bucket on trial/trial_limited grant — gives user
+  // fresh SGD 150 month aligned to the customer-conversation moment.
+  if (grantTier === 'trial' || grantTier === 'trial_limited') {
     updates.spend_month_sgd = 0
   }
 

@@ -3,26 +3,29 @@
 
 import { createServiceClient } from './supabase'
 
-export type Tier = 'pending' | 'none' | 'map_once_daily' | 'trial'
+export type Tier = 'pending' | 'none' | 'map_once_daily' | 'trial' | 'trial_limited'
 
 export interface ClawsUser {
-  id:               string
-  auth_user_id:     string
-  email:            string
-  name:             string | null
-  whatsapp_number:  string | null
-  tier:             Tier
-  trial_ends_at:    string | null
-  daily_map_count:  number
-  daily_map_day:    string | null
-  is_admin:         boolean
-  spend_today_sgd:  number
-  spend_day:        string | null
-  spend_month_sgd:  number
-  spend_month:      string | null      // 'YYYY-MM'
-  welcome_sent_at:  string | null
-  created_at:       string
-  updated_at:       string
+  id:                         string
+  auth_user_id:               string
+  email:                      string
+  name:                       string | null
+  whatsapp_number:            string | null
+  tier:                       Tier
+  trial_ends_at:              string | null
+  daily_map_count:            number
+  daily_map_day:              string | null
+  is_admin:                   boolean
+  spend_today_sgd:            number
+  spend_day:                  string | null
+  spend_month_sgd:            number
+  spend_month:                string | null      // 'YYYY-MM'
+  welcome_sent_at:            string | null
+  trial_limited_count_max:    number | null
+  trial_limited_window_days:  number | null
+  trial_limited_window_start: string | null
+  created_at:                 string
+  updated_at:                 string
 }
 
 // The master admin can never be demoted or have access removed. Set

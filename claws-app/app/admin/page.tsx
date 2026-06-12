@@ -6,26 +6,29 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminTabs from './AdminTabs'
 
-type Tier = 'pending' | 'none' | 'map_once_daily' | 'trial'
+type Tier = 'pending' | 'none' | 'map_once_daily' | 'trial' | 'trial_limited'
 
 interface ClawsUser {
-  id:               string
-  auth_user_id:     string
-  email:            string
-  name:             string | null
-  whatsapp_number:  string | null
-  tier:             Tier
-  trial_ends_at:    string | null
-  daily_map_count:  number
-  daily_map_day:    string | null
-  is_admin:         boolean
-  is_master:        boolean
-  spend_today_sgd:  number
-  spend_day:        string | null
-  spend_month_sgd:  number
-  spend_month:      string | null
-  welcome_sent_at:  string | null
-  created_at:       string
+  id:                         string
+  auth_user_id:               string
+  email:                      string
+  name:                       string | null
+  whatsapp_number:            string | null
+  tier:                       Tier
+  trial_ends_at:              string | null
+  daily_map_count:            number
+  daily_map_day:              string | null
+  is_admin:                   boolean
+  is_master:                  boolean
+  spend_today_sgd:            number
+  spend_day:                  string | null
+  spend_month_sgd:            number
+  spend_month:                string | null
+  welcome_sent_at:            string | null
+  trial_limited_count_max:    number | null
+  trial_limited_window_days:  number | null
+  trial_limited_window_start: string | null
+  created_at:                 string
 }
 
 const MONTHLY_CAP_SGD = Number(process.env.NEXT_PUBLIC_MAX_MONTHLY_SPEND_PER_USER_SGD ?? 150)
@@ -35,6 +38,7 @@ const TIER_LABEL: Record<Tier, string> = {
   none:           'No access',
   map_once_daily: 'Map once daily',
   trial:          'Trial',
+  trial_limited:  'Trial (Limited)',
 }
 
 const TIER_BADGE: Record<Tier, string> = {
@@ -42,6 +46,7 @@ const TIER_BADGE: Record<Tier, string> = {
   none:           'bg-gray-100 text-gray-600 border-gray-200',
   map_once_daily: 'bg-sky-50 text-sky-700 border-sky-200',
   trial:          'bg-emerald-50 text-emerald-700 border-emerald-200',
+  trial_limited:  'bg-purple-50 text-purple-700 border-purple-200',
 }
 
 export default function AdminPage() {
@@ -86,13 +91,25 @@ export default function AdminPage() {
     setUsers(users.map(x => x.id === u.id ? { ...x, ...updated } : x))
   }
 
-  async function sendWelcome(u: ClawsUser, tier: 'map_once_daily' | 'trial', trialDays?: number): Promise<{ ok: boolean }> {
+  async function sendWelcome(
+    u: ClawsUser,
+    tier: 'map_once_daily' | 'trial' | 'trial_limited',
+    trialDays?: number,
+    trialLimitedCount?: number,
+    trialLimitedWindowDays?: number,
+  ): Promise<{ ok: boolean }> {
     if (!users) return { ok: false }
     setError('')
+    const body: Record<string, unknown> = { tier }
+    if (tier === 'trial') body.trial_days = trialDays ?? 14
+    if (tier === 'trial_limited') {
+      body.trial_limited_count = trialLimitedCount ?? 10
+      body.trial_limited_window_days = trialLimitedWindowDays ?? 7
+    }
     const res = await fetch(`/api/admin/users/${u.id}/send-welcome`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ tier, trial_days: tier === 'trial' ? (trialDays ?? 14) : undefined }),
+      body:    JSON.stringify(body),
     })
     if (!res.ok) {
       const j = await res.json().catch(() => ({}))
@@ -103,7 +120,6 @@ export default function AdminPage() {
     if (json.user) {
       setUsers(users.map(x => x.id === u.id ? { ...x, ...json.user! } : x))
     } else {
-      // No row returned but email sent — stamp client-side optimistically
       setUsers(users.map(x => x.id === u.id
         ? { ...x, welcome_sent_at: new Date().toISOString(), tier }
         : x))
@@ -218,7 +234,7 @@ export default function AdminPage() {
 function UserRow({ user: u, onPatch, onSendWelcome, onResetDaily, onEdit }: {
   user:          ClawsUser
   onPatch:       (u: ClawsUser, body: { tier?: Tier; trial_days?: number; is_admin?: boolean }) => Promise<void>
-  onSendWelcome: (u: ClawsUser, tier: 'map_once_daily' | 'trial', trialDays?: number) => Promise<{ ok: boolean }>
+  onSendWelcome: (u: ClawsUser, tier: 'map_once_daily' | 'trial' | 'trial_limited', trialDays?: number, trialLimitedCount?: number, trialLimitedWindowDays?: number) => Promise<{ ok: boolean }>
   onResetDaily:  (u: ClawsUser) => Promise<void>
   onEdit:        (u: ClawsUser) => void
 }) {
@@ -285,6 +301,16 @@ function UserRow({ user: u, onPatch, onSendWelcome, onResetDaily, onEdit }: {
           <span className={trialExpired ? 'text-red-600 font-semibold' : 'text-emerald-700'}>
             {trialExpired ? 'Trial expired' : `Until ${new Date(u.trial_ends_at).toLocaleDateString('en-SG', { day: '2-digit', month: 'short' })}`}
           </span>
+        )}
+        {u.tier === 'trial_limited' && u.trial_limited_window_start && u.trial_limited_window_days && u.trial_limited_count_max && (
+          <div>
+            <span className={new Date(new Date(u.trial_limited_window_start).getTime() + u.trial_limited_window_days * 24 * 60 * 60 * 1000) <= new Date() ? 'text-red-600 font-semibold' : 'text-purple-700'}>
+              {u.trial_limited_count_max} lookups in {u.trial_limited_window_days}d
+            </span>
+            <div className="text-[10px] text-[#94afd5] mt-0.5">
+              Window: {new Date(u.trial_limited_window_start).toLocaleDateString('en-SG', { day: '2-digit', month: 'short' })} → {new Date(new Date(u.trial_limited_window_start).getTime() + u.trial_limited_window_days * 24 * 60 * 60 * 1000).toLocaleDateString('en-SG', { day: '2-digit', month: 'short' })}
+            </div>
+          </div>
         )}
         {Number(u.spend_today_sgd) > 0 && (
           <div className="text-[10px] text-[#94afd5] mt-0.5">
@@ -368,21 +394,69 @@ function ResetDailyButton({ user: u, usedToday, onReset }: {
 
 function SendWelcomeButton({ user: u, onSend }: {
   user:   ClawsUser
-  onSend: (u: ClawsUser, tier: 'map_once_daily' | 'trial', trialDays?: number) => Promise<{ ok: boolean }>
+  onSend: (u: ClawsUser, tier: 'map_once_daily' | 'trial' | 'trial_limited', trialDays?: number, trialLimitedCount?: number, trialLimitedWindowDays?: number) => Promise<{ ok: boolean }>
 }) {
-  const [state, setState] = useState<'idle' | 'choosing' | 'sending'>('idle')
+  const [state, setState] = useState<'idle' | 'choosing' | 'trial_limited_config' | 'sending'>('idle')
+  const [trialLimitedCount, setTrialLimitedCount] = useState('10')
+  const [trialLimitedWindowDays, setTrialLimitedWindowDays] = useState('7')
   const sent = u.welcome_sent_at ? new Date(u.welcome_sent_at) : null
 
-  // Master is locked from any modification (mirrors the tier dropdown / admin
-  // toggle behavior). Resending wouldn't break anything but it's noise.
   if (u.is_master) {
     return <span className="text-[11px] text-[#94afd5]">—</span>
   }
 
-  async function pick(tier: 'map_once_daily' | 'trial', trialDays?: number) {
+  async function pick(tier: 'map_once_daily' | 'trial' | 'trial_limited', trialDays?: number, trialLimitedCount?: number, trialLimitedWindowDays?: number) {
     setState('sending')
-    await onSend(u, tier, trialDays)
+    await onSend(u, tier, trialDays, trialLimitedCount, trialLimitedWindowDays)
     setState('idle')
+  }
+
+  if (state === 'trial_limited_config') {
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="text-[10px] uppercase tracking-wider text-[#94afd5]">
+          Trial Limited Config
+        </p>
+        <div className="flex flex-col gap-1.5">
+          <div>
+            <label className="text-[10px] text-[#94afd5] block mb-0.5">Max lookups</label>
+            <input
+              type="number"
+              min="1"
+              max="100"
+              value={trialLimitedCount}
+              onChange={e => setTrialLimitedCount(e.target.value)}
+              className="w-full px-2 py-1 text-sm rounded border border-purple-200 bg-purple-50"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] text-[#94afd5] block mb-0.5">Window (days)</label>
+            <input
+              type="number"
+              min="1"
+              max="90"
+              value={trialLimitedWindowDays}
+              onChange={e => setTrialLimitedWindowDays(e.target.value)}
+              className="w-full px-2 py-1 text-sm rounded border border-purple-200 bg-purple-50"
+            />
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1 items-center pt-1">
+          <button
+            onClick={() => pick('trial_limited', undefined, Number(trialLimitedCount), Number(trialLimitedWindowDays))}
+            className="text-[11px] font-semibold px-2 py-1 rounded border border-purple-200 bg-purple-50 text-purple-800 hover:bg-purple-100 transition-colors"
+          >
+            Send
+          </button>
+          <button
+            onClick={() => setState('choosing')}
+            className="text-[#94afd5] hover:text-[#425d7f] text-base leading-none px-1"
+          >
+            ← Back
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (state === 'choosing') {
@@ -412,6 +486,13 @@ function SendWelcomeButton({ user: u, onSend }: {
             className="text-[11px] font-semibold px-2 py-1 rounded border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition-colors"
           >
             Trial 14d
+          </button>
+          <button
+            onClick={() => setState('trial_limited_config')}
+            title="Custom lookup limit over N days"
+            className="text-[11px] font-semibold px-2 py-1 rounded border border-purple-200 bg-purple-50 text-purple-800 hover:bg-purple-100 transition-colors"
+          >
+            Trial limited
           </button>
           <button
             onClick={() => setState('idle')}

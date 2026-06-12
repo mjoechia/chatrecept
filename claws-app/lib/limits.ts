@@ -19,11 +19,13 @@ export interface TierLimits {
 // Per-tier defaults. Tunable in code (per-tier shape) + env (the SGD
 // ceilings — single value applies to every non-zero tier). pending/none
 // are zeroed to make blocked tiers explicit in the same shape.
+// trial_limited uses a custom window-based count set per user, not a daily count.
 const TIER_DAILY_COUNT: Record<Tier, number> = {
   pending:        0,
   none:           0,
   map_once_daily: 1,
   trial:          20,
+  trial_limited:  0,  // window-based, not daily
 }
 
 // Admins use the same SGD ceiling but a higher daily count so internal
@@ -48,6 +50,8 @@ export type PolicyReason =
   | 'pending'
   | 'none'
   | 'trial_expired'
+  | 'trial_limited_expired'
+  | 'trial_limited_count'
   | 'daily_count'
   | 'daily_sgd'
   | 'monthly_sgd'
@@ -108,6 +112,38 @@ export function evaluateLookupPolicy(
       return {
         allowed: false, reason: 'trial_expired', status: 403,
         copy: `Your trial wrapped on ${new Date(claws.trial_ends_at).toLocaleDateString('en-SG', { day: '2-digit', month: 'short' })}. Reply on WhatsApp to renew.`,
+      }
+    }
+    // trial_limited: window-based access control
+    if (claws.tier === 'trial_limited') {
+      const windowStart = claws.trial_limited_window_start ? new Date(claws.trial_limited_window_start) : null
+      const windowDays = claws.trial_limited_window_days ?? 0
+      const maxCount = claws.trial_limited_count_max ?? 0
+
+      if (!windowStart || windowDays <= 0 || maxCount <= 0) {
+        return {
+          allowed: false, reason: 'trial_limited_expired', status: 403,
+          copy: 'Your trial access is not properly configured. Reply on WhatsApp for help.',
+        }
+      }
+
+      // Calculate window end: start + days
+      const windowEnd = new Date(windowStart.getTime() + windowDays * 24 * 60 * 60 * 1000)
+      if (now >= windowEnd) {
+        return {
+          allowed: false, reason: 'trial_limited_expired', status: 403,
+          copy: `Your trial access expired on ${windowEnd.toLocaleDateString('en-SG', { day: '2-digit', month: 'short' })}. Reply on WhatsApp to extend.`,
+        }
+      }
+
+      // Check lookup count within window
+      const windowLookups = claws.daily_map_day === today ? Number(claws.daily_map_count ?? 0) : 0
+      if (windowLookups >= maxCount) {
+        return {
+          allowed: false, reason: 'trial_limited_count', status: 429,
+          copy: `You've reached your trial limit of ${maxCount} lookup${maxCount === 1 ? '' : 's'}. New access unlocks on ${windowEnd.toLocaleDateString('en-SG', { day: '2-digit', month: 'short' })}. Reply on WhatsApp to extend early.`,
+          detail: { daily_count: windowLookups, daily_max: maxCount },
+        }
       }
     }
   }
